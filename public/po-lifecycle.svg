@@ -1,0 +1,219 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 980" width="1600" height="980" font-family="Arial, sans-serif">
+  <defs>
+    <marker id="ah" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#94a3b8"/></marker>
+    <marker id="ah-b" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#60a5fa"/></marker>
+    <marker id="ah-o" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#fb923c"/></marker>
+    <marker id="ah-r" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#f87171"/></marker>
+    <marker id="ah-g" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#4ade80"/></marker>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1600" height="980" fill="#0f172a"/>
+
+  <!-- Title -->
+  <text x="800" y="40" text-anchor="middle" fill="#f1f5f9" font-size="22" font-weight="bold">Cycle de vie — Bons de Commande</text>
+
+  <!-- Legend -->
+  <rect x="80" y="58" width="13" height="13" rx="2" fill="#1e3a5f" stroke="#3b82f6" stroke-width="1.5"/>
+  <text x="100" y="69" fill="#94a3b8" font-size="12">Agent BCC</text>
+  <rect x="210" y="58" width="13" height="13" rx="2" fill="#431407" stroke="#f97316" stroke-width="1.5"/>
+  <text x="230" y="69" fill="#94a3b8" font-size="12">Contrepartie</text>
+  <rect x="360" y="58" width="13" height="13" rx="2" fill="#1e293b" stroke="#475569" stroke-width="1.5"/>
+  <text x="380" y="69" fill="#94a3b8" font-size="12">Système</text>
+  <rect x="470" y="58" width="13" height="13" rx="2" fill="#450a0a" stroke="#ef4444" stroke-width="1.5"/>
+  <text x="490" y="69" fill="#94a3b8" font-size="12">Erreur / Annulé</text>
+  <rect x="640" y="58" width="13" height="13" rx="2" fill="#14532d" stroke="#22c55e" stroke-width="1.5"/>
+  <text x="660" y="69" fill="#94a3b8" font-size="12">Succès / Complété</text>
+  <line x1="840" y1="64" x2="880" y2="64" stroke="#475569" stroke-width="1.5" stroke-dasharray="5,3"/>
+  <text x="888" y="69" fill="#94a3b8" font-size="12">État optionnel</text>
+
+  <!-- ===== PHASE BANDS ===== -->
+  <rect x="28" y="85" width="230" height="74" rx="6" fill="#1e3a5f" fill-opacity="0.15" stroke="#1e3a5f" stroke-width="1"/>
+  <text x="143" y="100" text-anchor="middle" fill="#3b82f6" font-size="10" font-weight="bold">PHASE 1 · CRÉATION</text>
+
+  <rect x="28" y="232" width="230" height="246" rx="6" fill="#1e3a5f" fill-opacity="0.12" stroke="#1e3a5f" stroke-width="1"/>
+  <text x="143" y="248" text-anchor="middle" fill="#3b82f6" font-size="10" font-weight="bold">PHASE 2 · APPROBATION INTERNE</text>
+
+  <rect x="28" y="554" width="230" height="76" rx="6" fill="#1e3a5f" fill-opacity="0.12" stroke="#1e3a5f" stroke-width="1"/>
+  <text x="143" y="570" text-anchor="middle" fill="#3b82f6" font-size="10" font-weight="bold">PHASE 3 · TRANSMISSION</text>
+
+  <rect x="590" y="532" width="230" height="250" rx="6" fill="#431407" fill-opacity="0.18" stroke="#7c2d12" stroke-width="1"/>
+  <text x="705" y="548" text-anchor="middle" fill="#f97316" font-size="10" font-weight="bold">PHASE 4 · RÉPONSE CONTREPARTIE</text>
+
+  <rect x="870" y="532" width="700" height="250" rx="6" fill="#1e293b" fill-opacity="0.3" stroke="#334155" stroke-width="1"/>
+  <text x="1220" y="548" text-anchor="middle" fill="#64748b" font-size="10" font-weight="bold">PHASE 5 · LIVRAISON &amp; RÈGLEMENT</text>
+
+  <!-- ===== NODES ===== -->
+
+  <!-- draft · cx=143, cy=122 -->
+  <rect x="63" y="100" width="160" height="44" rx="8" fill="#1e3a5f" stroke="#3b82f6" stroke-width="2"/>
+  <text x="143" y="114" text-anchor="middle" fill="#93c5fd" font-size="9">Agent BCC</text>
+  <text x="143" y="129" text-anchor="middle" fill="#fff" font-size="13" font-weight="bold">Brouillon</text>
+  <text x="143" y="141" text-anchor="middle" fill="#60a5fa" font-size="9" font-style="italic">draft</text>
+
+  <!-- submitted · cx=143, cy=302 -->
+  <rect x="63" y="280" width="160" height="44" rx="8" fill="#1e3a5f" stroke="#3b82f6" stroke-width="2"/>
+  <text x="143" y="294" text-anchor="middle" fill="#93c5fd" font-size="9">Agent BCC</text>
+  <text x="143" y="309" text-anchor="middle" fill="#fff" font-size="13" font-weight="bold">Soumis</text>
+  <text x="143" y="321" text-anchor="middle" fill="#60a5fa" font-size="9" font-style="italic">submitted</text>
+
+  <!-- pending_compliance · cx=390, cy=302 (dashed) -->
+  <rect x="315" y="258" width="150" height="40" rx="6" fill="#1e293b" stroke="#475569" stroke-width="1.5" stroke-dasharray="5,3"/>
+  <text x="390" y="273" text-anchor="middle" fill="#64748b" font-size="9">Optionnel · Système</text>
+  <text x="390" y="287" text-anchor="middle" fill="#94a3b8" font-size="11" font-weight="bold">Attente Conformité</text>
+  <text x="390" y="299" text-anchor="middle" fill="#475569" font-size="9" font-style="italic">pending_compliance</text>
+
+  <!-- pending_finance · cx=390, cy=360 (dashed) -->
+  <rect x="315" y="338" width="150" height="40" rx="6" fill="#1e293b" stroke="#475569" stroke-width="1.5" stroke-dasharray="5,3"/>
+  <text x="390" y="353" text-anchor="middle" fill="#64748b" font-size="9">Optionnel · Système</text>
+  <text x="390" y="367" text-anchor="middle" fill="#94a3b8" font-size="11" font-weight="bold">Attente Finance</text>
+  <text x="390" y="379" text-anchor="middle" fill="#475569" font-size="9" font-style="italic">pending_finance</text>
+
+  <!-- approved · cx=143, cy=432 -->
+  <rect x="63" y="410" width="160" height="44" rx="8" fill="#14532d" stroke="#22c55e" stroke-width="2"/>
+  <text x="143" y="424" text-anchor="middle" fill="#86efac" font-size="9">Agent BCC</text>
+  <text x="143" y="439" text-anchor="middle" fill="#fff" font-size="13" font-weight="bold">Approuvé</text>
+  <text x="143" y="451" text-anchor="middle" fill="#4ade80" font-size="9" font-style="italic">approved</text>
+
+  <!-- sent_to_counterparty · cx=143, cy=590, w=195 -->
+  <rect x="46" y="568" width="195" height="44" rx="8" fill="#1e3a5f" stroke="#3b82f6" stroke-width="2"/>
+  <text x="143" y="582" text-anchor="middle" fill="#93c5fd" font-size="9">Agent BCC</text>
+  <text x="143" y="597" text-anchor="middle" fill="#fff" font-size="12" font-weight="bold">Transmis à la CP</text>
+  <text x="143" y="609" text-anchor="middle" fill="#60a5fa" font-size="9" font-style="italic">sent_to_counterparty</text>
+
+  <!-- rejected · cx=390, cy=432 -->
+  <rect x="310" y="410" width="160" height="44" rx="8" fill="#450a0a" stroke="#ef4444" stroke-width="2"/>
+  <text x="390" y="424" text-anchor="middle" fill="#fca5a5" font-size="9">Agent BCC</text>
+  <text x="390" y="439" text-anchor="middle" fill="#fff" font-size="13" font-weight="bold">Rejeté</text>
+  <text x="390" y="451" text-anchor="middle" fill="#f87171" font-size="9" font-style="italic">rejected</text>
+
+  <!-- accepted · cx=705, cy=575 -->
+  <rect x="625" y="553" width="160" height="44" rx="8" fill="#14532d" stroke="#22c55e" stroke-width="2"/>
+  <text x="705" y="567" text-anchor="middle" fill="#86efac" font-size="9">Contrepartie</text>
+  <text x="705" y="582" text-anchor="middle" fill="#fff" font-size="13" font-weight="bold">Accepté</text>
+  <text x="705" y="594" text-anchor="middle" fill="#4ade80" font-size="9" font-style="italic">accepted</text>
+
+  <!-- negotiating · cx=705, cy=670 -->
+  <rect x="625" y="648" width="160" height="44" rx="8" fill="#431407" stroke="#f97316" stroke-width="2"/>
+  <text x="705" y="662" text-anchor="middle" fill="#fed7aa" font-size="9">Contrepartie</text>
+  <text x="705" y="677" text-anchor="middle" fill="#fff" font-size="12" font-weight="bold">En négociation</text>
+  <text x="705" y="689" text-anchor="middle" fill="#fb923c" font-size="9" font-style="italic">negotiating</text>
+
+  <!-- declined · cx=705, cy=760 -->
+  <rect x="625" y="738" width="160" height="44" rx="8" fill="#450a0a" stroke="#ef4444" stroke-width="2"/>
+  <text x="705" y="752" text-anchor="middle" fill="#fca5a5" font-size="9">Contrepartie</text>
+  <text x="705" y="767" text-anchor="middle" fill="#fff" font-size="13" font-weight="bold">Décliné</text>
+  <text x="705" y="779" text-anchor="middle" fill="#f87171" font-size="9" font-style="italic">declined</text>
+
+  <!-- in_transit · cx=980, cy=575 -->
+  <rect x="900" y="553" width="160" height="44" rx="8" fill="#1e293b" stroke="#64748b" stroke-width="2"/>
+  <text x="980" y="567" text-anchor="middle" fill="#cbd5e1" font-size="9">Agent BCC</text>
+  <text x="980" y="582" text-anchor="middle" fill="#fff" font-size="13" font-weight="bold">En Transit</text>
+  <text x="980" y="594" text-anchor="middle" fill="#94a3b8" font-size="9" font-style="italic">in_transit</text>
+
+  <!-- delivered · cx=1220, cy=575 -->
+  <rect x="1140" y="553" width="160" height="44" rx="8" fill="#1e293b" stroke="#64748b" stroke-width="2"/>
+  <text x="1220" y="567" text-anchor="middle" fill="#cbd5e1" font-size="9">Système</text>
+  <text x="1220" y="582" text-anchor="middle" fill="#fff" font-size="13" font-weight="bold">Livré</text>
+  <text x="1220" y="594" text-anchor="middle" fill="#94a3b8" font-size="9" font-style="italic">delivered</text>
+
+  <!-- pending_settlement · cx=1220, cy=690, w=185 -->
+  <rect x="1128" y="668" width="185" height="44" rx="8" fill="#1e293b" stroke="#d97706" stroke-width="2"/>
+  <text x="1220" y="682" text-anchor="middle" fill="#fde68a" font-size="9">Système</text>
+  <text x="1220" y="697" text-anchor="middle" fill="#fff" font-size="12" font-weight="bold">Attente Règlement</text>
+  <text x="1220" y="709" text-anchor="middle" fill="#fcd34d" font-size="9" font-style="italic">pending_settlement</text>
+
+  <!-- settled · cx=1220, cy=800 -->
+  <rect x="1140" y="778" width="160" height="44" rx="8" fill="#14532d" stroke="#22c55e" stroke-width="2"/>
+  <text x="1220" y="792" text-anchor="middle" fill="#86efac" font-size="9">Système</text>
+  <text x="1220" y="807" text-anchor="middle" fill="#fff" font-size="13" font-weight="bold">Réglé</text>
+  <text x="1220" y="819" text-anchor="middle" fill="#4ade80" font-size="9" font-style="italic">settled</text>
+
+  <!-- completed · cx=1470, cy=800 -->
+  <rect x="1390" y="778" width="165" height="44" rx="8" fill="#052e16" stroke="#15803d" stroke-width="3"/>
+  <text x="1473" y="792" text-anchor="middle" fill="#bbf7d0" font-size="9">Système</text>
+  <text x="1473" y="807" text-anchor="middle" fill="#fff" font-size="13" font-weight="bold">Terminé ✓</text>
+  <text x="1473" y="819" text-anchor="middle" fill="#86efac" font-size="9" font-style="italic">completed</text>
+
+  <!-- cancelled · cx=390, cy=880 -->
+  <rect x="310" y="858" width="160" height="44" rx="8" fill="#450a0a" stroke="#ef4444" stroke-width="2" stroke-dasharray="6,3"/>
+  <text x="390" y="872" text-anchor="middle" fill="#fca5a5" font-size="9">Agent BCC</text>
+  <text x="390" y="887" text-anchor="middle" fill="#fff" font-size="13" font-weight="bold">Annulé</text>
+  <text x="390" y="899" text-anchor="middle" fill="#f87171" font-size="9" font-style="italic">cancelled</text>
+
+  <!-- ===== ARROWS ===== -->
+
+  <!-- draft → submitted -->
+  <path d="M143,144 L143,280" stroke="#3b82f6" stroke-width="2" fill="none" marker-end="url(#ah-b)"/>
+  <text x="158" y="215" fill="#3b82f6" font-size="10">Soumettre pour approbation</text>
+
+  <!-- submitted → approved -->
+  <path d="M143,324 L143,410" stroke="#3b82f6" stroke-width="2" fill="none" marker-end="url(#ah-b)"/>
+  <text x="158" y="360" fill="#3b82f6" font-size="10">Double approbation</text>
+  <text x="158" y="373" fill="#3b82f6" font-size="10">(OTP + Conformité)</text>
+
+  <!-- optional: submitted → pending_compliance (dashed) -->
+  <path d="M223,302 L315,278" stroke="#475569" stroke-width="1.5" fill="none" stroke-dasharray="4,3" marker-end="url(#ah)"/>
+  <!-- pending_compliance → pending_finance (dashed) -->
+  <path d="M390,298 L390,338" stroke="#475569" stroke-width="1.5" fill="none" stroke-dasharray="4,3" marker-end="url(#ah)"/>
+  <!-- pending_finance → approved (dashed) -->
+  <path d="M340,378 C270,378 223,410 223,432" stroke="#475569" stroke-width="1.5" fill="none" stroke-dasharray="4,3" marker-end="url(#ah-b)"/>
+
+  <!-- approved → sent_to_counterparty -->
+  <path d="M143,454 L143,568" stroke="#3b82f6" stroke-width="2" fill="none" marker-end="url(#ah-b)"/>
+  <text x="158" y="514" fill="#3b82f6" font-size="10">Transmettre à</text>
+  <text x="158" y="527" fill="#3b82f6" font-size="10">la contrepartie</text>
+
+  <!-- submitted → rejected -->
+  <path d="M223,432 L310,432" stroke="#ef4444" stroke-width="2" fill="none" marker-end="url(#ah-r)"/>
+  <text x="267" y="424" text-anchor="middle" fill="#ef4444" font-size="10">Rejeter</text>
+
+  <!-- sent_to_cp → accepted -->
+  <path d="M241,590 C460,590 460,575 625,575" stroke="#f97316" stroke-width="2" fill="none" marker-end="url(#ah-o)"/>
+  <text x="430" y="563" text-anchor="middle" fill="#f97316" font-size="10">Accepter</text>
+
+  <!-- sent_to_cp → negotiating -->
+  <path d="M241,595 C430,595 430,670 625,670" stroke="#f97316" stroke-width="2" fill="none" marker-end="url(#ah-o)"/>
+  <text x="430" y="648" text-anchor="middle" fill="#f97316" font-size="10">Négocier</text>
+
+  <!-- sent_to_cp → declined -->
+  <path d="M241,598 C460,598 460,760 625,760" stroke="#ef4444" stroke-width="2" fill="none" marker-end="url(#ah-r)"/>
+  <text x="430" y="740" text-anchor="middle" fill="#ef4444" font-size="10">Décliner</text>
+
+  <!-- negotiating → submitted (back, dashed orange) -->
+  <path d="M625,670 L30,670 L30,302 L63,302" stroke="#f97316" stroke-width="1.5" fill="none" stroke-dasharray="6,3" marker-end="url(#ah-o)"/>
+  <text x="32" y="490" fill="#f97316" font-size="9">Agent: Modifier</text>
+  <text x="32" y="503" fill="#f97316" font-size="9">&amp; re-soumettre</text>
+
+  <!-- accepted → in_transit -->
+  <path d="M785,575 L900,575" stroke="#3b82f6" stroke-width="2" fill="none" marker-end="url(#ah-b)"/>
+  <text x="843" y="566" text-anchor="middle" fill="#3b82f6" font-size="10">Expédier</text>
+
+  <!-- in_transit → delivered -->
+  <path d="M1060,575 L1140,575" stroke="#64748b" stroke-width="2" fill="none" marker-end="url(#ah)"/>
+  <text x="1100" y="566" text-anchor="middle" fill="#64748b" font-size="10">Réception coffre</text>
+
+  <!-- delivered → pending_settlement -->
+  <path d="M1220,597 L1220,668" stroke="#d97706" stroke-width="2" fill="none" marker-end="url(#ah)"/>
+  <text x="1238" y="636" fill="#d97706" font-size="10">Paiement initié</text>
+
+  <!-- pending_settlement → settled -->
+  <path d="M1220,712 L1220,778" stroke="#22c55e" stroke-width="2" fill="none" marker-end="url(#ah-g)"/>
+  <text x="1238" y="748" fill="#22c55e" font-size="10">Paiement reçu</text>
+
+  <!-- settled → completed -->
+  <path d="M1300,800 L1390,800" stroke="#22c55e" stroke-width="2" fill="none" marker-end="url(#ah-g)"/>
+  <text x="1345" y="792" text-anchor="middle" fill="#22c55e" font-size="10">Clôture</text>
+
+  <!-- submitted → cancelled (dashed) -->
+  <path d="M223,320 C290,320 290,880 310,880" stroke="#ef4444" stroke-width="1.5" fill="none" stroke-dasharray="4,3" marker-end="url(#ah-r)"/>
+
+  <!-- sent_to_cp → cancelled (dashed) -->
+  <path d="M143,612 C143,880 310,880 310,880" stroke="#ef4444" stroke-width="1.5" fill="none" stroke-dasharray="4,3" marker-end="url(#ah-r)"/>
+
+  <!-- Cancelled note -->
+  <text x="205" y="810" fill="#ef4444" font-size="9">Agent: Annuler</text>
+  <text x="205" y="823" fill="#ef4444" font-size="9">(draft, submitted,</text>
+  <text x="205" y="836" fill="#ef4444" font-size="9">sent_to_cp...)</text>
+
+</svg>
