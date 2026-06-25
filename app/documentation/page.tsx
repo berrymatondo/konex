@@ -5,13 +5,22 @@ import { useLanguage } from "@/lib/i18n/language-context";
 import { AppSidebar } from "@/components/app-sidebar";
 import { SidebarProvider } from "@/components/sidebar-provider";
 import { AppHeader } from "@/components/app-header";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { generateDocumentationPDF, generateCahierDesChargesPDF } from "@/lib/pdf-generator";
+import {
+  generateDocumentationPDF,
+  generateCahierDesChargesPDF,
+} from "@/lib/pdf-generator";
 import {
   BookOpen,
   LayoutDashboard,
@@ -49,10 +58,12 @@ import {
 const documentationSections = {
   en: {
     title: "Application Documentation",
-    subtitle: "Complete guide for the Gold Acquisition Platform - Central Bank of DR Congo",
+    subtitle:
+      "Complete guide for the Gold Acquisition Platform - Central Bank of DR Congo",
     overview: {
       title: "Platform Overview",
-      description: "The Gold Acquisition Platform is a comprehensive compliance and trading system designed for central banks to manage gold purchases from artisanal and large-scale mining operations. It implements LBMA Responsible Gold Guidance (RGG) standards and ensures full regulatory compliance.",
+      description:
+        "The Gold Acquisition Platform (GAP) is a comprehensive compliance and trading system designed for central banks to manage gold purchases from artisanal and large-scale mining operations. It implements LBMA Responsible Gold Guidance (RGG) standards and ensures full regulatory compliance.",
       keyFeatures: [
         "Counterparty onboarding with KYC/AML screening",
         "Automated preliminary compliance scoring (US-01)",
@@ -69,10 +80,13 @@ const documentationSections = {
         route: "/",
         icon: LayoutDashboard,
         category: "Main",
-        businessDescription: "The central command center providing real-time visibility into gold acquisition operations. Displays key performance indicators (KPIs) including active counterparties, pending purchase orders, gold in transit, and monthly acquisition volumes. Enables quick decision-making through at-a-glance metrics.",
-        technicalDescription: "Server-side rendered page fetching aggregated data from multiple database tables (counterparties, purchase_orders, assays, settlements). Uses SWR for client-side data refresh. Implements responsive grid layout with Card components for KPI display.",
+        businessDescription:
+          "The central command center providing real-time visibility into gold acquisition operations. Displays key performance indicators (KPIs) including active counterparties, pending purchase orders, gold in transit, and monthly acquisition volumes. Enables quick decision-making through at-a-glance metrics.",
+        technicalDescription:
+          "Server-side rendered page fetching aggregated data from multiple database tables (counterparties, purchase_orders, assays, settlements). Uses SWR for client-side data refresh. Implements responsive grid layout with Card components for KPI display.",
         userStory: "N/A",
-        dataFlow: "API: /api/dashboard → Aggregates from counterparties, purchase_orders, assays tables",
+        dataFlow:
+          "API: /api/dashboard → Aggregates from counterparties, purchase_orders, assays tables",
         permissions: "All authenticated users",
       },
       {
@@ -81,10 +95,13 @@ const documentationSections = {
         route: "/counterparties",
         icon: Users,
         category: "Main",
-        businessDescription: "Master list of all registered gold suppliers (mines, refiners, traders). Shows compliance status, risk level, and screening results for each entity. Supports filtering by status (Active, Pending Review, Pending Screening, Pending Risk Review, Blocked) and search functionality.",
-        technicalDescription: "Client component with SWR data fetching from /api/counterparties. Implements DataTable pattern with sortable columns, pagination, and row actions. Status badges use color-coded system aligned with risk classification.",
+        businessDescription:
+          "Master list of all registered gold suppliers (mines, refiners, traders). Shows compliance status, risk level, and screening results for each entity. Supports filtering by status (Active, Pending Review, Pending Screening, Pending Risk Review, Blocked) and search functionality.",
+        technicalDescription:
+          "Client component with SWR data fetching from /api/counterparties. Implements DataTable pattern with sortable columns, pagination, and row actions. Status badges use color-coded system aligned with risk classification.",
         userStory: "US-01 Screen 3",
-        dataFlow: "API: GET /api/counterparties → counterparties table with JOINs to screening_results, ubos",
+        dataFlow:
+          "API: GET /api/counterparties → counterparties table with JOINs to screening_results, ubos",
         permissions: "Compliance Officer, Risk Manager",
       },
       {
@@ -93,10 +110,13 @@ const documentationSections = {
         route: "/counterparties/[id]",
         icon: Users,
         category: "Main",
-        businessDescription: "Complete 360° view of a single counterparty including legal information, registration details, beneficial owners (UBOs), uploaded documents (certificates, licenses), screening history, and transaction summary. Critical for due diligence reviews.",
-        technicalDescription: "Dynamic route with [id] parameter. Fetches counterparty data with related entities (UBOs, documents, screening_results). Tabbed interface for organized information display. Document viewer supports PDF preview.",
+        businessDescription:
+          "Complete 360° view of a single counterparty including legal information, registration details, beneficial owners (UBOs), uploaded documents (certificates, licenses), screening history, and transaction summary. Critical for due diligence reviews.",
+        technicalDescription:
+          "Dynamic route with [id] parameter. Fetches counterparty data with related entities (UBOs, documents, screening_results). Tabbed interface for organized information display. Document viewer supports PDF preview.",
         userStory: "US-01 Screen 1",
-        dataFlow: "API: GET /api/counterparties/[id] → counterparties + ubos + documents + screening_results",
+        dataFlow:
+          "API: GET /api/counterparties/[id] → counterparties + ubos + documents + screening_results",
         permissions: "Compliance Officer, Risk Manager",
       },
       {
@@ -105,10 +125,13 @@ const documentationSections = {
         route: "/onboarding",
         icon: UserPlus,
         category: "Main",
-        businessDescription: "Multi-step wizard for registering new gold suppliers. Captures: legal entity information, registration numbers, jurisdiction, gold source types (ASM/LSM/Recycled), Ultimate Beneficial Owners with PEP flags, and required compliance documents. Initiates the KYC/AML screening process.",
-        technicalDescription: "Stepper component managing form state across multiple pages. Form validation using Zod schema. File upload with drag-and-drop support. On completion, triggers POST to /api/counterparties creating entity with 'pending_screening' status.",
+        businessDescription:
+          "Multi-step wizard for registering new gold suppliers. Captures: legal entity information, registration numbers, jurisdiction, gold source types (ASM/LSM/Recycled), Ultimate Beneficial Owners with PEP flags, and required compliance documents. Initiates the KYC/AML screening process.",
+        technicalDescription:
+          "Stepper component managing form state across multiple pages. Form validation using Zod schema. File upload with drag-and-drop support. On completion, triggers POST to /api/counterparties creating entity with 'pending_screening' status.",
         userStory: "US-01 Screen 1",
-        dataFlow: "POST /api/counterparties → Creates counterparty + ubos + documents records",
+        dataFlow:
+          "POST /api/counterparties → Creates counterparty + ubos + documents records",
         permissions: "Compliance Officer",
       },
       {
@@ -117,10 +140,13 @@ const documentationSections = {
         route: "/screening/[id]",
         icon: Shield,
         category: "Main",
-        businessDescription: "Compliance screening dashboard implementing the US-01 Preliminary Compliance Score algorithm. Displays automated checks: Sanctions (blocking gate), PEP status (40% weight), Adverse Media (35% weight), and Jurisdiction Risk (25% weight). Calculates final score and risk classification (LOW 0-25, MEDIUM 26-60, HIGH 61-99, BLOCKED 100).",
-        technicalDescription: "Interactive form allowing manual override of screening inputs. Real-time score calculation using weighted formula. Score breakdown visualization with progress indicators. Saves to screening_results table with SHA-256 hash for audit integrity.",
+        businessDescription:
+          "Compliance screening dashboard implementing the US-01 Preliminary Compliance Score algorithm. Displays automated checks: Sanctions (blocking gate), PEP status (40% weight), Adverse Media (35% weight), and Jurisdiction Risk (25% weight). Calculates final score and risk classification (LOW 0-25, MEDIUM 26-60, HIGH 61-99, BLOCKED 100).",
+        technicalDescription:
+          "Interactive form allowing manual override of screening inputs. Real-time score calculation using weighted formula. Score breakdown visualization with progress indicators. Saves to screening_results table with SHA-256 hash for audit integrity.",
         userStory: "US-01, US-01-bis",
-        dataFlow: "GET/POST /api/screening/[id] → screening_results + screening_audit_log tables",
+        dataFlow:
+          "GET/POST /api/screening/[id] → screening_results + screening_audit_log tables",
         permissions: "Compliance Officer",
         algorithm: `
 Preliminary Score = (PEP × 0.40) + (AdverseMedia × 0.35) + (Jurisdiction × 0.25)
@@ -144,8 +170,10 @@ Classification:
         route: "/approval-queue",
         icon: CheckSquare,
         category: "Main",
-        businessDescription: "Centralized workflow queue for counterparties awaiting compliance decisions. Groups entities by urgency and risk level. Enables batch processing of approvals/rejections. Shows time-in-queue metrics to ensure SLA compliance.",
-        technicalDescription: "Filtered view of counterparties with status IN ('pending_review', 'pending_screening', 'pending_risk_review'). Sortable by created_at for FIFO processing. Action buttons trigger status transitions and audit log entries.",
+        businessDescription:
+          "Centralized workflow queue for counterparties awaiting compliance decisions. Groups entities by urgency and risk level. Enables batch processing of approvals/rejections. Shows time-in-queue metrics to ensure SLA compliance.",
+        technicalDescription:
+          "Filtered view of counterparties with status IN ('pending_review', 'pending_screening', 'pending_risk_review'). Sortable by created_at for FIFO processing. Action buttons trigger status transitions and audit log entries.",
         userStory: "US-01 Screen 3",
         dataFlow: "GET /api/approval-queue → Filtered counterparties query",
         permissions: "Compliance Officer, Senior Compliance Officer",
@@ -156,10 +184,13 @@ Classification:
         route: "/risk-management",
         icon: Shield,
         category: "Main",
-        businessDescription: "Dashboard for comprehensive risk tier assignment per US-02. Shows counterparties pending risk review, distribution of risk tiers across portfolio, and EDD (Enhanced Due Diligence) requirements. Entry point for detailed risk assessments.",
-        technicalDescription: "Aggregates risk_assessments table data. Charts using Recharts for tier distribution visualization. Links to /risk-management/[id]/assess for individual assessments.",
+        businessDescription:
+          "Dashboard for comprehensive risk tier assignment per US-02. Shows counterparties pending risk review, distribution of risk tiers across portfolio, and EDD (Enhanced Due Diligence) requirements. Entry point for detailed risk assessments.",
+        technicalDescription:
+          "Aggregates risk_assessments table data. Charts using Recharts for tier distribution visualization. Links to /risk-management/[id]/assess for individual assessments.",
         userStory: "US-02 Screen 2",
-        dataFlow: "GET /api/risk-assessments → risk_assessments + counterparties tables",
+        dataFlow:
+          "GET /api/risk-assessments → risk_assessments + counterparties tables",
         permissions: "Risk Manager, Senior Compliance Officer",
       },
       {
@@ -168,10 +199,13 @@ Classification:
         route: "/risk-management/[id]/assess",
         icon: Shield,
         category: "Main",
-        businessDescription: "Detailed risk scoring interface implementing US-02 algorithm. Evaluates: Country Risk (30%), Source Type (25%), UBO/PEP (20%), Transaction History (15%), Feed Confidence (10%). Applies automatic flags for ASM/Mercury exposure (+15) and CAHRA zones (+20). Triggers EDD workflow for HIGH/CRITICAL results.",
-        technicalDescription: "Form with sliders and dropdowns for each risk factor. Real-time score calculation with weighted sum. Mandatory acknowledgment checkboxes for policy compliance. Creates risk_assessments record and audit log entry on submission.",
+        businessDescription:
+          "Detailed risk scoring interface implementing US-02 algorithm. Evaluates: Country Risk (30%), Source Type (25%), UBO/PEP (20%), Transaction History (15%), Feed Confidence (10%). Applies automatic flags for ASM/Mercury exposure (+15) and CAHRA zones (+20). Triggers EDD workflow for HIGH/CRITICAL results.",
+        technicalDescription:
+          "Form with sliders and dropdowns for each risk factor. Real-time score calculation with weighted sum. Mandatory acknowledgment checkboxes for policy compliance. Creates risk_assessments record and audit log entry on submission.",
         userStory: "US-02 Screen 2, 3",
-        dataFlow: "POST /api/risk-assessments → risk_assessments + risk_audit_log tables",
+        dataFlow:
+          "POST /api/risk-assessments → risk_assessments + risk_audit_log tables",
         permissions: "Risk Manager",
         algorithm: `
 Risk Score = (Country × 0.30) + (Source × 0.25) + (PEP × 0.20) + (Volume × 0.15) + (FeedConfidence × 0.10)
@@ -195,8 +229,10 @@ EDD Required: HIGH or CRITICAL tier, or ASM/Mercury exposure
         route: "/risk-management/feeds",
         icon: Database,
         category: "Main",
-        businessDescription: "Configuration panel for external risk data feed integrations. Manages connections to: CAHRA country lists, Country Risk Index, Mercury/Minamata database, and Sanctions lists. Allows weight adjustment for each feed's contribution to risk scores.",
-        technicalDescription: "Admin interface for risk_feed_configs table. Displays sync status, last update timestamps, and confidence levels. Manual sync triggers via POST to /api/risk-feeds/sync.",
+        businessDescription:
+          "Configuration panel for external risk data feed integrations. Manages connections to: CAHRA country lists, Country Risk Index, Mercury/Minamata database, and Sanctions lists. Allows weight adjustment for each feed's contribution to risk scores.",
+        technicalDescription:
+          "Admin interface for risk_feed_configs table. Displays sync status, last update timestamps, and confidence levels. Manual sync triggers via POST to /api/risk-feeds/sync.",
         userStory: "US-02 Screen 1",
         dataFlow: "GET/POST /api/risk-feeds → risk_feed_configs table",
         permissions: "System Administrator, Risk Manager",
@@ -207,8 +243,10 @@ EDD Required: HIGH or CRITICAL tier, or ASM/Mercury exposure
         route: "/risk-management/audit-log",
         icon: History,
         category: "Main",
-        businessDescription: "Immutable audit trail of all risk decisions per LBMA RGG requirements. Records: tier assignments, tier changes, overrides, and approvals. Includes actor identification, timestamps, IP addresses, and cryptographic hashes for tamper-evidence.",
-        technicalDescription: "Paginated query of risk_audit_log table with filters for action type, date range, and counterparty. Each entry includes SHA-256 hash of previous record for chain verification. Export functionality for regulatory reporting.",
+        businessDescription:
+          "Immutable audit trail of all risk decisions per LBMA RGG requirements. Records: tier assignments, tier changes, overrides, and approvals. Includes actor identification, timestamps, IP addresses, and cryptographic hashes for tamper-evidence.",
+        technicalDescription:
+          "Paginated query of risk_audit_log table with filters for action type, date range, and counterparty. Each entry includes SHA-256 hash of previous record for chain verification. Export functionality for regulatory reporting.",
         userStory: "US-02 Screen 4",
         dataFlow: "GET /api/risk-audit-log → risk_audit_log table",
         permissions: "Compliance Officer, Auditor (read-only)",
@@ -219,10 +257,13 @@ EDD Required: HIGH or CRITICAL tier, or ASM/Mercury exposure
         route: "/monetary-policy",
         icon: Landmark,
         category: "Main",
-        businessDescription: "Read-only Balance Sheet Impact Simulator (MP-01). Lets policy analysts model how a proposed gold acquisition would affect the central bank's pro-forma balance sheet under different funding scenarios (Reserve Drawdown, Bond Issuance, FX Swap, External Borrowing). Auto-calculates key policy ratios (Gold/Reserves, LCR, Leverage, Capital Adequacy), compares funding scenarios with weighted scoring and a radar chart, and produces an exportable committee package. Strictly a simulation — it never modifies actual ledger data (all outputs labeled 'SIMULATION - NOT EXECUTED').",
-        technicalDescription: "Client-side 5-step wizard (Scenario Library → Configuration → Pro-Forma → Comparison → Export). Pure simulation logic in lib/monetary-policy.ts (simulateBalanceSheetImpact, computeRatios, compareScenarios). Radar chart built with Recharts via shadcn ChartContainer. Constraint validation enforces the ≤10% of reserves and T+2 settlement rules. Export step computes a real SHA-256 integrity hash via crypto.subtle. No database writes.",
+        businessDescription:
+          "Read-only Balance Sheet Impact Simulator (MP-01). Lets policy analysts model how a proposed gold acquisition would affect the central bank's pro-forma balance sheet under different funding scenarios (Reserve Drawdown, Bond Issuance, FX Swap, External Borrowing). Auto-calculates key policy ratios (Gold/Reserves, LCR, Leverage, Capital Adequacy), compares funding scenarios with weighted scoring and a radar chart, and produces an exportable committee package. Strictly a simulation — it never modifies actual ledger data (all outputs labeled 'SIMULATION - NOT EXECUTED').",
+        technicalDescription:
+          "Client-side 5-step wizard (Scenario Library → Configuration → Pro-Forma → Comparison → Export). Pure simulation logic in lib/monetary-policy.ts (simulateBalanceSheetImpact, computeRatios, compareScenarios). Radar chart built with Recharts via shadcn ChartContainer. Constraint validation enforces the ≤10% of reserves and T+2 settlement rules. Export step computes a real SHA-256 integrity hash via crypto.subtle. No database writes.",
         userStory: "MP-01 Screens 0-4",
-        dataFlow: "In-memory only: BASELINE_BALANCE_SHEET + SCENARIO_TEMPLATES (lib/monetary-policy.ts). No persistence; future integration: GET /api/v1/balance-sheet/current, POST /api/v1/monetary-policy/simulate.",
+        dataFlow:
+          "In-memory only: BASELINE_BALANCE_SHEET + SCENARIO_TEMPLATES (lib/monetary-policy.ts). No persistence; future integration: GET /api/v1/balance-sheet/current, POST /api/v1/monetary-policy/simulate.",
         permissions: "Risk Manager, Administrator",
         algorithm: `
 Gold Increase (USD M) = purchaseAmountOz × pricePerOz / 1,000,000
@@ -251,10 +292,13 @@ Constraints: purchase ≤ 10% of total reserves per transaction; settlement ≥ 
         route: "/purchase-orders",
         icon: ShoppingCart,
         category: "Operations",
-        businessDescription: "Central registry of all gold purchase orders. Tracks order lifecycle from Draft → Submitted → Pending Approval → Approved → In Transit → Received. Displays estimated values, LBMA pricing, and delivery status.",
-        technicalDescription: "DataTable component fetching from /api/purchase-orders with JOINs to counterparties for supplier details. Status-based filtering and sorting by date/value. Row actions for view/edit/cancel operations.",
+        businessDescription:
+          "Central registry of all gold purchase orders. Tracks order lifecycle from Draft → Submitted → Pending Approval → Approved → In Transit → Received. Displays estimated values, LBMA pricing, and delivery status.",
+        technicalDescription:
+          "DataTable component fetching from /api/purchase-orders with JOINs to counterparties for supplier details. Status-based filtering and sorting by date/value. Row actions for view/edit/cancel operations.",
         userStory: "US-03 Screen 4",
-        dataFlow: "GET /api/purchase-orders → purchase_orders + counterparties tables",
+        dataFlow:
+          "GET /api/purchase-orders → purchase_orders + counterparties tables",
         permissions: "Trader, Compliance Officer",
       },
       {
@@ -263,8 +307,10 @@ Constraints: purchase ≤ 10% of total reserves per transaction; settlement ≥ 
         route: "/purchase-orders/new",
         icon: ShoppingCart,
         category: "Operations",
-        businessDescription: "Order entry form for new gold acquisitions. Enforces US-03 compliance gate: only APPROVED counterparties with completed EDD (if HIGH risk) can be selected. Captures: estimated weight, gold type (Doré/Bullion), purity range, Incoterms, delivery vault, expected dispatch date. Integrates real-time LBMA pricing with 15-minute lock window.",
-        technicalDescription: "Multi-step form with counterparty selector filtered by status/EDD completion. Price calculator component fetching live LBMA rates. Timer component for price lock expiry. Draft save functionality for incomplete orders.",
+        businessDescription:
+          "Order entry form for new gold acquisitions. Enforces US-03 compliance gate: only APPROVED counterparties with completed EDD (if HIGH risk) can be selected. Captures: estimated weight, gold type (Doré/Bullion), purity range, Incoterms, delivery vault, expected dispatch date. Integrates real-time LBMA pricing with 15-minute lock window.",
+        technicalDescription:
+          "Multi-step form with counterparty selector filtered by status/EDD completion. Price calculator component fetching live LBMA rates. Timer component for price lock expiry. Draft save functionality for incomplete orders.",
         userStory: "US-03 Screen 1, 2",
         dataFlow: "POST /api/purchase-orders → purchase_orders table",
         permissions: "Trader",
@@ -281,10 +327,13 @@ Constraints: purchase ≤ 10% of total reserves per transaction; settlement ≥ 
         route: "/purchase-orders/[id]",
         icon: ShoppingCart,
         category: "Operations",
-        businessDescription: "Complete order management interface with three tabs: Details (order summary), Approval (dual-approval workflow for >$1M transactions), and Tracking (dispatch monitoring with timeline). Implements US-03 compliance gate with real-time sanctions re-check before approval.",
-        technicalDescription: "Tabbed interface with dynamic content based on order status. Approval tab shows OTP/MFA input for second approver. Tracking tab displays shipment timeline with QR code for tracking ID. Status transitions trigger audit log entries.",
+        businessDescription:
+          "Complete order management interface with three tabs: Details (order summary), Approval (dual-approval workflow for >$1M transactions), and Tracking (dispatch monitoring with timeline). Implements US-03 compliance gate with real-time sanctions re-check before approval.",
+        technicalDescription:
+          "Tabbed interface with dynamic content based on order status. Approval tab shows OTP/MFA input for second approver. Tracking tab displays shipment timeline with QR code for tracking ID. Status transitions trigger audit log entries.",
         userStory: "US-03 Screen 3, 4",
-        dataFlow: "GET/PUT /api/purchase-orders/[id] → purchase_orders + po_approvals tables",
+        dataFlow:
+          "GET/PUT /api/purchase-orders/[id] → purchase_orders + po_approvals tables",
         permissions: "Trader, Compliance Officer, Senior Approver",
       },
       {
@@ -293,10 +342,13 @@ Constraints: purchase ≤ 10% of total reserves per transaction; settlement ≥ 
         route: "/dispatch",
         icon: Truck,
         category: "Operations",
-        businessDescription: "Pre-shipment documentation and dispatch validation module (US-04). Central hub for validating export documents, shipping manifests, and customs clearance before gold dispatch. Tracks validation status from pending documents through final dispatch confirmation. Ensures regulatory compliance before handoff to vault intake.",
-        technicalDescription: "Dashboard showing all dispatch validations with status indicators. Filterable by status (pending_docs, docs_validated, pending_authorization, dispatched, in_transit). Links to detailed validation workflow pages. Integrates with purchase_orders table for PO data.",
+        businessDescription:
+          "Pre-shipment documentation and dispatch validation module (US-04). Central hub for validating export documents, shipping manifests, and customs clearance before gold dispatch. Tracks validation status from pending documents through final dispatch confirmation. Ensures regulatory compliance before handoff to vault intake.",
+        technicalDescription:
+          "Dashboard showing all dispatch validations with status indicators. Filterable by status (pending_docs, docs_validated, pending_authorization, dispatched, in_transit). Links to detailed validation workflow pages. Integrates with purchase_orders table for PO data.",
         userStory: "US-04",
-        dataFlow: "GET /api/dispatch �� dispatch_validations table + purchase_orders JOINs",
+        dataFlow:
+          "GET /api/dispatch �� dispatch_validations table + purchase_orders JOINs",
         permissions: "Trade Compliance Officer",
       },
       {
@@ -305,10 +357,13 @@ Constraints: purchase ≤ 10% of total reserves per transaction; settlement ≥ 
         route: "/dispatch/[id]",
         icon: Truck,
         category: "Operations",
-        businessDescription: "Four-stage pre-shipment validation workflow implementing US-04: (1) Document Upload & Validation - validates export license, certificate of origin, transport docs, and insurance against PO terms; (2) Manifest & Customs Check - verifies weight tolerances (±5%), seal numbers, and customs pre-clearance; (3) Dispatch Authorization - carrier assignment with dual-approval for >$1M shipments; (4) Dispatch Confirmation - success screen with tracking ID and US-05 handoff trigger.",
-        technicalDescription: "Tabbed interface with 4 stages matching US-04 screens. Document validation uses OCR simulation for metadata extraction. Weight tolerance gauge uses SVG semi-circle visualization. Dual approval implements signature + OTP pattern. Authorization generates SHA-256 hash for immutability. On dispatch, triggers transition to in_transit status.",
+        businessDescription:
+          "Four-stage pre-shipment validation workflow implementing US-04: (1) Document Upload & Validation - validates export license, certificate of origin, transport docs, and insurance against PO terms; (2) Manifest & Customs Check - verifies weight tolerances (±5%), seal numbers, and customs pre-clearance; (3) Dispatch Authorization - carrier assignment with dual-approval for >$1M shipments; (4) Dispatch Confirmation - success screen with tracking ID and US-05 handoff trigger.",
+        technicalDescription:
+          "Tabbed interface with 4 stages matching US-04 screens. Document validation uses OCR simulation for metadata extraction. Weight tolerance gauge uses SVG semi-circle visualization. Dual approval implements signature + OTP pattern. Authorization generates SHA-256 hash for immutability. On dispatch, triggers transition to in_transit status.",
         userStory: "US-04 Screen 1, 2, 3, 4",
-        dataFlow: "GET/PUT /api/dispatch/[id] + POST /api/dispatch/[id]/authorize → dispatch_validations + dispatch_documents + dispatch_audit_log tables",
+        dataFlow:
+          "GET/PUT /api/dispatch/[id] + POST /api/dispatch/[id]/authorize → dispatch_validations + dispatch_documents + dispatch_audit_log tables",
         permissions: "Trade Compliance Officer, Authorized Signer",
         algorithm: `
 Document Validation:
@@ -343,10 +398,13 @@ Dispatch Authorization:
         route: "/vault-intake",
         icon: Warehouse,
         category: "Operations",
-        businessDescription: "Physical gold receipt and chain-of-custody initiation (US-05). Central hub for logging vault receipts from dispatched shipments. Tracks receipt status from pending intake through assay completion to settlement handoff. Integrates with US-04 dispatch data and feeds into US-06 settlement.",
-        technicalDescription: "Dashboard showing all vault intakes with status indicators. Filterable by status (pending_intake, received, assay_scheduled, assayed, pending_settlement). Links to detailed 4-stage workflow pages. Integrates with dispatch_validations and purchase_orders tables.",
+        businessDescription:
+          "Physical gold receipt and chain-of-custody initiation (US-05). Central hub for logging vault receipts from dispatched shipments. Tracks receipt status from pending intake through assay completion to settlement handoff. Integrates with US-04 dispatch data and feeds into US-06 settlement.",
+        technicalDescription:
+          "Dashboard showing all vault intakes with status indicators. Filterable by status (pending_intake, received, assay_scheduled, assayed, pending_settlement). Links to detailed 4-stage workflow pages. Integrates with dispatch_validations and purchase_orders tables.",
         userStory: "US-05",
-        dataFlow: "GET /api/vault-intake → vault_intakes table + dispatch_validations JOINs",
+        dataFlow:
+          "GET /api/vault-intake → vault_intakes table + dispatch_validations JOINs",
         permissions: "Vault Operator, Assay Coordinator",
       },
       {
@@ -355,10 +413,13 @@ Dispatch Authorization:
         route: "/vault-intake/[id]",
         icon: Warehouse,
         category: "Operations",
-        businessDescription: "Four-stage vault intake workflow implementing US-05: (1) Receipt Logging - PO/tracking lookup, seal verification vs manifest, gross/net weight recording with ±5% tolerance gauge, photo evidence upload, operator OTP authentication; (2) Assay Scheduling - ISO 17025 lab selection with accreditation expiry, sample ID generation with barcode, Fire Assay/XRF method selection, courier tracking timeline, SLA countdown timer; (3) Purity Verification - certificate upload with OCR, purity breakdown (Au/Ag/Cu/Fe %), pure gold weight calculation, variance comparison with tolerance bands; (4) Settlement Handoff - allocation summary, status transition (RECEIVED → ASSAYED → PENDING_SETTLEMENT), SHA-256 audit hash, LBMA RGG compliance badge.",
-        technicalDescription: "Tabbed interface with 4 stages matching US-05 screens. Weight tolerance gauge uses SVG semi-circle visualization. Assay lab selector validates ISO 17025 accreditation. Purity variance bar shows ±0.1g (green), ±0.1-0.3g (yellow), >±0.3g (red) thresholds. On lock, generates immutable SHA-256 hash and triggers US-06 settlement handoff.",
+        businessDescription:
+          "Four-stage vault intake workflow implementing US-05: (1) Receipt Logging - PO/tracking lookup, seal verification vs manifest, gross/net weight recording with ±5% tolerance gauge, photo evidence upload, operator OTP authentication; (2) Assay Scheduling - ISO 17025 lab selection with accreditation expiry, sample ID generation with barcode, Fire Assay/XRF method selection, courier tracking timeline, SLA countdown timer; (3) Purity Verification - certificate upload with OCR, purity breakdown (Au/Ag/Cu/Fe %), pure gold weight calculation, variance comparison with tolerance bands; (4) Settlement Handoff - allocation summary, status transition (RECEIVED → ASSAYED → PENDING_SETTLEMENT), SHA-256 audit hash, LBMA RGG compliance badge.",
+        technicalDescription:
+          "Tabbed interface with 4 stages matching US-05 screens. Weight tolerance gauge uses SVG semi-circle visualization. Assay lab selector validates ISO 17025 accreditation. Purity variance bar shows ±0.1g (green), ±0.1-0.3g (yellow), >±0.3g (red) thresholds. On lock, generates immutable SHA-256 hash and triggers US-06 settlement handoff.",
         userStory: "US-05 Screen 1, 2, 3, 4",
-        dataFlow: "GET/PUT /api/vault-intake/[id] + POST /api/assay/dispatch → vault_intakes + assay_samples + custody_log + audit_trail tables",
+        dataFlow:
+          "GET/PUT /api/vault-intake/[id] + POST /api/assay/dispatch → vault_intakes + assay_samples + custody_log + audit_trail tables",
         permissions: "Vault Operator, Assay Coordinator, Quality Controller",
         algorithm: `
 Weight Tolerance (Receipt):
@@ -397,10 +458,13 @@ Settlement Handoff:
         route: "/assays",
         icon: FlaskConical,
         category: "Operations",
-        businessDescription: "Laboratory assay results management. Records: batch number, gross/net weight, purity percentage, fine gold content, assay method, laboratory name. Links to vault intake records. Critical for settlement calculation and quality verification.",
-        technicalDescription: "CRUD interface for assays table. Calculation helpers for fine gold weight (net weight × purity). PDF certificate upload and preview. Status workflow: Pending → Verified → Disputed.",
+        businessDescription:
+          "Laboratory assay results management. Records: batch number, gross/net weight, purity percentage, fine gold content, assay method, laboratory name. Links to vault intake records. Critical for settlement calculation and quality verification.",
+        technicalDescription:
+          "CRUD interface for assays table. Calculation helpers for fine gold weight (net weight × purity). PDF certificate upload and preview. Status workflow: Pending → Verified → Disputed.",
         userStory: "US-05",
-        dataFlow: "GET/POST /api/assays → assays + vault_intakes + purchase_orders tables",
+        dataFlow:
+          "GET/POST /api/assays → assays + vault_intakes + purchase_orders tables",
         permissions: "Operations Manager, Quality Controller",
       },
       {
@@ -409,10 +473,13 @@ Settlement Handoff:
         route: "/settlements",
         icon: Banknote,
         category: "Operations",
-        businessDescription: "Valuation, Settlement & Allocation Engine (US-06). Central hub for calculating final transaction value using verified assay data and LBMA pricing, executing dual-approved fund transfers to counterparties, and legally allocating pure gold weight into the central bank reserve ledger. Multi-currency settlement support (USD/EUR) with FX rate locking.",
-        technicalDescription: "Dashboard showing all settlements with status indicators. Filterable by status (pending_valuation, pending_review, pending_approval, executed, allocated). Links to detailed 4-stage workflow pages. Integrates with vault_intakes, assays, and purchase_orders tables.",
+        businessDescription:
+          "Valuation, Settlement & Allocation Engine (US-06). Central hub for calculating final transaction value using verified assay data and LBMA pricing, executing dual-approved fund transfers to counterparties, and legally allocating pure gold weight into the central bank reserve ledger. Multi-currency settlement support (USD/EUR) with FX rate locking.",
+        technicalDescription:
+          "Dashboard showing all settlements with status indicators. Filterable by status (pending_valuation, pending_review, pending_approval, executed, allocated). Links to detailed 4-stage workflow pages. Integrates with vault_intakes, assays, and purchase_orders tables.",
         userStory: "US-06",
-        dataFlow: "GET /api/settlements → settlements + vault_intakes + assays + counterparties tables",
+        dataFlow:
+          "GET /api/settlements → settlements + vault_intakes + assays + counterparties tables",
         permissions: "Finance Officer, Treasury Manager, Reserve Manager",
       },
       {
@@ -421,10 +488,13 @@ Settlement Handoff:
         route: "/settlements/[id]",
         icon: Banknote,
         category: "Operations",
-        businessDescription: "Four-stage settlement workflow implementing US-06: (1) Pricing & Valuation Engine - LBMA AM/PM fixing integration, purity adjustment factor, premium/discount calculation, 15-minute price lock timer, currency selection (USD/EUR); (2) Settlement Calculation & Review - gross value display, deductions table (logistics, insurance, assay fees, withholding tax), counterparty banking details (IBAN/SWIFT), review checklist; (3) Dual Approval & Execution - settlement summary, Finance Officer + Treasury Director OTP slots, segregation of duties enforcement, Approve/Reject/Amend actions; (4) Allocation Confirmation - success banner with Settlement ID, reserve allocation entry (gold weight, account ID, valuation date, Posted & Locked status), title transfer certificate, SHA-256 audit hash, LBMA RGG compliance badge.",
-        technicalDescription: "Tabbed interface with 4 stages matching US-06 screens. Real-time LBMA rate fetching with price lock countdown. Dual-approval enforces segregation of duties (different RBAC roles). On execution, generates SHA-256 hash linking PO, Assay, Pricing, Settlement, and Allocation records. Reserve entry posted to central bank core ledger via secure API.",
+        businessDescription:
+          "Four-stage settlement workflow implementing US-06: (1) Pricing & Valuation Engine - LBMA AM/PM fixing integration, purity adjustment factor, premium/discount calculation, 15-minute price lock timer, currency selection (USD/EUR); (2) Settlement Calculation & Review - gross value display, deductions table (logistics, insurance, assay fees, withholding tax), counterparty banking details (IBAN/SWIFT), review checklist; (3) Dual Approval & Execution - settlement summary, Finance Officer + Treasury Director OTP slots, segregation of duties enforcement, Approve/Reject/Amend actions; (4) Allocation Confirmation - success banner with Settlement ID, reserve allocation entry (gold weight, account ID, valuation date, Posted & Locked status), title transfer certificate, SHA-256 audit hash, LBMA RGG compliance badge.",
+        technicalDescription:
+          "Tabbed interface with 4 stages matching US-06 screens. Real-time LBMA rate fetching with price lock countdown. Dual-approval enforces segregation of duties (different RBAC roles). On execution, generates SHA-256 hash linking PO, Assay, Pricing, Settlement, and Allocation records. Reserve entry posted to central bank core ledger via secure API.",
         userStory: "US-06 Screen 1, 2, 3, 4",
-        dataFlow: "GET/PUT /api/settlements/[id] + POST /api/settlements/[id]/execute + POST /api/reserves/allocate → settlements + reserve_allocations + audit_trail tables",
+        dataFlow:
+          "GET/PUT /api/settlements/[id] + POST /api/settlements/[id]/execute + POST /api/reserves/allocate → settlements + reserve_allocations + audit_trail tables",
         permissions: "Finance Officer, Treasury Director, Reserve Manager",
         algorithm: `
 Valuation Formula:
@@ -466,10 +536,13 @@ Settlement Execution:
         route: "/reports",
         icon: FileText,
         category: "System",
-        businessDescription: "Regulatory and management reporting center. Available reports: Acquisition Summary (monthly volumes), Counterparty Overview (portfolio composition), Gold Inventory (current holdings), Settlement Report (payment history), Compliance Audit (screening statistics), Risk Assessment (tier distribution).",
-        technicalDescription: "Report generator with date range picker and export options (PDF, CSV, Excel). Server-side data aggregation for large datasets. Scheduled report functionality for automated delivery.",
+        businessDescription:
+          "Regulatory and management reporting center. Available reports: Acquisition Summary (monthly volumes), Counterparty Overview (portfolio composition), Gold Inventory (current holdings), Settlement Report (payment history), Compliance Audit (screening statistics), Risk Assessment (tier distribution).",
+        technicalDescription:
+          "Report generator with date range picker and export options (PDF, CSV, Excel). Server-side data aggregation for large datasets. Scheduled report functionality for automated delivery.",
         userStory: "N/A",
-        dataFlow: "Various /api/reports/* endpoints aggregating multiple tables",
+        dataFlow:
+          "Various /api/reports/* endpoints aggregating multiple tables",
         permissions: "Compliance Officer, Finance Officer, Management",
       },
       {
@@ -478,11 +551,15 @@ Settlement Execution:
         route: "/audit",
         icon: Shield,
         category: "System",
-        businessDescription: "Immutable Audit Trail & Regulatory Export Engine (US-07). Central hub for auditors and compliance officers to retrieve tamper-evident transaction history, generate regulatory reports (FIU STR/SAR, IMF SDDS, LBMA Disclosure), and export data in multiple formats (JSON/CSV/XML) with digital signature attachment. Enforces ≥5-year retention policies per LBMA RGG.",
-        technicalDescription: "Tabbed interface with 4 screens: (1) Immutable Audit Trail Viewer - chronological timeline with SHA-256 hash chain verification; (2) Regulatory Report Generator - auto-population from verified transaction data; (3) Export Configuration - format mapping with digital signature; (4) Compliance Dashboard - retention countdown, audit readiness score, system health indicators.",
+        businessDescription:
+          "Immutable Audit Trail & Regulatory Export Engine (US-07). Central hub for auditors and compliance officers to retrieve tamper-evident transaction history, generate regulatory reports (FIU STR/SAR, IMF SDDS, LBMA Disclosure), and export data in multiple formats (JSON/CSV/XML) with digital signature attachment. Enforces ≥5-year retention policies per LBMA RGG.",
+        technicalDescription:
+          "Tabbed interface with 4 screens: (1) Immutable Audit Trail Viewer - chronological timeline with SHA-256 hash chain verification; (2) Regulatory Report Generator - auto-population from verified transaction data; (3) Export Configuration - format mapping with digital signature; (4) Compliance Dashboard - retention countdown, audit readiness score, system health indicators.",
         userStory: "US-07",
-        dataFlow: "GET /api/audit/{transactionId} → audit_trail + all linked tables",
-        permissions: "Auditor (read-only), Compliance Officer, Chief Compliance Officer",
+        dataFlow:
+          "GET /api/audit/{transactionId} → audit_trail + all linked tables",
+        permissions:
+          "Auditor (read-only), Compliance Officer, Chief Compliance Officer",
       },
       {
         id: "audit-trail-viewer",
@@ -490,10 +567,13 @@ Settlement Execution:
         route: "/audit#audit-trail",
         icon: Shield,
         category: "System",
-        businessDescription: "Tamper-evident transaction history with chain verification (US-07 Screen 1). Chronological, read-only display of every state change from counterparty onboarding through settlement. Each entry includes timestamp, actor ID, IP/device fingerprint, previous hash, current hash, and chain-link validation status. Events: Feed Sync, Calculation Triggered, Risk Assessment, ASM Flag, Acknowledged, APPROVED.",
-        technicalDescription: "Timeline view with vertical chain showing Onboarding → Screening → Risk → PO → Dispatch → Intake → Assay → Settlement. Nightly automated hash validation across all settled transactions. Any mismatch triggers immediate alert to CCO and FIU notification.",
+        businessDescription:
+          "Tamper-evident transaction history with chain verification (US-07 Screen 1). Chronological, read-only display of every state change from counterparty onboarding through settlement. Each entry includes timestamp, actor ID, IP/device fingerprint, previous hash, current hash, and chain-link validation status. Events: Feed Sync, Calculation Triggered, Risk Assessment, ASM Flag, Acknowledged, APPROVED.",
+        technicalDescription:
+          "Timeline view with vertical chain showing Onboarding → Screening → Risk → PO → Dispatch → Intake → Assay → Settlement. Nightly automated hash validation across all settled transactions. Any mismatch triggers immediate alert to CCO and FIU notification.",
         userStory: "US-07 Screen 1",
-        dataFlow: "GET /api/v1/audit/{transactionId} → {entries: [], chainStatus: 'VERIFIED', retentionExpiry: '2031-05-05'}",
+        dataFlow:
+          "GET /api/v1/audit/{transactionId} → {entries: [], chainStatus: 'VERIFIED', retentionExpiry: '2031-05-05'}",
         permissions: "Auditor (time-bound, view-only), Compliance Officer",
         algorithm: `
 Hash Chain Verification:
@@ -518,10 +598,13 @@ function verifyAuditChain(transactionId):
         route: "/audit#reports",
         icon: FileText,
         category: "System",
-        businessDescription: "Automated compliance and reserve reporting (US-07 Screen 2). One-click generation of mandatory regulatory reports: FIU Suspicious Transaction Reports (STR/SAR), IMF SDDS reserve asset disclosures, LBMA Responsible Gold Guidance compliance summaries. Auto-populates from verified transaction data with validation checklist.",
-        technicalDescription: "Report Type Selector with auto-population engine pulling KYC, risk tier, assay results, pricing, settlement, and allocation data. PDF preview with digital watermark. Submission tracking with acknowledgment receipt.",
+        businessDescription:
+          "Automated compliance and reserve reporting (US-07 Screen 2). One-click generation of mandatory regulatory reports: FIU Suspicious Transaction Reports (STR/SAR), IMF SDDS reserve asset disclosures, LBMA Responsible Gold Guidance compliance summaries. Auto-populates from verified transaction data with validation checklist.",
+        technicalDescription:
+          "Report Type Selector with auto-population engine pulling KYC, risk tier, assay results, pricing, settlement, and allocation data. PDF preview with digital watermark. Submission tracking with acknowledgment receipt.",
         userStory: "US-07 Screen 2",
-        dataFlow: "POST /api/v1/reports/generate → {reportId, format: 'PDF', downloadUrl, generatedAt}",
+        dataFlow:
+          "POST /api/v1/reports/generate → {reportId, format: 'PDF', downloadUrl, generatedAt}",
         permissions: "Compliance Reporting Officer, Chief Compliance Officer",
         businessRules: [
           "FIU reports auto-format to national STR/SAR templates",
@@ -536,11 +619,15 @@ function verifyAuditChain(transactionId):
         route: "/audit#export",
         icon: Download,
         category: "System",
-        businessDescription: "Multi-format export and digital signature attachment (US-07 Screen 3). Configurable export interface allowing auditors to select date ranges, transaction filters, output formats (JSON/CSV/XML), and field mappings. Attaches cryptographic digital signatures and chain verification certificates to every export package.",
-        technicalDescription: "Format selector with drag-and-drop field mapping. Export queue showing pending, processing, and completed exports. SHA-256 manifest hash and CB-signed certificate attached to packages.",
+        businessDescription:
+          "Multi-format export and digital signature attachment (US-07 Screen 3). Configurable export interface allowing auditors to select date ranges, transaction filters, output formats (JSON/CSV/XML), and field mappings. Attaches cryptographic digital signatures and chain verification certificates to every export package.",
+        technicalDescription:
+          "Format selector with drag-and-drop field mapping. Export queue showing pending, processing, and completed exports. SHA-256 manifest hash and CB-signed certificate attached to packages.",
         userStory: "US-07 Screen 3",
-        dataFlow: "POST /api/v1/export/configure → {exportId, status: 'PROCESSING', manifestHash}",
-        permissions: "Auditor, Compliance Officer (dual-approval for >10,000 records)",
+        dataFlow:
+          "POST /api/v1/export/configure → {exportId, status: 'PROCESSING', manifestHash}",
+        permissions:
+          "Auditor, Compliance Officer (dual-approval for >10,000 records)",
         businessRules: [
           "Every export includes SHA-256 manifest hash",
           "Digital signature verifies export authenticity",
@@ -554,10 +641,13 @@ function verifyAuditChain(transactionId):
         route: "/audit#compliance",
         icon: Calendar,
         category: "System",
-        businessDescription: "Retention countdown and audit readiness monitoring (US-07 Screen 4). Centralized compliance dashboard displaying retention countdowns, archival status, audit readiness scores (0-100), scheduled reports calendar, and system health indicators (CPU, Memory, Storage, Network). Enables proactive management of regulatory obligations and long-term data preservation.",
-        technicalDescription: "Real-time dashboard with retention timer, SVG gauge for audit score, health indicator LEDs, alert log panel, and calendar view of upcoming FIU/IMF/LBMA reporting deadlines. Automated archival to WORM cold storage upon 5-year expiry.",
+        businessDescription:
+          "Retention countdown and audit readiness monitoring (US-07 Screen 4). Centralized compliance dashboard displaying retention countdowns, archival status, audit readiness scores (0-100), scheduled reports calendar, and system health indicators (CPU, Memory, Storage, Network). Enables proactive management of regulatory obligations and long-term data preservation.",
+        technicalDescription:
+          "Real-time dashboard with retention timer, SVG gauge for audit score, health indicator LEDs, alert log panel, and calendar view of upcoming FIU/IMF/LBMA reporting deadlines. Automated archival to WORM cold storage upon 5-year expiry.",
         userStory: "US-07 Screen 4",
-        dataFlow: "GET /api/v1/compliance/retention-status → {activeTransactions: 142, archivalPending: 18, retentionCompliance: '100%'}",
+        dataFlow:
+          "GET /api/v1/compliance/retention-status → {activeTransactions: 142, archivalPending: 18, retentionCompliance: '100%'}",
         permissions: "Chief Compliance Officer, System Administrator",
         businessRules: [
           "5-year minimum retention from settlement date",
@@ -572,11 +662,15 @@ function verifyAuditChain(transactionId):
         route: "/settings",
         icon: Settings,
         category: "System",
-        businessDescription: "Application configuration including: user profile management, notification preferences (email alerts for approvals, settlements), security settings (password, 2FA), and organization details (bank name, regulatory identifiers).",
-        technicalDescription: "Tabbed settings interface persisting to users and organization_settings tables. Password change with bcrypt hashing. 2FA setup with TOTP (Time-based One-Time Password) support.",
+        businessDescription:
+          "Application configuration including: user profile management, notification preferences (email alerts for approvals, settlements), security settings (password, 2FA), and organization details (bank name, regulatory identifiers).",
+        technicalDescription:
+          "Tabbed settings interface persisting to users and organization_settings tables. Password change with bcrypt hashing. 2FA setup with TOTP (Time-based One-Time Password) support.",
         userStory: "N/A",
-        dataFlow: "GET/PUT /api/settings → users + organization_settings tables",
-        permissions: "All authenticated users (own profile), Administrator (organization settings)",
+        dataFlow:
+          "GET/PUT /api/settings → users + organization_settings tables",
+        permissions:
+          "All authenticated users (own profile), Administrator (organization settings)",
       },
       {
         id: "admin",
@@ -584,10 +678,13 @@ function verifyAuditChain(transactionId):
         route: "/admin",
         icon: UserCog,
         category: "System",
-        businessDescription: "Administrator-only control center for identity and access governance. Provides two capabilities: (1) User Management — create new users with a temporary password, assign them a profile (Compliance Officer, Risk Manager, Admin), change profiles, and remove accounts; (2) Profile Access Matrix — define, per profile, exactly which application pages each role can see and open. Admins always retain full access. This is where the Admin role is granted, since it cannot be self-assigned at public sign-up.",
-        technicalDescription: "Protected route guarded by a server-side requireAdmin() check in app/admin/layout.tsx. User operations run through server actions in app/admin/actions.ts (create via Better Auth, role updates and deletes scoped to admins). The access matrix is persisted in the role_page_access table and exposed to clients via /api/access/me, which drives both sidebar link filtering and URL enforcement in proxy.ts.",
+        businessDescription:
+          "Administrator-only control center for identity and access governance. Provides two capabilities: (1) User Management — create new users with a temporary password, assign them a profile (Compliance Officer, Risk Manager, Admin), change profiles, and remove accounts; (2) Profile Access Matrix — define, per profile, exactly which application pages each role can see and open. Admins always retain full access. This is where the Admin role is granted, since it cannot be self-assigned at public sign-up.",
+        technicalDescription:
+          "Protected route guarded by a server-side requireAdmin() check in app/admin/layout.tsx. User operations run through server actions in app/admin/actions.ts (create via Better Auth, role updates and deletes scoped to admins). The access matrix is persisted in the role_page_access table and exposed to clients via /api/access/me, which drives both sidebar link filtering and URL enforcement in proxy.ts.",
         userStory: "N/A",
-        dataFlow: "Server Actions (app/admin/actions.ts) + GET /api/access/me → user + role_page_access tables",
+        dataFlow:
+          "Server Actions (app/admin/actions.ts) + GET /api/access/me → user + role_page_access tables",
         permissions: "Admin only",
         businessRules: [
           "Only users with the Admin profile can open /admin (URL is blocked for others)",
@@ -609,13 +706,15 @@ function verifyAuditChain(transactionId):
         },
         {
           phase: "2. Compliance Screening",
-          description: "Automated sanctions/PEP/adverse media checks with preliminary score",
+          description:
+            "Automated sanctions/PEP/adverse media checks with preliminary score",
           userStory: "US-01-bis",
           route: "/screening/[id]",
         },
         {
           phase: "3. Risk Assessment",
-          description: "Comprehensive risk tier assignment with EDD for high-risk entities",
+          description:
+            "Comprehensive risk tier assignment with EDD for high-risk entities",
           userStory: "US-02",
           route: "/risk-management/[id]/assess",
         },
@@ -627,37 +726,43 @@ function verifyAuditChain(transactionId):
         },
         {
           phase: "5. Dual Approval",
-          description: "Compliance gate and dual approval for large transactions",
+          description:
+            "Compliance gate and dual approval for large transactions",
           userStory: "US-03",
           route: "/purchase-orders/[id]",
         },
         {
           phase: "6. Pre-Shipment Dispatch",
-          description: "Document validation, manifest check, and dispatch authorization",
+          description:
+            "Document validation, manifest check, and dispatch authorization",
           userStory: "US-04",
           route: "/dispatch/[id]",
         },
         {
           phase: "7. Vault Intake & Assay",
-          description: "Receipt logging, seal verification, lab scheduling, purity verification",
+          description:
+            "Receipt logging, seal verification, lab scheduling, purity verification",
           userStory: "US-05",
           route: "/vault-intake/[id]",
         },
         {
           phase: "8. Valuation & Settlement",
-          description: "LBMA pricing, settlement calculation, dual-approval execution",
+          description:
+            "LBMA pricing, settlement calculation, dual-approval execution",
           userStory: "US-06",
           route: "/settlements/[id]",
         },
         {
           phase: "9. Reserve Allocation",
-          description: "Gold weight posted to central bank reserve ledger with audit hash",
+          description:
+            "Gold weight posted to central bank reserve ledger with audit hash",
           userStory: "US-06",
           route: "/settlements/[id]",
         },
         {
           phase: "10. Immutable Audit Trail",
-          description: "Tamper-evident transaction history with hash chain verification",
+          description:
+            "Tamper-evident transaction history with hash chain verification",
           userStory: "US-07",
           route: "/audit#audit-trail",
         },
@@ -678,38 +783,152 @@ function verifyAuditChain(transactionId):
     database: {
       title: "Database Schema",
       tables: [
-        { name: "counterparties", description: "Gold supplier master data", columns: "id, legal_name, registration_number, country, status, risk_level, screening_status" },
-        { name: "ubos", description: "Ultimate Beneficial Owners", columns: "id, counterparty_id, full_name, ownership_percentage, is_pep" },
-        { name: "documents", description: "KYC/compliance documents", columns: "id, counterparty_id, document_type, file_path, verified" },
-        { name: "screening_results", description: "Compliance check results", columns: "id, counterparty_id, check_type, result, details, checked_at" },
-        { name: "screening_audit_log", description: "Screening decision audit trail", columns: "id, counterparty_id, preliminary_score, classification, policy_hash" },
-        { name: "risk_assessments", description: "Risk tier assignments", columns: "id, counterparty_id, overall_score, risk_tier, edd_required" },
-        { name: "risk_audit_log", description: "Risk decision audit trail", columns: "id, counterparty_id, action, old_tier, new_tier, reason" },
-        { name: "purchase_orders", description: "Gold acquisition orders", columns: "id, counterparty_id, status, estimated_weight_kg, gold_type, total_estimated_value" },
-        { name: "po_approvals", description: "PO approval records", columns: "id, purchase_order_id, approver_role, decision, decided_at" },
-        { name: "assays", description: "Laboratory test results", columns: "id, purchase_order_id, batch_number, gross_weight_kg, purity_percentage" },
-        { name: "dispatch_validations", description: "US-04 Pre-shipment dispatch records", columns: "id, purchase_order_id, status, carrier_id, pickup_date, authorization_hash, dual_approval_complete" },
-        { name: "dispatch_documents", description: "US-04 Export documents", columns: "id, dispatch_id, document_type, file_path, validated, validation_notes" },
-        { name: "vault_intakes", description: "US-05 Vault receipt records", columns: "id, dispatch_id, tracking_id, seal_numbers, gross_weight_kg, net_weight_kg, operator_otp_verified, custody_log" },
-        { name: "assay_samples", description: "US-05 Lab sample tracking", columns: "id, vault_intake_id, sample_id, lab_id, assay_method, sla_deadline, status" },
-        { name: "assay_results", description: "US-05 Purity verification", columns: "id, assay_sample_id, au_purity, ag_content, cu_content, fe_content, pure_au_weight_kg, certificate_path" },
-        { name: "settlements", description: "US-06 Valuation & settlement records", columns: "id, vault_intake_id, lbma_fixing_type, lbma_rate, gross_value, total_deductions, net_payable, currency, status" },
-        { name: "settlement_approvals", description: "US-06 Dual-approval records", columns: "id, settlement_id, approver_role, approver_name, otp_verified, approved_at" },
-        { name: "reserve_allocations", description: "US-06 Reserve ledger entries", columns: "id, settlement_id, pure_au_weight_kg, reserve_account_id, valuation_date, entry_status, audit_hash" },
-        { name: "audit_entries", description: "US-07 Immutable audit events", columns: "id, transaction_id, event_type, actor_id, actor_type, ip_address, device_fingerprint, previous_hash, current_hash, timestamp" },
-        { name: "regulatory_reports", description: "US-07 Generated compliance reports", columns: "id, report_type, transaction_ids, format, digital_signature, submission_status, generated_at" },
-        { name: "export_packages", description: "US-07 Data export records", columns: "id, export_format, field_mapping, date_range, manifest_hash, digital_signature, created_by, created_at" },
-        { name: "retention_status", description: "US-07 Archival tracking", columns: "id, transaction_id, retention_expiry, archival_status, worm_storage_path, last_verification" },
-        { name: "audit_trail", description: "Cryptographic chain linking all records", columns: "id, entity_type, entity_id, previous_hash, current_hash, created_at" },
+        {
+          name: "counterparties",
+          description: "Gold supplier master data",
+          columns:
+            "id, legal_name, registration_number, country, status, risk_level, screening_status",
+        },
+        {
+          name: "ubos",
+          description: "Ultimate Beneficial Owners",
+          columns:
+            "id, counterparty_id, full_name, ownership_percentage, is_pep",
+        },
+        {
+          name: "documents",
+          description: "KYC/compliance documents",
+          columns: "id, counterparty_id, document_type, file_path, verified",
+        },
+        {
+          name: "screening_results",
+          description: "Compliance check results",
+          columns:
+            "id, counterparty_id, check_type, result, details, checked_at",
+        },
+        {
+          name: "screening_audit_log",
+          description: "Screening decision audit trail",
+          columns:
+            "id, counterparty_id, preliminary_score, classification, policy_hash",
+        },
+        {
+          name: "risk_assessments",
+          description: "Risk tier assignments",
+          columns:
+            "id, counterparty_id, overall_score, risk_tier, edd_required",
+        },
+        {
+          name: "risk_audit_log",
+          description: "Risk decision audit trail",
+          columns: "id, counterparty_id, action, old_tier, new_tier, reason",
+        },
+        {
+          name: "purchase_orders",
+          description: "Gold acquisition orders",
+          columns:
+            "id, counterparty_id, status, estimated_weight_kg, gold_type, total_estimated_value",
+        },
+        {
+          name: "po_approvals",
+          description: "PO approval records",
+          columns: "id, purchase_order_id, approver_role, decision, decided_at",
+        },
+        {
+          name: "assays",
+          description: "Laboratory test results",
+          columns:
+            "id, purchase_order_id, batch_number, gross_weight_kg, purity_percentage",
+        },
+        {
+          name: "dispatch_validations",
+          description: "US-04 Pre-shipment dispatch records",
+          columns:
+            "id, purchase_order_id, status, carrier_id, pickup_date, authorization_hash, dual_approval_complete",
+        },
+        {
+          name: "dispatch_documents",
+          description: "US-04 Export documents",
+          columns:
+            "id, dispatch_id, document_type, file_path, validated, validation_notes",
+        },
+        {
+          name: "vault_intakes",
+          description: "US-05 Vault receipt records",
+          columns:
+            "id, dispatch_id, tracking_id, seal_numbers, gross_weight_kg, net_weight_kg, operator_otp_verified, custody_log",
+        },
+        {
+          name: "assay_samples",
+          description: "US-05 Lab sample tracking",
+          columns:
+            "id, vault_intake_id, sample_id, lab_id, assay_method, sla_deadline, status",
+        },
+        {
+          name: "assay_results",
+          description: "US-05 Purity verification",
+          columns:
+            "id, assay_sample_id, au_purity, ag_content, cu_content, fe_content, pure_au_weight_kg, certificate_path",
+        },
+        {
+          name: "settlements",
+          description: "US-06 Valuation & settlement records",
+          columns:
+            "id, vault_intake_id, lbma_fixing_type, lbma_rate, gross_value, total_deductions, net_payable, currency, status",
+        },
+        {
+          name: "settlement_approvals",
+          description: "US-06 Dual-approval records",
+          columns:
+            "id, settlement_id, approver_role, approver_name, otp_verified, approved_at",
+        },
+        {
+          name: "reserve_allocations",
+          description: "US-06 Reserve ledger entries",
+          columns:
+            "id, settlement_id, pure_au_weight_kg, reserve_account_id, valuation_date, entry_status, audit_hash",
+        },
+        {
+          name: "audit_entries",
+          description: "US-07 Immutable audit events",
+          columns:
+            "id, transaction_id, event_type, actor_id, actor_type, ip_address, device_fingerprint, previous_hash, current_hash, timestamp",
+        },
+        {
+          name: "regulatory_reports",
+          description: "US-07 Generated compliance reports",
+          columns:
+            "id, report_type, transaction_ids, format, digital_signature, submission_status, generated_at",
+        },
+        {
+          name: "export_packages",
+          description: "US-07 Data export records",
+          columns:
+            "id, export_format, field_mapping, date_range, manifest_hash, digital_signature, created_by, created_at",
+        },
+        {
+          name: "retention_status",
+          description: "US-07 Archival tracking",
+          columns:
+            "id, transaction_id, retention_expiry, archival_status, worm_storage_path, last_verification",
+        },
+        {
+          name: "audit_trail",
+          description: "Cryptographic chain linking all records",
+          columns:
+            "id, entity_type, entity_id, previous_hash, current_hash, created_at",
+        },
       ],
     },
   },
   fr: {
     title: "Documentation de l'Application",
-    subtitle: "Guide complet pour la Plateforme d'Acquisition d'Or - Banque Centrale de la République Démocratique du Congo",
+    subtitle:
+      "Guide complet pour la Plateforme d'Acquisition d'Or - Banque Centrale de la République Démocratique du Congo",
     overview: {
       title: "Vue d'ensemble de la Plateforme",
-      description: "La Plateforme d'Acquisition d'Or est un système complet de conformité et de trading conçu pour les banques centrales afin de gérer les achats d'or provenant d'exploitations minières artisanales et industrielles. Elle implémente les normes LBMA Responsible Gold Guidance (RGG) et assure une conformité réglementaire totale.",
+      description:
+        "La Plateforme d'Acquisition d'Or est un système complet de conformité et de trading conçu pour les banques centrales afin de gérer les achats d'or provenant d'exploitations minières artisanales et industrielles. Elle implémente les normes LBMA Responsible Gold Guidance (RGG) et assure une conformité réglementaire totale.",
       keyFeatures: [
         "Intégration des contreparties avec screening KYC/AML",
         "Score de conformité préliminaire automatisé (US-01)",
@@ -726,10 +945,13 @@ function verifyAuditChain(transactionId):
         route: "/",
         icon: LayoutDashboard,
         category: "Principal",
-        businessDescription: "Centre de commande central offrant une visibilité en temps réel sur les opérations d'acquisition d'or. Affiche les indicateurs clés de performance (KPI) incluant les contreparties actives, les ordres d'achat en attente, l'or en transit et les volumes d'acquisition mensuels. Permet une prise de décision rapide grâce aux métriques en un coup d'œil.",
-        technicalDescription: "Page rendue côté serveur récupérant des données agrégées de plusieurs tables (counterparties, purchase_orders, assays, settlements). Utilise SWR pour le rafraîchissement côté client. Implémente une grille responsive avec composants Card pour l'affichage des KPI.",
+        businessDescription:
+          "Centre de commande central offrant une visibilité en temps réel sur les opérations d'acquisition d'or. Affiche les indicateurs clés de performance (KPI) incluant les contreparties actives, les ordres d'achat en attente, l'or en transit et les volumes d'acquisition mensuels. Permet une prise de décision rapide grâce aux métriques en un coup d'œil.",
+        technicalDescription:
+          "Page rendue côté serveur récupérant des données agrégées de plusieurs tables (counterparties, purchase_orders, assays, settlements). Utilise SWR pour le rafraîchissement côté client. Implémente une grille responsive avec composants Card pour l'affichage des KPI.",
         userStory: "N/A",
-        dataFlow: "API: /api/dashboard → Agrège counterparties, purchase_orders, assays",
+        dataFlow:
+          "API: /api/dashboard → Agrège counterparties, purchase_orders, assays",
         permissions: "Tous les utilisateurs authentifiés",
       },
       {
@@ -738,10 +960,13 @@ function verifyAuditChain(transactionId):
         route: "/counterparties",
         icon: Users,
         category: "Principal",
-        businessDescription: "Liste maîtresse de tous les fournisseurs d'or enregistrés (mines, raffineurs, traders). Affiche le statut de conformité, le niveau de risque et les résultats de screening pour chaque entité. Supporte le filtrage par statut (Actif, En attente de révision, En attente de screening, En attente d'évaluation des risques, Bloqué) et la recherche.",
-        technicalDescription: "Composant client avec récupération de données SWR depuis /api/counterparties. Implémente le pattern DataTable avec colonnes triables, pagination et actions de ligne. Les badges de statut utilisent un système de couleurs aligné avec la classification des risques.",
+        businessDescription:
+          "Liste maîtresse de tous les fournisseurs d'or enregistrés (mines, raffineurs, traders). Affiche le statut de conformité, le niveau de risque et les résultats de screening pour chaque entité. Supporte le filtrage par statut (Actif, En attente de révision, En attente de screening, En attente d'évaluation des risques, Bloqué) et la recherche.",
+        technicalDescription:
+          "Composant client avec récupération de données SWR depuis /api/counterparties. Implémente le pattern DataTable avec colonnes triables, pagination et actions de ligne. Les badges de statut utilisent un système de couleurs aligné avec la classification des risques.",
         userStory: "US-01 Écran 3",
-        dataFlow: "API: GET /api/counterparties → table counterparties avec JOINs vers screening_results, ubos",
+        dataFlow:
+          "API: GET /api/counterparties → table counterparties avec JOINs vers screening_results, ubos",
         permissions: "Officier de Conformité, Gestionnaire des Risques",
       },
       {
@@ -750,10 +975,13 @@ function verifyAuditChain(transactionId):
         route: "/onboarding",
         icon: UserPlus,
         category: "Principal",
-        businessDescription: "Assistant multi-étapes pour l'enregistrement de nouveaux fournisseurs d'or. Capture: informations légales, numéros d'enregistrement, juridiction, types de sources d'or (ASM/LSM/Recyclé), Bénéficiaires Effectifs Ultimes avec indicateurs PPE, et documents de conformité requis. Lance le processus de screening KYC/AML.",
-        technicalDescription: "Composant Stepper gérant l'état du formulaire sur plusieurs pages. Validation de formulaire avec schéma Zod. Upload de fichiers avec support glisser-déposer. À la fin, déclenche POST vers /api/counterparties créant l'entité avec statut 'pending_screening'.",
+        businessDescription:
+          "Assistant multi-étapes pour l'enregistrement de nouveaux fournisseurs d'or. Capture: informations légales, numéros d'enregistrement, juridiction, types de sources d'or (ASM/LSM/Recyclé), Bénéficiaires Effectifs Ultimes avec indicateurs PPE, et documents de conformité requis. Lance le processus de screening KYC/AML.",
+        technicalDescription:
+          "Composant Stepper gérant l'état du formulaire sur plusieurs pages. Validation de formulaire avec schéma Zod. Upload de fichiers avec support glisser-déposer. À la fin, déclenche POST vers /api/counterparties créant l'entité avec statut 'pending_screening'.",
         userStory: "US-01 Écran 1",
-        dataFlow: "POST /api/counterparties → Crée enregistrements counterparty + ubos + documents",
+        dataFlow:
+          "POST /api/counterparties → Crée enregistrements counterparty + ubos + documents",
         permissions: "Officier de Conformité",
       },
       {
@@ -762,10 +990,13 @@ function verifyAuditChain(transactionId):
         route: "/screening/[id]",
         icon: Shield,
         category: "Principal",
-        businessDescription: "Tableau de bord de screening de conformité implémentant l'algorithme US-01 de Score de Conformité Préliminaire. Affiche les vérifications automatisées: Sanctions (porte bloquante), statut PPE (pondération 40%), Médias Défavorables (pondération 35%), et Risque Juridictionnel (pondération 25%). Calcule le score final et la classification de risque (LOW 0-25, MEDIUM 26-60, HIGH 61-99, BLOCKED 100).",
-        technicalDescription: "Formulaire interactif permettant la modification manuelle des entrées de screening. Calcul du score en temps réel utilisant la formule pondérée. Visualisation du breakdown du score avec indicateurs de progression. Sauvegarde dans la table screening_results avec hash SHA-256 pour l'intégrité de l'audit.",
+        businessDescription:
+          "Tableau de bord de screening de conformité implémentant l'algorithme US-01 de Score de Conformité Préliminaire. Affiche les vérifications automatisées: Sanctions (porte bloquante), statut PPE (pondération 40%), Médias Défavorables (pondération 35%), et Risque Juridictionnel (pondération 25%). Calcule le score final et la classification de risque (LOW 0-25, MEDIUM 26-60, HIGH 61-99, BLOCKED 100).",
+        technicalDescription:
+          "Formulaire interactif permettant la modification manuelle des entrées de screening. Calcul du score en temps réel utilisant la formule pondérée. Visualisation du breakdown du score avec indicateurs de progression. Sauvegarde dans la table screening_results avec hash SHA-256 pour l'intégrité de l'audit.",
         userStory: "US-01, US-01-bis",
-        dataFlow: "GET/POST /api/screening/[id] → tables screening_results + screening_audit_log",
+        dataFlow:
+          "GET/POST /api/screening/[id] → tables screening_results + screening_audit_log",
         permissions: "Officier de Conformité",
         algorithm: `
 Score Préliminaire = (PPE × 0.40) + (MédiasDéfavorables × 0.35) + (Juridiction × 0.25)
@@ -789,10 +1020,13 @@ Classification:
         route: "/risk-management",
         icon: Shield,
         category: "Principal",
-        businessDescription: "Tableau de bord pour l'attribution complète des niveaux de risque selon US-02. Affiche les contreparties en attente d'évaluation des risques, la distribution des niveaux de risque dans le portefeuille, et les exigences EDD (Due Diligence Renforcée). Point d'entrée pour les évaluations de risque détaillées.",
-        technicalDescription: "Agrège les données de la table risk_assessments. Graphiques utilisant Recharts pour la visualisation de la distribution des niveaux. Liens vers /risk-management/[id]/assess pour les évaluations individuelles.",
+        businessDescription:
+          "Tableau de bord pour l'attribution complète des niveaux de risque selon US-02. Affiche les contreparties en attente d'évaluation des risques, la distribution des niveaux de risque dans le portefeuille, et les exigences EDD (Due Diligence Renforcée). Point d'entrée pour les évaluations de risque détaillées.",
+        technicalDescription:
+          "Agrège les données de la table risk_assessments. Graphiques utilisant Recharts pour la visualisation de la distribution des niveaux. Liens vers /risk-management/[id]/assess pour les évaluations individuelles.",
         userStory: "US-02 Écran 2",
-        dataFlow: "GET /api/risk-assessments → tables risk_assessments + counterparties",
+        dataFlow:
+          "GET /api/risk-assessments → tables risk_assessments + counterparties",
         permissions: "Gestionnaire des Risques, Officier de Conformité Senior",
       },
       {
@@ -801,10 +1035,13 @@ Classification:
         route: "/monetary-policy",
         icon: Landmark,
         category: "Principal",
-        businessDescription: "Simulateur d'impact bilanciel en lecture seule (MP-01). Permet aux analystes de modéliser l'effet d'une acquisition d'or sur le bilan pro-forma de la banque centrale selon différents scénarios de financement (Tirage sur réserves, Émission obligataire, Swap de change, Emprunt externe). Calcule automatiquement les ratios clés (Or/Réserves, LCR, Levier, Adéquation des fonds propres), compare les scénarios via une notation pondérée et un graphique radar, puis produit un dossier comité exportable. Strictement une simulation : aucune donnée réelle du grand livre n'est modifiée (sorties marquées « SIMULATION - NON EXÉCUTÉE »).",
-        technicalDescription: "Assistant client en 5 étapes (Bibliothèque → Configuration → Pro-forma → Comparaison → Export). Logique de simulation pure dans lib/monetary-policy.ts (simulateBalanceSheetImpact, computeRatios, compareScenarios). Graphique radar avec Recharts via le ChartContainer shadcn. La validation des contraintes applique les règles ≤10% des réserves et règlement T+2. L'étape d'export calcule un vrai hachage d'intégrité SHA-256 via crypto.subtle. Aucune écriture en base.",
+        businessDescription:
+          "Simulateur d'impact bilanciel en lecture seule (MP-01). Permet aux analystes de modéliser l'effet d'une acquisition d'or sur le bilan pro-forma de la banque centrale selon différents scénarios de financement (Tirage sur réserves, Émission obligataire, Swap de change, Emprunt externe). Calcule automatiquement les ratios clés (Or/Réserves, LCR, Levier, Adéquation des fonds propres), compare les scénarios via une notation pondérée et un graphique radar, puis produit un dossier comité exportable. Strictement une simulation : aucune donnée réelle du grand livre n'est modifiée (sorties marquées « SIMULATION - NON EXÉCUTÉE »).",
+        technicalDescription:
+          "Assistant client en 5 étapes (Bibliothèque → Configuration → Pro-forma → Comparaison → Export). Logique de simulation pure dans lib/monetary-policy.ts (simulateBalanceSheetImpact, computeRatios, compareScenarios). Graphique radar avec Recharts via le ChartContainer shadcn. La validation des contraintes applique les règles ≤10% des réserves et règlement T+2. L'étape d'export calcule un vrai hachage d'intégrité SHA-256 via crypto.subtle. Aucune écriture en base.",
         userStory: "MP-01 Écrans 0-4",
-        dataFlow: "En mémoire uniquement : BASELINE_BALANCE_SHEET + SCENARIO_TEMPLATES (lib/monetary-policy.ts). Pas de persistance ; intégration future : GET /api/v1/balance-sheet/current, POST /api/v1/monetary-policy/simulate.",
+        dataFlow:
+          "En mémoire uniquement : BASELINE_BALANCE_SHEET + SCENARIO_TEMPLATES (lib/monetary-policy.ts). Pas de persistance ; intégration future : GET /api/v1/balance-sheet/current, POST /api/v1/monetary-policy/simulate.",
         permissions: "Gestionnaire des Risques, Administrateur",
         algorithm: `
 Augmentation d'or (M USD) = quantitéOz × prixParOz / 1 000 000
@@ -833,10 +1070,13 @@ Contraintes : achat ≤ 10% des réserves totales par transaction ; règlement �
         route: "/purchase-orders",
         icon: ShoppingCart,
         category: "Opérations",
-        businessDescription: "Registre central de tous les ordres d'achat d'or. Suit le cycle de vie de la commande de Brouillon → Soumis → En attente d'approbation → Approuvé → En transit → Reçu. Affiche les valeurs estimées, les prix LBMA et le statut de livraison.",
-        technicalDescription: "Composant DataTable récupérant depuis /api/purchase-orders avec JOINs vers counterparties pour les détails du fournisseur. Filtrage basé sur le statut et tri par date/valeur. Actions de ligne pour les opérations voir/modifier/annuler.",
+        businessDescription:
+          "Registre central de tous les ordres d'achat d'or. Suit le cycle de vie de la commande de Brouillon → Soumis → En attente d'approbation → Approuvé → En transit → Reçu. Affiche les valeurs estimées, les prix LBMA et le statut de livraison.",
+        technicalDescription:
+          "Composant DataTable récupérant depuis /api/purchase-orders avec JOINs vers counterparties pour les détails du fournisseur. Filtrage basé sur le statut et tri par date/valeur. Actions de ligne pour les opérations voir/modifier/annuler.",
         userStory: "US-03 Écran 4",
-        dataFlow: "GET /api/purchase-orders → tables purchase_orders + counterparties",
+        dataFlow:
+          "GET /api/purchase-orders → tables purchase_orders + counterparties",
         permissions: "Trader, Officier de Conformité",
       },
       {
@@ -845,10 +1085,13 @@ Contraintes : achat ≤ 10% des réserves totales par transaction ; règlement �
         route: "/dispatch",
         icon: Truck,
         category: "Opérations",
-        businessDescription: "Module de documentation pré-expédition et validation de dispatch (US-04). Hub central pour la validation des documents d'exportation, manifestes d'expédition et dédouanement avant l'envoi de l'or. Suit le statut de validation depuis les documents en attente jusqu'à la confirmation finale de dispatch. Assure la conformité réglementaire avant le transfert vers la réception coffre.",
-        technicalDescription: "Tableau de bord affichant toutes les validations de dispatch avec indicateurs de statut. Filtrable par statut (pending_docs, docs_validated, pending_authorization, dispatched, in_transit). Liens vers les pages détaillées du workflow de validation. Intégration avec la table purchase_orders pour les données PO.",
+        businessDescription:
+          "Module de documentation pré-expédition et validation de dispatch (US-04). Hub central pour la validation des documents d'exportation, manifestes d'expédition et dédouanement avant l'envoi de l'or. Suit le statut de validation depuis les documents en attente jusqu'à la confirmation finale de dispatch. Assure la conformité réglementaire avant le transfert vers la réception coffre.",
+        technicalDescription:
+          "Tableau de bord affichant toutes les validations de dispatch avec indicateurs de statut. Filtrable par statut (pending_docs, docs_validated, pending_authorization, dispatched, in_transit). Liens vers les pages détaillées du workflow de validation. Intégration avec la table purchase_orders pour les données PO.",
         userStory: "US-04",
-        dataFlow: "GET /api/dispatch → table dispatch_validations + JOINs purchase_orders",
+        dataFlow:
+          "GET /api/dispatch → table dispatch_validations + JOINs purchase_orders",
         permissions: "Officier de Conformité Commerce",
       },
       {
@@ -857,10 +1100,13 @@ Contraintes : achat ≤ 10% des réserves totales par transaction ; règlement �
         route: "/dispatch/[id]",
         icon: Truck,
         category: "Opérations",
-        businessDescription: "Workflow de validation pré-expédition en quatre étapes implémentant US-04: (1) Upload & Validation des Documents - valide la licence d'export, le certificat d'origine, les docs de transport et l'assurance par rapport aux termes du PO; (2) Vérification Manifeste & Douanes - vérifie les tolérances de poids (±5%), les numéros de scellés et le pré-dédouanement; (3) Autorisation de Dispatch - assignation du transporteur avec double approbation pour les expéditions >$1M; (4) Confirmation de Dispatch - écran de succès avec ID de suivi et déclenchement du transfert vers US-05.",
-        technicalDescription: "Interface à onglets avec 4 étapes correspondant aux écrans US-04. La validation des documents utilise une simulation OCR pour l'extraction des métadonnées. La jauge de tolérance de poids utilise une visualisation SVG en demi-cercle. La double approbation implémente le pattern signature + OTP. L'autorisation génère un hash SHA-256 pour l'immutabilité. Au dispatch, déclenche la transition vers le statut in_transit.",
+        businessDescription:
+          "Workflow de validation pré-expédition en quatre étapes implémentant US-04: (1) Upload & Validation des Documents - valide la licence d'export, le certificat d'origine, les docs de transport et l'assurance par rapport aux termes du PO; (2) Vérification Manifeste & Douanes - vérifie les tolérances de poids (±5%), les numéros de scellés et le pré-dédouanement; (3) Autorisation de Dispatch - assignation du transporteur avec double approbation pour les expéditions >$1M; (4) Confirmation de Dispatch - écran de succès avec ID de suivi et déclenchement du transfert vers US-05.",
+        technicalDescription:
+          "Interface à onglets avec 4 étapes correspondant aux écrans US-04. La validation des documents utilise une simulation OCR pour l'extraction des métadonnées. La jauge de tolérance de poids utilise une visualisation SVG en demi-cercle. La double approbation implémente le pattern signature + OTP. L'autorisation génère un hash SHA-256 pour l'immutabilité. Au dispatch, déclenche la transition vers le statut in_transit.",
         userStory: "US-04 Écran 1, 2, 3, 4",
-        dataFlow: "GET/PUT /api/dispatch/[id] + POST /api/dispatch/[id]/authorize → tables dispatch_validations + dispatch_documents + dispatch_audit_log",
+        dataFlow:
+          "GET/PUT /api/dispatch/[id] + POST /api/dispatch/[id]/authorize → tables dispatch_validations + dispatch_documents + dispatch_audit_log",
         permissions: "Officier de Conformité Commerce, Signataire Autorisé",
         algorithm: `
 Validation des Documents:
@@ -895,10 +1141,13 @@ Autorisation de Dispatch:
         route: "/vault-intake",
         icon: Warehouse,
         category: "Opérations",
-        businessDescription: "Réception physique de l'or et initiation de la chaîne de garde (US-05). Hub central pour l'enregistrement des réceptions au coffre depuis les expéditions dispatched. Suit le statut de réception depuis l'attente jusqu'à la fin de l'essai et le transfert vers le règlement. Intègre les données US-04 dispatch et alimente US-06 règlement.",
-        technicalDescription: "Tableau de bord affichant toutes les réceptions avec indicateurs de statut. Filtrable par statut (pending_intake, received, assay_scheduled, assayed, pending_settlement). Liens vers les pages détaillées du workflow en 4 étapes. Intégration avec les tables dispatch_validations et purchase_orders.",
+        businessDescription:
+          "Réception physique de l'or et initiation de la chaîne de garde (US-05). Hub central pour l'enregistrement des réceptions au coffre depuis les expéditions dispatched. Suit le statut de réception depuis l'attente jusqu'à la fin de l'essai et le transfert vers le règlement. Intègre les données US-04 dispatch et alimente US-06 règlement.",
+        technicalDescription:
+          "Tableau de bord affichant toutes les réceptions avec indicateurs de statut. Filtrable par statut (pending_intake, received, assay_scheduled, assayed, pending_settlement). Liens vers les pages détaillées du workflow en 4 étapes. Intégration avec les tables dispatch_validations et purchase_orders.",
         userStory: "US-05",
-        dataFlow: "GET /api/vault-intake → table vault_intakes + JOINs dispatch_validations",
+        dataFlow:
+          "GET /api/vault-intake → table vault_intakes + JOINs dispatch_validations",
         permissions: "Opérateur Coffre, Coordinateur Essai",
       },
       {
@@ -907,10 +1156,13 @@ Autorisation de Dispatch:
         route: "/vault-intake/[id]",
         icon: Warehouse,
         category: "Opérations",
-        businessDescription: "Workflow de réception coffre en quatre étapes implémentant US-05: (1) Enregistrement Réception - recherche PO/tracking, vérification scellés vs manifeste, enregistrement poids brut/net avec jauge tolérance ±5%, upload preuves photos, authentification OTP opérateur; (2) Planification Essai - sélection labo ISO 17025 avec expiration accréditation, génération ID échantillon avec code-barres, sélection méthode Fire Assay/XRF, timeline suivi transporteur, timer compte à rebours SLA; (3) Vérification Pureté - upload certificat avec OCR, détail pureté (Au/Ag/Cu/Fe %), calcul poids or pur, comparaison variance avec bandes de tolérance; (4) Transfert Règlement - résumé allocation, transition statut (RECEIVED → ASSAYED → PENDING_SETTLEMENT), hash audit SHA-256, badge conformité LBMA RGG.",
-        technicalDescription: "Interface à onglets avec 4 étapes correspondant aux écrans US-05. La jauge de tolérance de poids utilise une visualisation SVG en demi-cercle. Le sélecteur de labo valide l'accréditation ISO 17025. La barre de variance de pureté montre les seuils ±0.1g (vert), ±0.1-0.3g (jaune), >±0.3g (rouge). Au verrouillage, génère un hash SHA-256 immuable et déclenche le transfert US-06 règlement.",
+        businessDescription:
+          "Workflow de réception coffre en quatre étapes implémentant US-05: (1) Enregistrement Réception - recherche PO/tracking, vérification scellés vs manifeste, enregistrement poids brut/net avec jauge tolérance ±5%, upload preuves photos, authentification OTP opérateur; (2) Planification Essai - sélection labo ISO 17025 avec expiration accréditation, génération ID échantillon avec code-barres, sélection méthode Fire Assay/XRF, timeline suivi transporteur, timer compte à rebours SLA; (3) Vérification Pureté - upload certificat avec OCR, détail pureté (Au/Ag/Cu/Fe %), calcul poids or pur, comparaison variance avec bandes de tolérance; (4) Transfert Règlement - résumé allocation, transition statut (RECEIVED → ASSAYED → PENDING_SETTLEMENT), hash audit SHA-256, badge conformité LBMA RGG.",
+        technicalDescription:
+          "Interface à onglets avec 4 étapes correspondant aux écrans US-05. La jauge de tolérance de poids utilise une visualisation SVG en demi-cercle. Le sélecteur de labo valide l'accréditation ISO 17025. La barre de variance de pureté montre les seuils ±0.1g (vert), ±0.1-0.3g (jaune), >±0.3g (rouge). Au verrouillage, génère un hash SHA-256 immuable et déclenche le transfert US-06 règlement.",
         userStory: "US-05 Écran 1, 2, 3, 4",
-        dataFlow: "GET/PUT /api/vault-intake/[id] + POST /api/assay/dispatch → tables vault_intakes + assay_samples + custody_log + audit_trail",
+        dataFlow:
+          "GET/PUT /api/vault-intake/[id] + POST /api/assay/dispatch → tables vault_intakes + assay_samples + custody_log + audit_trail",
         permissions: "Opérateur Coffre, Coordinateur Essai, Contrôleur Qualité",
         algorithm: `
 Tolérance de Poids (Réception):
@@ -949,10 +1201,13 @@ Transfert Règlement:
         route: "/assays",
         icon: FlaskConical,
         category: "Opérations",
-        businessDescription: "Gestion des résultats d'essai de laboratoire. Enregistre: numéro de lot, poids brut/net, pourcentage de pureté, contenu en or fin, méthode d'essai, nom du laboratoire. Lié aux enregistrements de réception coffre. Critique pour le calcul du règlement et la vérification de la qualité.",
-        technicalDescription: "Interface CRUD pour la table assays. Helpers de calcul pour le poids d'or fin (poids net × pureté). Upload et prévisualisation de certificat PDF. Workflow de statut: En attente → Vérifié → Contesté.",
+        businessDescription:
+          "Gestion des résultats d'essai de laboratoire. Enregistre: numéro de lot, poids brut/net, pourcentage de pureté, contenu en or fin, méthode d'essai, nom du laboratoire. Lié aux enregistrements de réception coffre. Critique pour le calcul du règlement et la vérification de la qualité.",
+        technicalDescription:
+          "Interface CRUD pour la table assays. Helpers de calcul pour le poids d'or fin (poids net × pureté). Upload et prévisualisation de certificat PDF. Workflow de statut: En attente → Vérifié → Contesté.",
         userStory: "US-05",
-        dataFlow: "GET/POST /api/assays → tables assays + vault_intakes + purchase_orders",
+        dataFlow:
+          "GET/POST /api/assays → tables assays + vault_intakes + purchase_orders",
         permissions: "Responsable Opérations, Contrôleur Qualité",
       },
       {
@@ -961,11 +1216,15 @@ Transfert Règlement:
         route: "/settlements",
         icon: Banknote,
         category: "Opérations",
-        businessDescription: "Moteur de Valorisation, Règlement & Allocation (US-06). Hub central pour calculer la valeur finale de la transaction à partir des données d'essai vérifiées et des prix LBMA, exécuter les transferts de fonds à double approbation vers les contreparties, et allouer légalement le poids d'or pur dans le registre des réserves de la banque centrale. Support multi-devises (USD/EUR) avec verrouillage du taux FX.",
-        technicalDescription: "Tableau de bord affichant tous les règlements avec indicateurs de statut. Filtrable par statut (pending_valuation, pending_review, pending_approval, executed, allocated). Liens vers les pages détaillées du workflow en 4 étapes. Intégration avec les tables vault_intakes, assays, et purchase_orders.",
+        businessDescription:
+          "Moteur de Valorisation, Règlement & Allocation (US-06). Hub central pour calculer la valeur finale de la transaction à partir des données d'essai vérifiées et des prix LBMA, exécuter les transferts de fonds à double approbation vers les contreparties, et allouer légalement le poids d'or pur dans le registre des réserves de la banque centrale. Support multi-devises (USD/EUR) avec verrouillage du taux FX.",
+        technicalDescription:
+          "Tableau de bord affichant tous les règlements avec indicateurs de statut. Filtrable par statut (pending_valuation, pending_review, pending_approval, executed, allocated). Liens vers les pages détaillées du workflow en 4 étapes. Intégration avec les tables vault_intakes, assays, et purchase_orders.",
         userStory: "US-06",
-        dataFlow: "GET /api/settlements → tables settlements + vault_intakes + assays + counterparties",
-        permissions: "Officier Financier, Responsable Trésorerie, Gestionnaire de Réserves",
+        dataFlow:
+          "GET /api/settlements → tables settlements + vault_intakes + assays + counterparties",
+        permissions:
+          "Officier Financier, Responsable Trésorerie, Gestionnaire de Réserves",
       },
       {
         id: "settlement-detail",
@@ -973,11 +1232,15 @@ Transfert Règlement:
         route: "/settlements/[id]",
         icon: Banknote,
         category: "Opérations",
-        businessDescription: "Workflow de règlement en quatre étapes implémentant US-06: (1) Moteur de Tarification & Valorisation - intégration fixing LBMA AM/PM, facteur d'ajustement de pureté, calcul prime/remise, timer de verrouillage de prix 15 minutes, sélection de devise (USD/EUR); (2) Calcul & Révision du Règlement - affichage valeur brute, tableau des déductions (logistique, assurance, frais d'essai, retenue à la source), coordonnées bancaires contrepartie (IBAN/SWIFT), liste de vérification; (3) Double Approbation & Exécution - résumé du règlement, slots OTP Officier Financier + Directeur Trésorerie, application de la séparation des fonctions, actions Approuver/Rejeter/Amender; (4) Confirmation d'Allocation - bannière de succès avec ID Règlement, entrée d'allocation de réserve (poids or, ID compte, date de valorisation, statut Posté & Verrouillé), certificat de transfert de titre, hash d'audit SHA-256, badge de conformité LBMA RGG.",
-        technicalDescription: "Interface à onglets avec 4 étapes correspondant aux écrans US-06. Récupération en temps réel des taux LBMA avec compte à rebours de verrouillage de prix. La double approbation applique la séparation des fonctions (rôles RBAC différents). À l'exécution, génère un hash SHA-256 liant les enregistrements PO, Essai, Tarification, Règlement et Allocation. Entrée de réserve postée vers le registre central de la banque via API sécurisée.",
+        businessDescription:
+          "Workflow de règlement en quatre étapes implémentant US-06: (1) Moteur de Tarification & Valorisation - intégration fixing LBMA AM/PM, facteur d'ajustement de pureté, calcul prime/remise, timer de verrouillage de prix 15 minutes, sélection de devise (USD/EUR); (2) Calcul & Révision du Règlement - affichage valeur brute, tableau des déductions (logistique, assurance, frais d'essai, retenue à la source), coordonnées bancaires contrepartie (IBAN/SWIFT), liste de vérification; (3) Double Approbation & Exécution - résumé du règlement, slots OTP Officier Financier + Directeur Trésorerie, application de la séparation des fonctions, actions Approuver/Rejeter/Amender; (4) Confirmation d'Allocation - bannière de succès avec ID Règlement, entrée d'allocation de réserve (poids or, ID compte, date de valorisation, statut Posté & Verrouillé), certificat de transfert de titre, hash d'audit SHA-256, badge de conformité LBMA RGG.",
+        technicalDescription:
+          "Interface à onglets avec 4 étapes correspondant aux écrans US-06. Récupération en temps réel des taux LBMA avec compte à rebours de verrouillage de prix. La double approbation applique la séparation des fonctions (rôles RBAC différents). À l'exécution, génère un hash SHA-256 liant les enregistrements PO, Essai, Tarification, Règlement et Allocation. Entrée de réserve postée vers le registre central de la banque via API sécurisée.",
         userStory: "US-06 Écran 1, 2, 3, 4",
-        dataFlow: "GET/PUT /api/settlements/[id] + POST /api/settlements/[id]/execute + POST /api/reserves/allocate → tables settlements + reserve_allocations + audit_trail",
-        permissions: "Officier Financier, Directeur Trésorerie, Gestionnaire de Réserves",
+        dataFlow:
+          "GET/PUT /api/settlements/[id] + POST /api/settlements/[id]/execute + POST /api/reserves/allocate → tables settlements + reserve_allocations + audit_trail",
+        permissions:
+          "Officier Financier, Directeur Trésorerie, Gestionnaire de Réserves",
         algorithm: `
 Formule de Valorisation:
 - Poids Au Pur = Poids Net × (Au% / 100)
@@ -1018,8 +1281,10 @@ Exécution du Règlement:
         route: "/reports",
         icon: FileText,
         category: "Système",
-        businessDescription: "Centre de reporting réglementaire et de gestion. Rapports disponibles: Résumé des Acquisitions (volumes mensuels), Vue d'ensemble des Contreparties (composition du portefeuille), Inventaire d'Or (avoirs actuels), Rapport de Règlement (historique des paiements), Audit de Conformité (statistiques de screening), Évaluation des Risques (distribution des niveaux).",
-        technicalDescription: "Générateur de rapports avec sélecteur de plage de dates et options d'export (PDF, CSV, Excel). Agrégation de données côté serveur pour les grands ensembles de données. Fonctionnalité de rapport programmé pour livraison automatique.",
+        businessDescription:
+          "Centre de reporting réglementaire et de gestion. Rapports disponibles: Résumé des Acquisitions (volumes mensuels), Vue d'ensemble des Contreparties (composition du portefeuille), Inventaire d'Or (avoirs actuels), Rapport de Règlement (historique des paiements), Audit de Conformité (statistiques de screening), Évaluation des Risques (distribution des niveaux).",
+        technicalDescription:
+          "Générateur de rapports avec sélecteur de plage de dates et options d'export (PDF, CSV, Excel). Agrégation de données côté serveur pour les grands ensembles de données. Fonctionnalité de rapport programmé pour livraison automatique.",
         userStory: "N/A",
         dataFlow: "Divers endpoints /api/reports/* agrégeant plusieurs tables",
         permissions: "Officier de Conformité, Officier Financier, Direction",
@@ -1030,11 +1295,15 @@ Exécution du Règlement:
         route: "/audit",
         icon: Shield,
         category: "Système",
-        businessDescription: "Moteur de Piste d'Audit Immuable & Export Réglementaire (US-07). Hub central pour les auditeurs et officiers de conformité pour récupérer l'historique des transactions inviolable, générer des rapports réglementaires (FIU STR/SAR, IMF SDDS, LBMA Disclosure), et exporter les données en plusieurs formats (JSON/CSV/XML) avec signature digitale. Applique les politiques de r��tention ≥5 ans selon LBMA RGG.",
-        technicalDescription: "Interface à onglets avec 4 écrans: (1) Visualiseur de Piste d'Audit Immuable - timeline chronologique avec vérification de chaîne SHA-256; (2) Générateur de Rapports Réglementaires - auto-population depuis données vérifiées; (3) Configuration d'Export - mapping de format avec signature digitale; (4) Tableau de Bord Conformité - compte à rebours rétention, score préparation audit, indicateurs santé système.",
+        businessDescription:
+          "Moteur de Piste d'Audit Immuable & Export Réglementaire (US-07). Hub central pour les auditeurs et officiers de conformité pour récupérer l'historique des transactions inviolable, générer des rapports réglementaires (FIU STR/SAR, IMF SDDS, LBMA Disclosure), et exporter les données en plusieurs formats (JSON/CSV/XML) avec signature digitale. Applique les politiques de r��tention ≥5 ans selon LBMA RGG.",
+        technicalDescription:
+          "Interface à onglets avec 4 écrans: (1) Visualiseur de Piste d'Audit Immuable - timeline chronologique avec vérification de chaîne SHA-256; (2) Générateur de Rapports Réglementaires - auto-population depuis données vérifiées; (3) Configuration d'Export - mapping de format avec signature digitale; (4) Tableau de Bord Conformité - compte à rebours rétention, score préparation audit, indicateurs santé système.",
         userStory: "US-07",
-        dataFlow: "GET /api/audit/{transactionId} → audit_trail + toutes tables liées",
-        permissions: "Auditeur (lecture seule), Officier de Conformité, Directeur Conformité",
+        dataFlow:
+          "GET /api/audit/{transactionId} → audit_trail + toutes tables liées",
+        permissions:
+          "Auditeur (lecture seule), Officier de Conformité, Directeur Conformité",
       },
       {
         id: "audit-trail-viewer",
@@ -1042,11 +1311,15 @@ Exécution du Règlement:
         route: "/audit#audit-trail",
         icon: Shield,
         category: "Système",
-        businessDescription: "Historique des transactions inviolable avec vérification de chaîne (US-07 Écran 1). Affichage chronologique en lecture seule de chaque changement d'état depuis l'intégration contrepartie jusqu'au règlement. Chaque entrée inclut horodatage, ID acteur, empreinte IP/appareil, hash précédent, hash actuel et statut de validation de lien de chaîne. Événements: Sync Feed, Calcul Déclenché, Évaluation Risque, Flag ASM, Reconnu, APPROUVÉ.",
-        technicalDescription: "Vue timeline avec chaîne verticale montrant Intégration → Screening → Risque → OA → Dispatch → Réception → Essai → Règlement. Validation de hash automatisée nocturne sur toutes les transactions réglées. Toute discordance déclenche alerte immédiate au DCO et notification FIU.",
+        businessDescription:
+          "Historique des transactions inviolable avec vérification de chaîne (US-07 Écran 1). Affichage chronologique en lecture seule de chaque changement d'état depuis l'intégration contrepartie jusqu'au règlement. Chaque entrée inclut horodatage, ID acteur, empreinte IP/appareil, hash précédent, hash actuel et statut de validation de lien de chaîne. Événements: Sync Feed, Calcul Déclenché, Évaluation Risque, Flag ASM, Reconnu, APPROUVÉ.",
+        technicalDescription:
+          "Vue timeline avec chaîne verticale montrant Intégration → Screening → Risque → OA → Dispatch → Réception → Essai → Règlement. Validation de hash automatisée nocturne sur toutes les transactions réglées. Toute discordance déclenche alerte immédiate au DCO et notification FIU.",
         userStory: "US-07 Écran 1",
-        dataFlow: "GET /api/v1/audit/{transactionId} → {entries: [], chainStatus: 'VERIFIED', retentionExpiry: '2031-05-05'}",
-        permissions: "Auditeur (limité dans le temps, lecture seule), Officier de Conformité",
+        dataFlow:
+          "GET /api/v1/audit/{transactionId} → {entries: [], chainStatus: 'VERIFIED', retentionExpiry: '2031-05-05'}",
+        permissions:
+          "Auditeur (limité dans le temps, lecture seule), Officier de Conformité",
         businessRules: [
           "Enregistrements strictement en lecture seule après statut SETTLED",
           "Rupture de chaîne déclenche notification FIU immédiate",
@@ -1060,10 +1333,13 @@ Exécution du Règlement:
         route: "/audit#reports",
         icon: FileText,
         category: "Système",
-        businessDescription: "Reporting de conformité et réserves automatisé (US-07 Écran 2). Génération en un clic de rapports réglementaires obligatoires: Rapports de Transaction Suspecte FIU (STR/SAR), divulgations d'actifs de réserve IMF SDDS, résumés de conformité LBMA Responsible Gold Guidance. Auto-population depuis données de transaction vérifiées avec liste de validation.",
-        technicalDescription: "Sélecteur de Type de Rapport avec moteur d'auto-population tirant KYC, niveau de risque, résultats d'essai, tarification, règlement et données d'allocation. Prévisualisation PDF avec filigrane digital. Suivi de soumission avec accusé de réception.",
+        businessDescription:
+          "Reporting de conformité et réserves automatisé (US-07 Écran 2). Génération en un clic de rapports réglementaires obligatoires: Rapports de Transaction Suspecte FIU (STR/SAR), divulgations d'actifs de réserve IMF SDDS, résumés de conformité LBMA Responsible Gold Guidance. Auto-population depuis données de transaction vérifiées avec liste de validation.",
+        technicalDescription:
+          "Sélecteur de Type de Rapport avec moteur d'auto-population tirant KYC, niveau de risque, résultats d'essai, tarification, règlement et données d'allocation. Prévisualisation PDF avec filigrane digital. Suivi de soumission avec accusé de réception.",
         userStory: "US-07 Écran 2",
-        dataFlow: "POST /api/v1/reports/generate → {reportId, format: 'PDF', downloadUrl, generatedAt}",
+        dataFlow:
+          "POST /api/v1/reports/generate → {reportId, format: 'PDF', downloadUrl, generatedAt}",
         permissions: "Officier de Reporting Conformité, Directeur Conformité",
         businessRules: [
           "Rapports FIU auto-formatés selon templates STR/SAR nationaux",
@@ -1078,11 +1354,15 @@ Exécution du Règlement:
         route: "/audit#export",
         icon: Download,
         category: "Système",
-        businessDescription: "Export multi-format et pièce jointe signature digitale (US-07 Écran 3). Interface d'export configurable permettant aux auditeurs de sélectionner plages de dates, filtres de transaction, formats de sortie (JSON/CSV/XML), et mappings de champs. Attache signatures digitales cryptographiques et certificats de vérification de chaîne à chaque package d'export.",
-        technicalDescription: "Sélecteur de format avec mapping de champs glisser-déposer. File d'export montrant exports en attente, en cours et complétés. Hash de manifeste SHA-256 et certificat signé CB attachés aux packages.",
+        businessDescription:
+          "Export multi-format et pièce jointe signature digitale (US-07 Écran 3). Interface d'export configurable permettant aux auditeurs de sélectionner plages de dates, filtres de transaction, formats de sortie (JSON/CSV/XML), et mappings de champs. Attache signatures digitales cryptographiques et certificats de vérification de chaîne à chaque package d'export.",
+        technicalDescription:
+          "Sélecteur de format avec mapping de champs glisser-déposer. File d'export montrant exports en attente, en cours et complétés. Hash de manifeste SHA-256 et certificat signé CB attachés aux packages.",
         userStory: "US-07 Écran 3",
-        dataFlow: "POST /api/v1/export/configure → {exportId, status: 'PROCESSING', manifestHash}",
-        permissions: "Auditeur, Officier de Conformité (double approbation pour >10,000 enregistrements)",
+        dataFlow:
+          "POST /api/v1/export/configure → {exportId, status: 'PROCESSING', manifestHash}",
+        permissions:
+          "Auditeur, Officier de Conformité (double approbation pour >10,000 enregistrements)",
         businessRules: [
           "Chaque export inclut hash de manifeste SHA-256",
           "Signature digitale vérifie authenticité de l'export",
@@ -1096,10 +1376,13 @@ Exécution du Règlement:
         route: "/audit#compliance",
         icon: Calendar,
         category: "Système",
-        businessDescription: "Compte à rebours de rétention et surveillance préparation audit (US-07 Écran 4). Tableau de bord conformité centralisé affichant comptes à rebours de rétention, statut d'archivage, scores de préparation audit (0-100), calendrier des rapports planifiés, et indicateurs de santé système (CPU, Mémoire, Stockage, Réseau). Permet gestion proactive des obligations réglementaires et préservation données long terme.",
-        technicalDescription: "Tableau de bord temps réel avec timer de rétention, jauge SVG pour score audit, LEDs indicateurs de santé, panneau journal d'alertes, et vue calendrier des échéances de reporting FIU/IMF/LBMA. Archivage automatisé vers stockage froid WORM à expiration des 5 ans.",
+        businessDescription:
+          "Compte à rebours de rétention et surveillance préparation audit (US-07 Écran 4). Tableau de bord conformité centralisé affichant comptes à rebours de rétention, statut d'archivage, scores de préparation audit (0-100), calendrier des rapports planifiés, et indicateurs de santé système (CPU, Mémoire, Stockage, Réseau). Permet gestion proactive des obligations réglementaires et préservation données long terme.",
+        technicalDescription:
+          "Tableau de bord temps réel avec timer de rétention, jauge SVG pour score audit, LEDs indicateurs de santé, panneau journal d'alertes, et vue calendrier des échéances de reporting FIU/IMF/LBMA. Archivage automatisé vers stockage froid WORM à expiration des 5 ans.",
         userStory: "US-07 Écran 4",
-        dataFlow: "GET /api/v1/compliance/retention-status → {activeTransactions: 142, archivalPending: 18, retentionCompliance: '100%'}",
+        dataFlow:
+          "GET /api/v1/compliance/retention-status → {activeTransactions: 142, archivalPending: 18, retentionCompliance: '100%'}",
         permissions: "Directeur Conformité, Administrateur Système",
         businessRules: [
           "Rétention minimum 5 ans depuis date de règlement",
@@ -1114,11 +1397,15 @@ Exécution du Règlement:
         route: "/settings",
         icon: Settings,
         category: "Système",
-        businessDescription: "Configuration de l'application incluant: gestion du profil utilisateur, préférences de notification (alertes email pour approbations, règlements), paramètres de sécurité (mot de passe, 2FA), et détails de l'organisation (nom de la banque, identifiants réglementaires).",
-        technicalDescription: "Interface de paramètres à onglets persistant vers les tables users et organization_settings. Changement de mot de passe avec hashage bcrypt. Configuration 2FA avec support TOTP (Time-based One-Time Password).",
+        businessDescription:
+          "Configuration de l'application incluant: gestion du profil utilisateur, préférences de notification (alertes email pour approbations, règlements), paramètres de sécurité (mot de passe, 2FA), et détails de l'organisation (nom de la banque, identifiants réglementaires).",
+        technicalDescription:
+          "Interface de paramètres à onglets persistant vers les tables users et organization_settings. Changement de mot de passe avec hashage bcrypt. Configuration 2FA avec support TOTP (Time-based One-Time Password).",
         userStory: "N/A",
-        dataFlow: "GET/PUT /api/settings → tables users + organization_settings",
-        permissions: "Tous les utilisateurs authentifiés (propre profil), Administrateur (paramètres organisation)",
+        dataFlow:
+          "GET/PUT /api/settings → tables users + organization_settings",
+        permissions:
+          "Tous les utilisateurs authentifiés (propre profil), Administrateur (paramètres organisation)",
       },
       {
         id: "admin",
@@ -1126,10 +1413,13 @@ Exécution du Règlement:
         route: "/admin",
         icon: UserCog,
         category: "Système",
-        businessDescription: "Centre de contrôle réservé aux administrateurs pour la gouvernance des identités et des accès. Offre deux fonctions : (1) Gestion des utilisateurs — créer de nouveaux utilisateurs avec un mot de passe temporaire, leur attribuer un profil (Officier de Conformité, Gestionnaire des Risques, Admin), changer de profil et supprimer des comptes ; (2) Matrice d'accès par profil — définir, pour chaque profil, exactement quelles pages de l'application chaque rôle peut voir et ouvrir. Les administrateurs conservent toujours un accès total. C'est ici qu'est attribué le rôle Admin, car il ne peut pas être auto-attribué lors de l'inscription publique.",
-        technicalDescription: "Route protégée par une vérification serveur requireAdmin() dans app/admin/layout.tsx. Les opérations sur les utilisateurs passent par des Server Actions (app/admin/actions.ts) : création via Better Auth, changement de profil et suppression réservés aux admins. La matrice d'accès est persistée dans la table role_page_access et exposée aux clients via /api/access/me, qui pilote à la fois le filtrage des liens de la barre latérale et le blocage des URL dans proxy.ts.",
+        businessDescription:
+          "Centre de contrôle réservé aux administrateurs pour la gouvernance des identités et des accès. Offre deux fonctions : (1) Gestion des utilisateurs — créer de nouveaux utilisateurs avec un mot de passe temporaire, leur attribuer un profil (Officier de Conformité, Gestionnaire des Risques, Admin), changer de profil et supprimer des comptes ; (2) Matrice d'accès par profil — définir, pour chaque profil, exactement quelles pages de l'application chaque rôle peut voir et ouvrir. Les administrateurs conservent toujours un accès total. C'est ici qu'est attribué le rôle Admin, car il ne peut pas être auto-attribué lors de l'inscription publique.",
+        technicalDescription:
+          "Route protégée par une vérification serveur requireAdmin() dans app/admin/layout.tsx. Les opérations sur les utilisateurs passent par des Server Actions (app/admin/actions.ts) : création via Better Auth, changement de profil et suppression réservés aux admins. La matrice d'accès est persistée dans la table role_page_access et exposée aux clients via /api/access/me, qui pilote à la fois le filtrage des liens de la barre latérale et le blocage des URL dans proxy.ts.",
         userStory: "N/A",
-        dataFlow: "Server Actions (app/admin/actions.ts) + GET /api/access/me → tables user + role_page_access",
+        dataFlow:
+          "Server Actions (app/admin/actions.ts) + GET /api/access/me → tables user + role_page_access",
         permissions: "Admin uniquement",
         businessRules: [
           "Seuls les utilisateurs avec le profil Admin peuvent ouvrir /admin (l'URL est bloquée pour les autres)",
@@ -1145,19 +1435,22 @@ Exécution du Règlement:
       steps: [
         {
           phase: "1. Intégration Contrepartie",
-          description: "Enregistrer nouveau fournisseur d'or avec documents KYC",
+          description:
+            "Enregistrer nouveau fournisseur d'or avec documents KYC",
           userStory: "US-01",
           route: "/onboarding",
         },
         {
           phase: "2. Screening de Conformité",
-          description: "Vérifications automatisées sanctions/PPE/médias défavorables avec score préliminaire",
+          description:
+            "Vérifications automatisées sanctions/PPE/médias défavorables avec score préliminaire",
           userStory: "US-01-bis",
           route: "/screening/[id]",
         },
         {
           phase: "3. Évaluation des Risques",
-          description: "Attribution complète du niveau de risque avec EDD pour entités à haut risque",
+          description:
+            "Attribution complète du niveau de risque avec EDD pour entités à haut risque",
           userStory: "US-02",
           route: "/risk-management/[id]/assess",
         },
@@ -1169,37 +1462,43 @@ Exécution du Règlement:
         },
         {
           phase: "5. Double Approbation",
-          description: "Porte de conformité et double approbation pour grandes transactions",
+          description:
+            "Porte de conformité et double approbation pour grandes transactions",
           userStory: "US-03",
           route: "/purchase-orders/[id]",
         },
         {
           phase: "6. Dispatch Pré-Expédition",
-          description: "Validation des documents, vérification du manifeste et autorisation de dispatch",
+          description:
+            "Validation des documents, vérification du manifeste et autorisation de dispatch",
           userStory: "US-04",
           route: "/dispatch/[id]",
         },
         {
           phase: "7. Réception Coffre & Essai",
-          description: "Enregistrement réception, vérification scellés, planification labo, vérification pureté",
+          description:
+            "Enregistrement réception, vérification scellés, planification labo, vérification pureté",
           userStory: "US-05",
           route: "/vault-intake/[id]",
         },
         {
           phase: "8. Valorisation & Règlement",
-          description: "Tarification LBMA, calcul du règlement, exécution à double approbation",
+          description:
+            "Tarification LBMA, calcul du règlement, exécution à double approbation",
           userStory: "US-06",
           route: "/settlements/[id]",
         },
         {
           phase: "9. Allocation aux Réserves",
-          description: "Poids d'or posté au registre des réserves de la banque centrale avec hash d'audit",
+          description:
+            "Poids d'or posté au registre des réserves de la banque centrale avec hash d'audit",
           userStory: "US-06",
           route: "/settlements/[id]",
         },
         {
           phase: "10. Piste d'Audit Immuable",
-          description: "Historique des transactions inviolable avec vérification de chaîne de hash",
+          description:
+            "Historique des transactions inviolable avec vérification de chaîne de hash",
           userStory: "US-07",
           route: "/audit#audit-trail",
         },
@@ -1211,7 +1510,8 @@ Exécution du Règlement:
         },
         {
           phase: "12. Archivage Long Terme",
-          description: "Rétention 5 ans avec migration vers stockage froid WORM",
+          description:
+            "Rétention 5 ans avec migration vers stockage froid WORM",
           userStory: "US-07",
           route: "/audit#compliance",
         },
@@ -1220,29 +1520,141 @@ Exécution du Règlement:
     database: {
       title: "Schéma de Base de Données",
       tables: [
-        { name: "counterparties", description: "Donn��es maîtresses fournisseurs d'or", columns: "id, legal_name, registration_number, country, status, risk_level, screening_status" },
-        { name: "ubos", description: "Bénéficiaires Effectifs Ultimes", columns: "id, counterparty_id, full_name, ownership_percentage, is_pep" },
-        { name: "documents", description: "Documents KYC/conformité", columns: "id, counterparty_id, document_type, file_path, verified" },
-        { name: "screening_results", description: "Résultats des vérifications de conformité", columns: "id, counterparty_id, check_type, result, details, checked_at" },
-        { name: "screening_audit_log", description: "Piste d'audit décisions screening", columns: "id, counterparty_id, preliminary_score, classification, policy_hash" },
-        { name: "risk_assessments", description: "Attributions des niveaux de risque", columns: "id, counterparty_id, overall_score, risk_tier, edd_required" },
-        { name: "risk_audit_log", description: "Piste d'audit décisions risque", columns: "id, counterparty_id, action, old_tier, new_tier, reason" },
-        { name: "purchase_orders", description: "Ordres d'acquisition d'or", columns: "id, counterparty_id, status, estimated_weight_kg, gold_type, total_estimated_value" },
-        { name: "po_approvals", description: "Enregistrements approbation OA", columns: "id, purchase_order_id, approver_role, decision, decided_at" },
-        { name: "assays", description: "Résultats tests laboratoire", columns: "id, purchase_order_id, batch_number, gross_weight_kg, purity_percentage" },
-        { name: "dispatch_validations", description: "US-04 Enregistrements dispatch pré-expédition", columns: "id, purchase_order_id, status, carrier_id, pickup_date, authorization_hash, dual_approval_complete" },
-        { name: "dispatch_documents", description: "US-04 Documents d'export", columns: "id, dispatch_id, document_type, file_path, validated, validation_notes" },
-        { name: "vault_intakes", description: "US-05 Enregistrements réception coffre", columns: "id, dispatch_id, tracking_id, seal_numbers, gross_weight_kg, net_weight_kg, operator_otp_verified, custody_log" },
-        { name: "assay_samples", description: "US-05 Suivi échantillons labo", columns: "id, vault_intake_id, sample_id, lab_id, assay_method, sla_deadline, status" },
-        { name: "assay_results", description: "US-05 Vérification pureté", columns: "id, assay_sample_id, au_purity, ag_content, cu_content, fe_content, pure_au_weight_kg, certificate_path" },
-        { name: "settlements", description: "US-06 Enregistrements valorisation & règlement", columns: "id, vault_intake_id, lbma_fixing_type, lbma_rate, gross_value, total_deductions, net_payable, currency, status" },
-        { name: "settlement_approvals", description: "US-06 Enregistrements double approbation", columns: "id, settlement_id, approver_role, approver_name, otp_verified, approved_at" },
-        { name: "reserve_allocations", description: "US-06 Entrées registre réserves", columns: "id, settlement_id, pure_au_weight_kg, reserve_account_id, valuation_date, entry_status, audit_hash" },
-        { name: "audit_entries", description: "US-07 Événements d'audit immuables", columns: "id, transaction_id, event_type, actor_id, actor_type, ip_address, device_fingerprint, previous_hash, current_hash, timestamp" },
-        { name: "regulatory_reports", description: "US-07 Rapports conformité générés", columns: "id, report_type, transaction_ids, format, digital_signature, submission_status, generated_at" },
-        { name: "export_packages", description: "US-07 Enregistrements export données", columns: "id, export_format, field_mapping, date_range, manifest_hash, digital_signature, created_by, created_at" },
-        { name: "retention_status", description: "US-07 Suivi archivage", columns: "id, transaction_id, retention_expiry, archival_status, worm_storage_path, last_verification" },
-        { name: "audit_trail", description: "Chaîne cryptographique liant tous les enregistrements", columns: "id, entity_type, entity_id, previous_hash, current_hash, created_at" },
+        {
+          name: "counterparties",
+          description: "Donn��es maîtresses fournisseurs d'or",
+          columns:
+            "id, legal_name, registration_number, country, status, risk_level, screening_status",
+        },
+        {
+          name: "ubos",
+          description: "Bénéficiaires Effectifs Ultimes",
+          columns:
+            "id, counterparty_id, full_name, ownership_percentage, is_pep",
+        },
+        {
+          name: "documents",
+          description: "Documents KYC/conformité",
+          columns: "id, counterparty_id, document_type, file_path, verified",
+        },
+        {
+          name: "screening_results",
+          description: "Résultats des vérifications de conformité",
+          columns:
+            "id, counterparty_id, check_type, result, details, checked_at",
+        },
+        {
+          name: "screening_audit_log",
+          description: "Piste d'audit décisions screening",
+          columns:
+            "id, counterparty_id, preliminary_score, classification, policy_hash",
+        },
+        {
+          name: "risk_assessments",
+          description: "Attributions des niveaux de risque",
+          columns:
+            "id, counterparty_id, overall_score, risk_tier, edd_required",
+        },
+        {
+          name: "risk_audit_log",
+          description: "Piste d'audit décisions risque",
+          columns: "id, counterparty_id, action, old_tier, new_tier, reason",
+        },
+        {
+          name: "purchase_orders",
+          description: "Ordres d'acquisition d'or",
+          columns:
+            "id, counterparty_id, status, estimated_weight_kg, gold_type, total_estimated_value",
+        },
+        {
+          name: "po_approvals",
+          description: "Enregistrements approbation OA",
+          columns: "id, purchase_order_id, approver_role, decision, decided_at",
+        },
+        {
+          name: "assays",
+          description: "Résultats tests laboratoire",
+          columns:
+            "id, purchase_order_id, batch_number, gross_weight_kg, purity_percentage",
+        },
+        {
+          name: "dispatch_validations",
+          description: "US-04 Enregistrements dispatch pré-expédition",
+          columns:
+            "id, purchase_order_id, status, carrier_id, pickup_date, authorization_hash, dual_approval_complete",
+        },
+        {
+          name: "dispatch_documents",
+          description: "US-04 Documents d'export",
+          columns:
+            "id, dispatch_id, document_type, file_path, validated, validation_notes",
+        },
+        {
+          name: "vault_intakes",
+          description: "US-05 Enregistrements réception coffre",
+          columns:
+            "id, dispatch_id, tracking_id, seal_numbers, gross_weight_kg, net_weight_kg, operator_otp_verified, custody_log",
+        },
+        {
+          name: "assay_samples",
+          description: "US-05 Suivi échantillons labo",
+          columns:
+            "id, vault_intake_id, sample_id, lab_id, assay_method, sla_deadline, status",
+        },
+        {
+          name: "assay_results",
+          description: "US-05 Vérification pureté",
+          columns:
+            "id, assay_sample_id, au_purity, ag_content, cu_content, fe_content, pure_au_weight_kg, certificate_path",
+        },
+        {
+          name: "settlements",
+          description: "US-06 Enregistrements valorisation & règlement",
+          columns:
+            "id, vault_intake_id, lbma_fixing_type, lbma_rate, gross_value, total_deductions, net_payable, currency, status",
+        },
+        {
+          name: "settlement_approvals",
+          description: "US-06 Enregistrements double approbation",
+          columns:
+            "id, settlement_id, approver_role, approver_name, otp_verified, approved_at",
+        },
+        {
+          name: "reserve_allocations",
+          description: "US-06 Entrées registre réserves",
+          columns:
+            "id, settlement_id, pure_au_weight_kg, reserve_account_id, valuation_date, entry_status, audit_hash",
+        },
+        {
+          name: "audit_entries",
+          description: "US-07 Événements d'audit immuables",
+          columns:
+            "id, transaction_id, event_type, actor_id, actor_type, ip_address, device_fingerprint, previous_hash, current_hash, timestamp",
+        },
+        {
+          name: "regulatory_reports",
+          description: "US-07 Rapports conformité générés",
+          columns:
+            "id, report_type, transaction_ids, format, digital_signature, submission_status, generated_at",
+        },
+        {
+          name: "export_packages",
+          description: "US-07 Enregistrements export données",
+          columns:
+            "id, export_format, field_mapping, date_range, manifest_hash, digital_signature, created_by, created_at",
+        },
+        {
+          name: "retention_status",
+          description: "US-07 Suivi archivage",
+          columns:
+            "id, transaction_id, retention_expiry, archival_status, worm_storage_path, last_verification",
+        },
+        {
+          name: "audit_trail",
+          description: "Chaîne cryptographique liant tous les enregistrements",
+          columns:
+            "id, entity_type, entity_id, previous_hash, current_hash, created_at",
+        },
       ],
     },
   },
@@ -1251,15 +1663,16 @@ Exécution du Règlement:
 export default function DocumentationPage() {
   const { language, t } = useLanguage();
   const [selectedPage, setSelectedPage] = useState<string | null>(null);
-  
-  const content = language === "fr" ? documentationSections.fr : documentationSections.en;
-  const selectedPageData = selectedPage 
-    ? content.pages.find(p => p.id === selectedPage) 
+
+  const content =
+    language === "fr" ? documentationSections.fr : documentationSections.en;
+  const selectedPageData = selectedPage
+    ? content.pages.find((p) => p.id === selectedPage)
     : null;
 
   // Function to download full documentation PDF
   const handleDownloadDocumentation = () => {
-    const sections = content.pages.map(page => ({
+    const sections = content.pages.map((page) => ({
       id: page.id,
       name: page.name,
       route: page.route,
@@ -1284,7 +1697,7 @@ export default function DocumentationPage() {
 
   // Function to download Cahier des Charges PDF
   const handleDownloadCahierDesCharges = () => {
-    const sections = content.pages.map(page => ({
+    const sections = content.pages.map((page) => ({
       id: page.id,
       name: page.name,
       route: page.route,
@@ -1312,414 +1725,716 @@ export default function DocumentationPage() {
       <div className="flex h-screen">
         <AppSidebar />
         <div className="flex flex-1 flex-col overflow-hidden">
-          <AppHeader 
-            title={content.title}
-            subtitle={content.subtitle}
-          />
+          <AppHeader title={content.title} subtitle={content.subtitle} />
           <main className="flex-1 overflow-y-auto p-4 md:p-6">
-          <div className="mx-auto max-w-7xl space-y-8">
-            {/* Overview Card */}
-            <Card>
-              <CardHeader>
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                  <CardTitle className="flex items-center gap-2">
-                    <Building2 className="h-5 w-5" />
-                    {content.overview.title}
-                  </CardTitle>
-                  <div className="flex flex-wrap gap-2">
-                    <Button variant="outline" onClick={handleDownloadDocumentation}>
-                      <FileDown className="mr-2 h-4 w-4" />
-                      {language === "fr" ? "Documentation PDF" : "Documentation PDF"}
-                    </Button>
-                    <Button variant="default" onClick={handleDownloadCahierDesCharges}>
-                      <FileSpreadsheet className="mr-2 h-4 w-4" />
-                      {language === "fr" ? "Cahier des Charges" : "Requirements Spec"}
-                    </Button>
+            <div className="mx-auto max-w-7xl space-y-8">
+              {/* Overview Card */}
+              <Card>
+                <CardHeader>
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <CardTitle className="flex items-center gap-2">
+                      <Building2 className="h-5 w-5" />
+                      {content.overview.title}
+                    </CardTitle>
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        variant="outline"
+                        onClick={handleDownloadDocumentation}
+                      >
+                        <FileDown className="mr-2 h-4 w-4" />
+                        {language === "fr"
+                          ? "Documentation PDF"
+                          : "Documentation PDF"}
+                      </Button>
+                      <Button
+                        variant="default"
+                        onClick={handleDownloadCahierDesCharges}
+                      >
+                        <FileSpreadsheet className="mr-2 h-4 w-4" />
+                        {language === "fr"
+                          ? "Cahier des Charges"
+                          : "Requirements Spec"}
+                      </Button>
+                    </div>
                   </div>
-                </div>
-                <CardDescription className="mt-2">
-                  {language === "fr" 
-                    ? "Telechargez la documentation technique complete ou le cahier des charges avec specifications fonctionnelles et techniques."
-                    : "Download the complete technical documentation or the requirements specification with functional and technical specs."}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <p className="text-muted-foreground leading-relaxed">
-                  {content.overview.description}
-                </p>
-                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                  {content.overview.keyFeatures.map((feature, i) => (
-                    <div key={i} className="flex items-start gap-2 p-3 rounded-lg bg-muted/50">
-                      <CheckCircle2 className="h-4 w-4 text-emerald-500 mt-0.5 shrink-0" />
-                      <span className="text-sm">{feature}</span>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Workflow Diagram */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Workflow className="h-5 w-5" />
-                  {content.workflow.title}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex flex-wrap items-center justify-center gap-2">
-                  {content.workflow.steps.map((step, i) => (
-                    <div key={i} className="flex items-center gap-2">
-                      <div className="flex flex-col items-center p-3 rounded-lg border bg-card min-w-[140px]">
-                        <Badge variant="outline" className="mb-2">{step.userStory}</Badge>
-                        <span className="text-xs font-semibold text-center">{step.phase}</span>
-                        <span className="text-xs text-muted-foreground text-center mt-1">{step.description}</span>
+                  <CardDescription className="mt-2">
+                    {language === "fr"
+                      ? "Telechargez la documentation technique complete ou le cahier des charges avec specifications fonctionnelles et techniques."
+                      : "Download the complete technical documentation or the requirements specification with functional and technical specs."}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <p className="text-muted-foreground leading-relaxed">
+                    {content.overview.description}
+                  </p>
+                  <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                    {content.overview.keyFeatures.map((feature, i) => (
+                      <div
+                        key={i}
+                        className="flex items-start gap-2 p-3 rounded-lg bg-muted/50"
+                      >
+                        <CheckCircle2 className="h-4 w-4 text-emerald-500 mt-0.5 shrink-0" />
+                        <span className="text-sm">{feature}</span>
                       </div>
-                      {i < content.workflow.steps.length - 1 && (
-                        <ArrowRight className="h-4 w-4 text-muted-foreground shrink-0 hidden sm:block" />
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
 
-            {/* Pages Documentation */}
-            <Tabs defaultValue="pages" className="space-y-4">
-              <TabsList>
-                <TabsTrigger value="pages">
-                  {language === "fr" ? "Pages de l'Application" : "Application Pages"}
-                </TabsTrigger>
-                <TabsTrigger value="database">
-                  {language === "fr" ? "Base de Données" : "Database Schema"}
-                </TabsTrigger>
-                <TabsTrigger value="glossary">
-                  {language === "fr" ? "Lexique" : "Glossary"}
-                </TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="pages" className="space-y-4">
-                <div className="grid gap-4 lg:grid-cols-3">
-                  {/* Page List */}
-                  <Card className="lg:col-span-1">
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-base">
-                        {language === "fr" ? "Navigation" : "Navigation"}
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="p-0">
-                      <ScrollArea className="h-[600px]">
-                        <div className="space-y-1 p-4 pt-0">
-                          {(language === "fr" 
-                            ? ["Principal", "Opérations", "Système"] 
-                            : ["Main", "Operations", "System"]
-                          ).filter(cat => content.pages.some(p => p.category === cat)).map(category => (
-                            <div key={category} className="space-y-1">
-                              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-2 py-2">
-                                {category}
-                              </p>
-                              {content.pages
-                                .filter(p => p.category === category)
-                                .map(page => {
-                                  const Icon = page.icon;
-                                  return (
-                                    <button
-                                      key={page.id}
-                                      onClick={() => setSelectedPage(page.id)}
-                                      className={cn(
-                                        "w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm text-left transition-colors",
-                                        selectedPage === page.id
-                                          ? "bg-primary text-primary-foreground"
-                                          : "hover:bg-muted"
-                                      )}
-                                    >
-                                      <Icon className="h-4 w-4 shrink-0" />
-                                      <span className="truncate">{page.name}</span>
-                                      <ChevronRight className="h-4 w-4 ml-auto shrink-0 opacity-50" />
-                                    </button>
-                                  );
-                                })}
-                            </div>
-                          ))}
+              {/* Workflow Diagram */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Workflow className="h-5 w-5" />
+                    {content.workflow.title}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex flex-wrap items-center justify-center gap-2">
+                    {content.workflow.steps.map((step, i) => (
+                      <div key={i} className="flex items-center gap-2">
+                        <div className="flex flex-col items-center p-3 rounded-lg border bg-card min-w-[140px]">
+                          <Badge variant="outline" className="mb-2">
+                            {step.userStory}
+                          </Badge>
+                          <span className="text-xs font-semibold text-center">
+                            {step.phase}
+                          </span>
+                          <span className="text-xs text-muted-foreground text-center mt-1">
+                            {step.description}
+                          </span>
                         </div>
-                      </ScrollArea>
-                    </CardContent>
-                  </Card>
+                        {i < content.workflow.steps.length - 1 && (
+                          <ArrowRight className="h-4 w-4 text-muted-foreground shrink-0 hidden sm:block" />
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
 
-                  {/* Page Detail */}
-                  <Card className="lg:col-span-2">
-                    <CardContent className="p-6">
-                      {selectedPageData ? (
-                        <div className="space-y-6">
-                          {/* Header */}
-                          <div className="flex items-start justify-between">
-                            <div className="flex items-center gap-3">
-                              {(() => {
-                                const Icon = selectedPageData.icon;
-                                return <Icon className="h-8 w-8 text-primary" />;
-                              })()}
-                              <div>
-                                <h2 className="text-2xl font-bold">{selectedPageData.name}</h2>
-                                <code className="text-sm text-muted-foreground bg-muted px-2 py-0.5 rounded">
-                                  {selectedPageData.route}
-                                </code>
+              {/* Pages Documentation */}
+              <Tabs defaultValue="pages" className="space-y-4">
+                <TabsList>
+                  <TabsTrigger value="pages">
+                    {language === "fr"
+                      ? "Pages de l'Application"
+                      : "Application Pages"}
+                  </TabsTrigger>
+                  <TabsTrigger value="database">
+                    {language === "fr" ? "Base de Données" : "Database Schema"}
+                  </TabsTrigger>
+                  <TabsTrigger value="glossary">
+                    {language === "fr" ? "Lexique" : "Glossary"}
+                  </TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="pages" className="space-y-4">
+                  <div className="grid gap-4 lg:grid-cols-3">
+                    {/* Page List */}
+                    <Card className="lg:col-span-1">
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-base">
+                          {language === "fr" ? "Navigation" : "Navigation"}
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="p-0">
+                        <ScrollArea className="h-[600px]">
+                          <div className="space-y-1 p-4 pt-0">
+                            {(language === "fr"
+                              ? ["Principal", "Opérations", "Système"]
+                              : ["Main", "Operations", "System"]
+                            )
+                              .filter((cat) =>
+                                content.pages.some((p) => p.category === cat),
+                              )
+                              .map((category) => (
+                                <div key={category} className="space-y-1">
+                                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-2 py-2">
+                                    {category}
+                                  </p>
+                                  {content.pages
+                                    .filter((p) => p.category === category)
+                                    .map((page) => {
+                                      const Icon = page.icon;
+                                      return (
+                                        <button
+                                          key={page.id}
+                                          onClick={() =>
+                                            setSelectedPage(page.id)
+                                          }
+                                          className={cn(
+                                            "w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm text-left transition-colors",
+                                            selectedPage === page.id
+                                              ? "bg-primary text-primary-foreground"
+                                              : "hover:bg-muted",
+                                          )}
+                                        >
+                                          <Icon className="h-4 w-4 shrink-0" />
+                                          <span className="truncate">
+                                            {page.name}
+                                          </span>
+                                          <ChevronRight className="h-4 w-4 ml-auto shrink-0 opacity-50" />
+                                        </button>
+                                      );
+                                    })}
+                                </div>
+                              ))}
+                          </div>
+                        </ScrollArea>
+                      </CardContent>
+                    </Card>
+
+                    {/* Page Detail */}
+                    <Card className="lg:col-span-2">
+                      <CardContent className="p-6">
+                        {selectedPageData ? (
+                          <div className="space-y-6">
+                            {/* Header */}
+                            <div className="flex items-start justify-between">
+                              <div className="flex items-center gap-3">
+                                {(() => {
+                                  const Icon = selectedPageData.icon;
+                                  return (
+                                    <Icon className="h-8 w-8 text-primary" />
+                                  );
+                                })()}
+                                <div>
+                                  <h2 className="text-2xl font-bold">
+                                    {selectedPageData.name}
+                                  </h2>
+                                  <code className="text-sm text-muted-foreground bg-muted px-2 py-0.5 rounded">
+                                    {selectedPageData.route}
+                                  </code>
+                                </div>
+                              </div>
+                              <Badge variant="outline">
+                                {selectedPageData.userStory}
+                              </Badge>
+                            </div>
+
+                            {/* Business Description */}
+                            <div className="space-y-2">
+                              <h3 className="font-semibold flex items-center gap-2">
+                                <Building2 className="h-4 w-4" />
+                                {language === "fr"
+                                  ? "Description Métier"
+                                  : "Business Description"}
+                              </h3>
+                              <p className="text-muted-foreground leading-relaxed">
+                                {selectedPageData.businessDescription}
+                              </p>
+                            </div>
+
+                            {/* Technical Description */}
+                            <div className="space-y-2">
+                              <h3 className="font-semibold flex items-center gap-2">
+                                <Code className="h-4 w-4" />
+                                {language === "fr"
+                                  ? "Description Technique"
+                                  : "Technical Description"}
+                              </h3>
+                              <p className="text-muted-foreground leading-relaxed">
+                                {selectedPageData.technicalDescription}
+                              </p>
+                            </div>
+
+                            {/* Data Flow */}
+                            <div className="space-y-2">
+                              <h3 className="font-semibold flex items-center gap-2">
+                                <Database className="h-4 w-4" />
+                                {language === "fr"
+                                  ? "Flux de Données"
+                                  : "Data Flow"}
+                              </h3>
+                              <code className="block text-sm bg-muted p-3 rounded-lg">
+                                {selectedPageData.dataFlow}
+                              </code>
+                            </div>
+
+                            {/* Permissions */}
+                            <div className="space-y-2">
+                              <h3 className="font-semibold flex items-center gap-2">
+                                <Shield className="h-4 w-4" />
+                                {language === "fr"
+                                  ? "Permissions"
+                                  : "Permissions"}
+                              </h3>
+                              <div className="flex flex-wrap gap-2">
+                                {selectedPageData.permissions
+                                  .split(", ")
+                                  .map((perm, i) => (
+                                    <Badge key={i} variant="secondary">
+                                      {perm}
+                                    </Badge>
+                                  ))}
                               </div>
                             </div>
-                            <Badge variant="outline">{selectedPageData.userStory}</Badge>
-                          </div>
 
-                          {/* Business Description */}
-                          <div className="space-y-2">
-                            <h3 className="font-semibold flex items-center gap-2">
-                              <Building2 className="h-4 w-4" />
-                              {language === "fr" ? "Description Métier" : "Business Description"}
+                            {/* Algorithm (if applicable) */}
+                            {selectedPageData.algorithm && (
+                              <div className="space-y-2">
+                                <h3 className="font-semibold flex items-center gap-2">
+                                  <AlertTriangle className="h-4 w-4" />
+                                  {language === "fr"
+                                    ? "Algorithme"
+                                    : "Algorithm"}
+                                </h3>
+                                <pre className="text-xs bg-slate-950 text-slate-50 p-4 rounded-lg overflow-x-auto">
+                                  {selectedPageData.algorithm.trim()}
+                                </pre>
+                              </div>
+                            )}
+
+                            {/* Business Rules (if applicable) */}
+                            {selectedPageData.businessRules && (
+                              <div className="space-y-2">
+                                <h3 className="font-semibold flex items-center gap-2">
+                                  <CheckSquare className="h-4 w-4" />
+                                  {language === "fr"
+                                    ? "Règles Métier"
+                                    : "Business Rules"}
+                                </h3>
+                                <ul className="space-y-1">
+                                  {selectedPageData.businessRules.map(
+                                    (rule, i) => (
+                                      <li
+                                        key={i}
+                                        className="flex items-start gap-2 text-sm text-muted-foreground"
+                                      >
+                                        <CheckCircle2 className="h-4 w-4 text-emerald-500 mt-0.5 shrink-0" />
+                                        {rule}
+                                      </li>
+                                    ),
+                                  )}
+                                </ul>
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="flex flex-col items-center justify-center h-[500px] text-center">
+                            <BookOpen className="h-12 w-12 text-muted-foreground/50 mb-4" />
+                            <h3 className="font-semibold mb-2">
+                              {language === "fr"
+                                ? "Sélectionnez une page"
+                                : "Select a Page"}
                             </h3>
-                            <p className="text-muted-foreground leading-relaxed">
-                              {selectedPageData.businessDescription}
+                            <p className="text-sm text-muted-foreground max-w-sm">
+                              {language === "fr"
+                                ? "Cliquez sur une page dans la liste de navigation pour voir sa documentation détaillée."
+                                : "Click on a page in the navigation list to view its detailed documentation."}
                             </p>
                           </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </div>
+                </TabsContent>
 
-                          {/* Technical Description */}
-                          <div className="space-y-2">
-                            <h3 className="font-semibold flex items-center gap-2">
-                              <Code className="h-4 w-4" />
-                              {language === "fr" ? "Description Technique" : "Technical Description"}
-                            </h3>
-                            <p className="text-muted-foreground leading-relaxed">
-                              {selectedPageData.technicalDescription}
+                <TabsContent value="database" className="space-y-4">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Database className="h-5 w-5" />
+                        {content.database.title}
+                      </CardTitle>
+                      <CardDescription>
+                        {language === "fr"
+                          ? "Structure des tables de la base de données PostgreSQL (Neon)"
+                          : "PostgreSQL (Neon) database table structure"}
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-4">
+                        {content.database.tables.map((table, i) => (
+                          <div
+                            key={i}
+                            className="p-4 rounded-lg border bg-muted/30"
+                          >
+                            <div className="flex items-start justify-between mb-2">
+                              <code className="text-sm font-semibold text-primary">
+                                {table.name}
+                              </code>
+                            </div>
+                            <p className="text-sm text-muted-foreground mb-2">
+                              {table.description}
                             </p>
-                          </div>
-
-                          {/* Data Flow */}
-                          <div className="space-y-2">
-                            <h3 className="font-semibold flex items-center gap-2">
-                              <Database className="h-4 w-4" />
-                              {language === "fr" ? "Flux de Données" : "Data Flow"}
-                            </h3>
-                            <code className="block text-sm bg-muted p-3 rounded-lg">
-                              {selectedPageData.dataFlow}
+                            <code className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded block">
+                              {table.columns}
                             </code>
                           </div>
-
-                          {/* Permissions */}
-                          <div className="space-y-2">
-                            <h3 className="font-semibold flex items-center gap-2">
-                              <Shield className="h-4 w-4" />
-                              {language === "fr" ? "Permissions" : "Permissions"}
-                            </h3>
-                            <div className="flex flex-wrap gap-2">
-                              {selectedPageData.permissions.split(", ").map((perm, i) => (
-                                <Badge key={i} variant="secondary">{perm}</Badge>
-                              ))}
-                            </div>
-                          </div>
-
-                          {/* Algorithm (if applicable) */}
-                          {selectedPageData.algorithm && (
-                            <div className="space-y-2">
-                              <h3 className="font-semibold flex items-center gap-2">
-                                <AlertTriangle className="h-4 w-4" />
-                                {language === "fr" ? "Algorithme" : "Algorithm"}
-                              </h3>
-                              <pre className="text-xs bg-slate-950 text-slate-50 p-4 rounded-lg overflow-x-auto">
-                                {selectedPageData.algorithm.trim()}
-                              </pre>
-                            </div>
-                          )}
-
-                          {/* Business Rules (if applicable) */}
-                          {selectedPageData.businessRules && (
-                            <div className="space-y-2">
-                              <h3 className="font-semibold flex items-center gap-2">
-                                <CheckSquare className="h-4 w-4" />
-                                {language === "fr" ? "Règles Métier" : "Business Rules"}
-                              </h3>
-                              <ul className="space-y-1">
-                                {selectedPageData.businessRules.map((rule, i) => (
-                                  <li key={i} className="flex items-start gap-2 text-sm text-muted-foreground">
-                                    <CheckCircle2 className="h-4 w-4 text-emerald-500 mt-0.5 shrink-0" />
-                                    {rule}
-                                  </li>
-                                ))}
-                              </ul>
-                            </div>
-                          )}
-                        </div>
-                      ) : (
-                        <div className="flex flex-col items-center justify-center h-[500px] text-center">
-                          <BookOpen className="h-12 w-12 text-muted-foreground/50 mb-4" />
-                          <h3 className="font-semibold mb-2">
-                            {language === "fr" ? "Sélectionnez une page" : "Select a Page"}
-                          </h3>
-                          <p className="text-sm text-muted-foreground max-w-sm">
-                            {language === "fr" 
-                              ? "Cliquez sur une page dans la liste de navigation pour voir sa documentation détaillée."
-                              : "Click on a page in the navigation list to view its detailed documentation."}
-                          </p>
-                        </div>
-                      )}
+                        ))}
+                      </div>
                     </CardContent>
                   </Card>
-                </div>
-              </TabsContent>
+                </TabsContent>
 
-              <TabsContent value="database" className="space-y-4">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Database className="h-5 w-5" />
-                      {content.database.title}
-                    </CardTitle>
-                    <CardDescription>
-                      {language === "fr" 
-                        ? "Structure des tables de la base de données PostgreSQL (Neon)"
-                        : "PostgreSQL (Neon) database table structure"}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      {content.database.tables.map((table, i) => (
-                        <div key={i} className="p-4 rounded-lg border bg-muted/30">
-                          <div className="flex items-start justify-between mb-2">
-                            <code className="text-sm font-semibold text-primary">{table.name}</code>
+                <TabsContent value="glossary" className="space-y-4">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <BookOpen className="h-5 w-5" />
+                        {language === "fr"
+                          ? "Lexique des Termes et Abréviations"
+                          : "Glossary of Terms & Abbreviations"}
+                      </CardTitle>
+                      <CardDescription>
+                        {language === "fr"
+                          ? "Définitions des abréviations clés et termes réglementaires utilisés dans le système Gold Acquisition"
+                          : "Key abbreviations and regulatory terms used throughout the Gold Acquisition System"}
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-6">
+                        {/* Regulatory & Compliance Terms */}
+                        <div>
+                          <h3 className="font-semibold mb-3 flex items-center gap-2">
+                            <Shield className="h-4 w-4 text-primary" />
+                            {language === "fr"
+                              ? "Termes Réglementaires & Conformité"
+                              : "Regulatory & Compliance Terms"}
+                          </h3>
+                          <div className="grid gap-2">
+                            {[
+                              {
+                                abbr: "KYC",
+                                full: "Know Your Customer",
+                                desc:
+                                  language === "fr"
+                                    ? "Processus de vérification d'identité et d'évaluation des risques pour l'intégration des contreparties."
+                                    : "Identity verification and risk assessment process for onboarding counterparties.",
+                              },
+                              {
+                                abbr: "AML / CFT",
+                                full: "Anti-Money Laundering / Combating the Financing of Terrorism",
+                                desc:
+                                  language === "fr"
+                                    ? "Cadres réglementaires mondiaux pour prévenir les flux financiers illicites et le financement du terrorisme."
+                                    : "Global regulatory frameworks preventing illicit financial flows and terrorist funding.",
+                              },
+                              {
+                                abbr: "EDD",
+                                full: "Enhanced Due Diligence",
+                                desc:
+                                  language === "fr"
+                                    ? "Procédures de conformité supplémentaires requises pour les contreparties à haut risque; bloque la création de PO jusqu'à achèvement."
+                                    : "Additional compliance procedures required for high-risk counterparties; blocks PO creation until complete.",
+                              },
+                              {
+                                abbr: "UBO",
+                                full: "Ultimate Beneficial Owner",
+                                desc:
+                                  language === "fr"
+                                    ? "Personne(s) physique(s) qui possède(nt) ou contrôle(nt) ultimement une entité contrepartie (seuil ≥25%)."
+                                    : "Natural person(s) who ultimately owns or controls a counterparty entity (≥25% threshold).",
+                              },
+                              {
+                                abbr: "PEP",
+                                full: "Politically Exposed Person",
+                                desc:
+                                  language === "fr"
+                                    ? "Individu investi d'une fonction publique importante; déclenche un examen de conformité renforcé."
+                                    : "Individual with prominent public function; triggers enhanced compliance scrutiny.",
+                              },
+                              {
+                                abbr: "FATF",
+                                full: "Financial Action Task Force",
+                                desc:
+                                  language === "fr"
+                                    ? "Organisme intergouvernemental établissant les normes mondiales AML/CFT."
+                                    : "Inter-governmental body setting global AML/CFT standards.",
+                              },
+                              {
+                                abbr: "5AMLD",
+                                full: "5th Anti-Money Laundering Directive",
+                                desc:
+                                  language === "fr"
+                                    ? "Directive UE étendant le champ d'application AML aux négociants en métaux précieux."
+                                    : "EU directive expanding AML scope to include precious metals dealers and traders.",
+                              },
+                              {
+                                abbr: "FIU",
+                                full: "Financial Intelligence Unit",
+                                desc:
+                                  language === "fr"
+                                    ? "Agence nationale recevant et analysant les rapports de transactions suspectes."
+                                    : "National agency receiving and analyzing suspicious transaction reports.",
+                              },
+                            ].map((term, i) => (
+                              <div
+                                key={i}
+                                className="flex items-start gap-3 p-3 rounded-lg border bg-muted/30"
+                              >
+                                <Badge
+                                  variant="outline"
+                                  className="shrink-0 font-mono"
+                                >
+                                  {term.abbr}
+                                </Badge>
+                                <div>
+                                  <p className="font-medium text-sm">
+                                    {term.full}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground mt-1">
+                                    {term.desc}
+                                  </p>
+                                </div>
+                              </div>
+                            ))}
                           </div>
-                          <p className="text-sm text-muted-foreground mb-2">{table.description}</p>
-                          <code className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded block">
-                            {table.columns}
-                          </code>
                         </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              </TabsContent>
 
-              <TabsContent value="glossary" className="space-y-4">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <BookOpen className="h-5 w-5" />
-                      {language === "fr" ? "Lexique des Termes et Abréviations" : "Glossary of Terms & Abbreviations"}
-                    </CardTitle>
-                    <CardDescription>
-                      {language === "fr" 
-                        ? "Définitions des abréviations clés et termes réglementaires utilisés dans le système Gold Acquisition"
-                        : "Key abbreviations and regulatory terms used throughout the Gold Acquisition System"}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-6">
-                      {/* Regulatory & Compliance Terms */}
-                      <div>
-                        <h3 className="font-semibold mb-3 flex items-center gap-2">
-                          <Shield className="h-4 w-4 text-primary" />
-                          {language === "fr" ? "Termes Réglementaires & Conformité" : "Regulatory & Compliance Terms"}
-                        </h3>
-                        <div className="grid gap-2">
-                          {[
-                            { abbr: "KYC", full: "Know Your Customer", desc: language === "fr" ? "Processus de vérification d'identité et d'évaluation des risques pour l'intégration des contreparties." : "Identity verification and risk assessment process for onboarding counterparties." },
-                            { abbr: "AML / CFT", full: "Anti-Money Laundering / Combating the Financing of Terrorism", desc: language === "fr" ? "Cadres réglementaires mondiaux pour prévenir les flux financiers illicites et le financement du terrorisme." : "Global regulatory frameworks preventing illicit financial flows and terrorist funding." },
-                            { abbr: "EDD", full: "Enhanced Due Diligence", desc: language === "fr" ? "Procédures de conformité supplémentaires requises pour les contreparties à haut risque; bloque la création de PO jusqu'à achèvement." : "Additional compliance procedures required for high-risk counterparties; blocks PO creation until complete." },
-                            { abbr: "UBO", full: "Ultimate Beneficial Owner", desc: language === "fr" ? "Personne(s) physique(s) qui possède(nt) ou contrôle(nt) ultimement une entité contrepartie (seuil ≥25%)." : "Natural person(s) who ultimately owns or controls a counterparty entity (≥25% threshold)." },
-                            { abbr: "PEP", full: "Politically Exposed Person", desc: language === "fr" ? "Individu investi d'une fonction publique importante; déclenche un examen de conformité renforcé." : "Individual with prominent public function; triggers enhanced compliance scrutiny." },
-                            { abbr: "FATF", full: "Financial Action Task Force", desc: language === "fr" ? "Organisme intergouvernemental établissant les normes mondiales AML/CFT." : "Inter-governmental body setting global AML/CFT standards." },
-                            { abbr: "5AMLD", full: "5th Anti-Money Laundering Directive", desc: language === "fr" ? "Directive UE étendant le champ d'application AML aux négociants en métaux précieux." : "EU directive expanding AML scope to include precious metals dealers and traders." },
-                            { abbr: "FIU", full: "Financial Intelligence Unit", desc: language === "fr" ? "Agence nationale recevant et analysant les rapports de transactions suspectes." : "National agency receiving and analyzing suspicious transaction reports." },
-                          ].map((term, i) => (
-                            <div key={i} className="flex items-start gap-3 p-3 rounded-lg border bg-muted/30">
-                              <Badge variant="outline" className="shrink-0 font-mono">{term.abbr}</Badge>
-                              <div>
-                                <p className="font-medium text-sm">{term.full}</p>
-                                <p className="text-xs text-muted-foreground mt-1">{term.desc}</p>
+                        {/* Gold Industry Terms */}
+                        <div>
+                          <h3 className="font-semibold mb-3 flex items-center gap-2">
+                            <Package className="h-4 w-4 text-amber-500" />
+                            {language === "fr"
+                              ? "Termes de l'Industrie de l'Or"
+                              : "Gold Industry Terms"}
+                          </h3>
+                          <div className="grid gap-2">
+                            {[
+                              {
+                                abbr: "LBMA",
+                                full: "London Bullion Market Association",
+                                desc:
+                                  language === "fr"
+                                    ? "Autorité mondiale sur les métaux précieux de gros; publie le Responsible Gold Guidance (RGG) et les prix de fixing quotidiens."
+                                    : "Global authority on wholesale precious metals; publishes Responsible Gold Guidance (RGG) and daily gold fixing prices.",
+                              },
+                              {
+                                abbr: "RGG",
+                                full: "Responsible Gold Guidance",
+                                desc:
+                                  language === "fr"
+                                    ? "Cadre LBMA pour la diligence raisonnable de la chaîne d'approvisionnement, la conformité ESG et les normes d'audit."
+                                    : "LBMA's framework for supply chain due diligence, ESG compliance, and audit standards.",
+                              },
+                              {
+                                abbr: "ASM / ASGM",
+                                full: "Artisanal & Small-Scale Mining / Gold Mining",
+                                desc:
+                                  language === "fr"
+                                    ? "Opérations minières à faible capital et forte main-d'œuvre; toujours classées à haut risque selon LBMA/OECD."
+                                    : "Low-capital, high-labor mining operations; always classified as high-risk per LBMA/OECD.",
+                              },
+                              {
+                                abbr: "LSM",
+                                full: "Large-Scale Mining",
+                                desc:
+                                  language === "fr"
+                                    ? "Opérations minières industrielles avec surveillance réglementaire formelle et extraction mécanisée."
+                                    : "Industrial mining operations with formal regulatory oversight and mechanized extraction.",
+                              },
+                              {
+                                abbr: "CAHRA",
+                                full: "Conflict-Affected & High-Risk Areas",
+                                desc:
+                                  language === "fr"
+                                    ? "Zones géographiques avec conflits armés ou gouvernance faible; déclenche une EDD obligatoire."
+                                    : "Geographic zones with armed conflict or weak governance; triggers mandatory EDD.",
+                              },
+                              {
+                                abbr: "OECD",
+                                full: "Organisation for Economic Co-operation and Development",
+                                desc:
+                                  language === "fr"
+                                    ? "Éditeur de la norme mondiale pour la diligence raisonnable de la chaîne d'approvisionnement minérale responsable."
+                                    : "Publisher of global standard for responsible mineral supply chain due diligence.",
+                              },
+                              {
+                                abbr: "Incoterms",
+                                full: "International Commercial Terms",
+                                desc:
+                                  language === "fr"
+                                    ? "Termes commerciaux publiés par ICC définissant les responsabilités acheteur/vendeur (FCA, CIF, DAP, EXW)."
+                                    : "ICC-published trade terms defining buyer/seller responsibilities (FCA, CIF, DAP, EXW).",
+                              },
+                            ].map((term, i) => (
+                              <div
+                                key={i}
+                                className="flex items-start gap-3 p-3 rounded-lg border bg-muted/30"
+                              >
+                                <Badge
+                                  variant="outline"
+                                  className="shrink-0 font-mono"
+                                >
+                                  {term.abbr}
+                                </Badge>
+                                <div>
+                                  <p className="font-medium text-sm">
+                                    {term.full}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground mt-1">
+                                    {term.desc}
+                                  </p>
+                                </div>
                               </div>
-                            </div>
-                          ))}
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* System & Business Terms */}
+                        <div>
+                          <h3 className="font-semibold mb-3 flex items-center gap-2">
+                            <FileText className="h-4 w-4 text-blue-500" />
+                            {language === "fr"
+                              ? "Termes Système & Métier"
+                              : "System & Business Terms"}
+                          </h3>
+                          <div className="grid gap-2">
+                            {[
+                              {
+                                abbr: "PO",
+                                full: "Purchase Order",
+                                desc:
+                                  language === "fr"
+                                    ? "Document commercial autorisant une transaction d'acquisition d'or; immuable après soumission."
+                                    : "Commercial document authorizing a gold acquisition transaction; immutable upon submission.",
+                              },
+                              {
+                                abbr: "US",
+                                full: "User Story",
+                                desc:
+                                  language === "fr"
+                                    ? "Artefact de développement agile définissant une fonctionnalité du point de vue utilisateur."
+                                    : "Agile development artifact defining a feature from an end-user perspective.",
+                              },
+                              {
+                                abbr: "MVP",
+                                full: "Minimum Viable Product",
+                                desc:
+                                  language === "fr"
+                                    ? "Périmètre de lancement initial couvrant les workflows d'intégration, risque, PO et coffre-fort."
+                                    : "Initial release scope covering core onboarding, risk, PO, and vault workflows.",
+                              },
+                              {
+                                abbr: "IMF / SDDS",
+                                full: "International Monetary Fund / Special Data Dissemination Standard",
+                                desc:
+                                  language === "fr"
+                                    ? "Cadre pour le reporting des données de réserves des banques centrales et la conformité d'audit."
+                                    : "Framework for central bank reserve data reporting and audit compliance.",
+                              },
+                              {
+                                abbr: "UN / EU / OFAC",
+                                full: "United Nations / European Union / Office of Foreign Assets Control",
+                                desc:
+                                  language === "fr"
+                                    ? "Principales listes de sanctions internationales vérifiées lors des contrôles de conformité préliminaires."
+                                    : "Primary international sanctions lists screened during preliminary compliance checks.",
+                              },
+                            ].map((term, i) => (
+                              <div
+                                key={i}
+                                className="flex items-start gap-3 p-3 rounded-lg border bg-muted/30"
+                              >
+                                <Badge
+                                  variant="outline"
+                                  className="shrink-0 font-mono"
+                                >
+                                  {term.abbr}
+                                </Badge>
+                                <div>
+                                  <p className="font-medium text-sm">
+                                    {term.full}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground mt-1">
+                                    {term.desc}
+                                  </p>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Technical Terms */}
+                        <div>
+                          <h3 className="font-semibold mb-3 flex items-center gap-2">
+                            <Code className="h-4 w-4 text-emerald-500" />
+                            {language === "fr"
+                              ? "Termes Techniques"
+                              : "Technical Terms"}
+                          </h3>
+                          <div className="grid gap-2">
+                            {[
+                              {
+                                abbr: "API",
+                                full: "Application Programming Interface",
+                                desc:
+                                  language === "fr"
+                                    ? "Points d'accès techniques permettant l'échange de données sécurisé système-à-système."
+                                    : "Technical endpoints enabling secure system-to-system data exchange and workflow automation.",
+                              },
+                              {
+                                abbr: "RBAC",
+                                full: "Role-Based Access Control",
+                                desc:
+                                  language === "fr"
+                                    ? "Modèle de sécurité restreignant l'accès système selon les fonctions utilisateur (Trade Manager, Compliance, Risk)."
+                                    : "Security model restricting system access based on user job functions (Trade Manager, Compliance, Risk).",
+                              },
+                              {
+                                abbr: "MFA / OTP",
+                                full: "Multi-Factor Authentication / One-Time Password",
+                                desc:
+                                  language === "fr"
+                                    ? "Exigence de sécurité pour les signataires à double approbation; 2+ facteurs de vérification obligatoires."
+                                    : "Security requirement for dual-approval signers; 2+ verification factors mandatory.",
+                              },
+                              {
+                                abbr: "FIPS / TLS / AES",
+                                full: "Federal Info Processing Standards / Transport Layer Security / Advanced Encryption Standard",
+                                desc:
+                                  language === "fr"
+                                    ? "Normes cryptographiques assurant la protection des données en transit (TLS 1.3) et au repos (AES-256)."
+                                    : "Cryptographic standards ensuring data protection in transit (TLS 1.3) and at rest (AES-256).",
+                              },
+                              {
+                                abbr: "SHA-256",
+                                full: "Secure Hash Algorithm 256-bit",
+                                desc:
+                                  language === "fr"
+                                    ? "Fonction de hachage cryptographique utilisée pour l'immutabilité des PO et l'intégrité du journal d'audit."
+                                    : "Cryptographic hash function used for PO immutability and audit log integrity.",
+                              },
+                              {
+                                abbr: "JSON / CSV / XML",
+                                full: "JavaScript Object Notation / Comma-Separated Values / Extensible Markup Language",
+                                desc:
+                                  language === "fr"
+                                    ? "Formats d'échange de données standard pour les exports d'audit et les payloads API."
+                                    : "Standard data interchange formats for audit exports and API payloads.",
+                              },
+                            ].map((term, i) => (
+                              <div
+                                key={i}
+                                className="flex items-start gap-3 p-3 rounded-lg border bg-muted/30"
+                              >
+                                <Badge
+                                  variant="outline"
+                                  className="shrink-0 font-mono"
+                                >
+                                  {term.abbr}
+                                </Badge>
+                                <div>
+                                  <p className="font-medium text-sm">
+                                    {term.full}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground mt-1">
+                                    {term.desc}
+                                  </p>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
                         </div>
                       </div>
-
-                      {/* Gold Industry Terms */}
-                      <div>
-                        <h3 className="font-semibold mb-3 flex items-center gap-2">
-                          <Package className="h-4 w-4 text-amber-500" />
-                          {language === "fr" ? "Termes de l'Industrie de l'Or" : "Gold Industry Terms"}
-                        </h3>
-                        <div className="grid gap-2">
-                          {[
-                            { abbr: "LBMA", full: "London Bullion Market Association", desc: language === "fr" ? "Autorité mondiale sur les métaux précieux de gros; publie le Responsible Gold Guidance (RGG) et les prix de fixing quotidiens." : "Global authority on wholesale precious metals; publishes Responsible Gold Guidance (RGG) and daily gold fixing prices." },
-                            { abbr: "RGG", full: "Responsible Gold Guidance", desc: language === "fr" ? "Cadre LBMA pour la diligence raisonnable de la chaîne d'approvisionnement, la conformité ESG et les normes d'audit." : "LBMA's framework for supply chain due diligence, ESG compliance, and audit standards." },
-                            { abbr: "ASM / ASGM", full: "Artisanal & Small-Scale Mining / Gold Mining", desc: language === "fr" ? "Opérations minières à faible capital et forte main-d'œuvre; toujours classées à haut risque selon LBMA/OECD." : "Low-capital, high-labor mining operations; always classified as high-risk per LBMA/OECD." },
-                            { abbr: "LSM", full: "Large-Scale Mining", desc: language === "fr" ? "Opérations minières industrielles avec surveillance réglementaire formelle et extraction mécanisée." : "Industrial mining operations with formal regulatory oversight and mechanized extraction." },
-                            { abbr: "CAHRA", full: "Conflict-Affected & High-Risk Areas", desc: language === "fr" ? "Zones géographiques avec conflits armés ou gouvernance faible; déclenche une EDD obligatoire." : "Geographic zones with armed conflict or weak governance; triggers mandatory EDD." },
-                            { abbr: "OECD", full: "Organisation for Economic Co-operation and Development", desc: language === "fr" ? "Éditeur de la norme mondiale pour la diligence raisonnable de la chaîne d'approvisionnement minérale responsable." : "Publisher of global standard for responsible mineral supply chain due diligence." },
-                            { abbr: "Incoterms", full: "International Commercial Terms", desc: language === "fr" ? "Termes commerciaux publiés par ICC définissant les responsabilités acheteur/vendeur (FCA, CIF, DAP, EXW)." : "ICC-published trade terms defining buyer/seller responsibilities (FCA, CIF, DAP, EXW)." },
-                          ].map((term, i) => (
-                            <div key={i} className="flex items-start gap-3 p-3 rounded-lg border bg-muted/30">
-                              <Badge variant="outline" className="shrink-0 font-mono">{term.abbr}</Badge>
-                              <div>
-                                <p className="font-medium text-sm">{term.full}</p>
-                                <p className="text-xs text-muted-foreground mt-1">{term.desc}</p>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* System & Business Terms */}
-                      <div>
-                        <h3 className="font-semibold mb-3 flex items-center gap-2">
-                          <FileText className="h-4 w-4 text-blue-500" />
-                          {language === "fr" ? "Termes Système & Métier" : "System & Business Terms"}
-                        </h3>
-                        <div className="grid gap-2">
-                          {[
-                            { abbr: "PO", full: "Purchase Order", desc: language === "fr" ? "Document commercial autorisant une transaction d'acquisition d'or; immuable après soumission." : "Commercial document authorizing a gold acquisition transaction; immutable upon submission." },
-                            { abbr: "US", full: "User Story", desc: language === "fr" ? "Artefact de développement agile définissant une fonctionnalité du point de vue utilisateur." : "Agile development artifact defining a feature from an end-user perspective." },
-                            { abbr: "MVP", full: "Minimum Viable Product", desc: language === "fr" ? "Périmètre de lancement initial couvrant les workflows d'intégration, risque, PO et coffre-fort." : "Initial release scope covering core onboarding, risk, PO, and vault workflows." },
-                            { abbr: "IMF / SDDS", full: "International Monetary Fund / Special Data Dissemination Standard", desc: language === "fr" ? "Cadre pour le reporting des données de réserves des banques centrales et la conformité d'audit." : "Framework for central bank reserve data reporting and audit compliance." },
-                            { abbr: "UN / EU / OFAC", full: "United Nations / European Union / Office of Foreign Assets Control", desc: language === "fr" ? "Principales listes de sanctions internationales vérifiées lors des contrôles de conformité préliminaires." : "Primary international sanctions lists screened during preliminary compliance checks." },
-                          ].map((term, i) => (
-                            <div key={i} className="flex items-start gap-3 p-3 rounded-lg border bg-muted/30">
-                              <Badge variant="outline" className="shrink-0 font-mono">{term.abbr}</Badge>
-                              <div>
-                                <p className="font-medium text-sm">{term.full}</p>
-                                <p className="text-xs text-muted-foreground mt-1">{term.desc}</p>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Technical Terms */}
-                      <div>
-                        <h3 className="font-semibold mb-3 flex items-center gap-2">
-                          <Code className="h-4 w-4 text-emerald-500" />
-                          {language === "fr" ? "Termes Techniques" : "Technical Terms"}
-                        </h3>
-                        <div className="grid gap-2">
-                          {[
-                            { abbr: "API", full: "Application Programming Interface", desc: language === "fr" ? "Points d'accès techniques permettant l'échange de données sécurisé système-à-système." : "Technical endpoints enabling secure system-to-system data exchange and workflow automation." },
-                            { abbr: "RBAC", full: "Role-Based Access Control", desc: language === "fr" ? "Modèle de sécurité restreignant l'accès système selon les fonctions utilisateur (Trade Manager, Compliance, Risk)." : "Security model restricting system access based on user job functions (Trade Manager, Compliance, Risk)." },
-                            { abbr: "MFA / OTP", full: "Multi-Factor Authentication / One-Time Password", desc: language === "fr" ? "Exigence de sécurité pour les signataires à double approbation; 2+ facteurs de vérification obligatoires." : "Security requirement for dual-approval signers; 2+ verification factors mandatory." },
-                            { abbr: "FIPS / TLS / AES", full: "Federal Info Processing Standards / Transport Layer Security / Advanced Encryption Standard", desc: language === "fr" ? "Normes cryptographiques assurant la protection des données en transit (TLS 1.3) et au repos (AES-256)." : "Cryptographic standards ensuring data protection in transit (TLS 1.3) and at rest (AES-256)." },
-                            { abbr: "SHA-256", full: "Secure Hash Algorithm 256-bit", desc: language === "fr" ? "Fonction de hachage cryptographique utilisée pour l'immutabilité des PO et l'intégrité du journal d'audit." : "Cryptographic hash function used for PO immutability and audit log integrity." },
-                            { abbr: "JSON / CSV / XML", full: "JavaScript Object Notation / Comma-Separated Values / Extensible Markup Language", desc: language === "fr" ? "Formats d'échange de données standard pour les exports d'audit et les payloads API." : "Standard data interchange formats for audit exports and API payloads." },
-                          ].map((term, i) => (
-                            <div key={i} className="flex items-start gap-3 p-3 rounded-lg border bg-muted/30">
-                              <Badge variant="outline" className="shrink-0 font-mono">{term.abbr}</Badge>
-                              <div>
-                                <p className="font-medium text-sm">{term.full}</p>
-                                <p className="text-xs text-muted-foreground mt-1">{term.desc}</p>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-            </Tabs>
-          </div>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+              </Tabs>
+            </div>
           </main>
         </div>
       </div>
