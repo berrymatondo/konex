@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import useSWR, { mutate } from "swr";
 import { AppSidebar } from "@/components/app-sidebar";
@@ -127,7 +127,7 @@ function formatCurrency(value: number | null, currency: string = "USD"): string 
   }
 }
 
-export default function PurchaseOrdersPage() {
+function PurchaseOrdersContent() {
   const { language } = useLanguage();
   const searchParams = useSearchParams();
   const [searchQuery, setSearchQuery] = useState("");
@@ -564,5 +564,13 @@ export default function PurchaseOrdersPage() {
         </AlertDialogContent>
       </AlertDialog>
     </SidebarProvider>
+  );
+}
+
+export default function PurchaseOrdersPage() {
+  return (
+    <Suspense>
+      <PurchaseOrdersContent />
+    </Suspense>
   );
 }
