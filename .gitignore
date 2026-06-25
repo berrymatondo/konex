@@ -15,3 +15,7 @@ node_modules
 .next/
 .DS_Store
 .vercel
+
+# Secrets - never commit
+.env
+.env.local
