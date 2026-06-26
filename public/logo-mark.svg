@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1A1200"/>
+      <stop offset="100%" style="stop-color:#0D0900"/>
+    </linearGradient>
+    <linearGradient id="g1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#FFE066"/>
+      <stop offset="100%" style="stop-color:#C9900A"/>
+    </linearGradient>
+    <linearGradient id="g2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#F5C842"/>
+      <stop offset="100%" style="stop-color:#9A6C00"/>
+    </linearGradient>
+    <linearGradient id="g3" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#DAA520"/>
+      <stop offset="100%" style="stop-color:#6B4A00"/>
+    </linearGradient>
+    <linearGradient id="ring" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#FFD700"/>
+      <stop offset="50%" style="stop-color:#B8860B"/>
+      <stop offset="100%" style="stop-color:#FFD700"/>
+    </linearGradient>
+    <filter id="s">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#FFD700" flood-opacity="0.25"/>
+    </filter>
+  </defs>
+
+  <!-- Rounded square background -->
+  <rect width="120" height="120" rx="22" fill="url(#bg)"/>
+
+  <!-- Outer gold ring -->
+  <rect x="6" y="6" width="108" height="108" rx="18" fill="none" stroke="url(#ring)" stroke-width="1.5" opacity="0.6"/>
+
+  <!-- Stack of 3 gold bars, isometric feel -->
+
+  <!-- Bar 3 — bottom -->
+  <rect x="18" y="76" width="84" height="20" rx="4" fill="url(#g3)"/>
+  <rect x="18" y="76" width="84" height="7" rx="4" fill="#FFE57A" opacity="0.28"/>
+  <line x1="24" y1="79" x2="96" y2="79" stroke="#FFD95A" stroke-width="0.8" opacity="0.5"/>
+  <circle cx="42" cy="87" r="1.8" fill="#6B4A00" opacity="0.6"/>
+  <circle cx="60" cy="87" r="1.8" fill="#6B4A00" opacity="0.6"/>
+  <circle cx="78" cy="87" r="1.8" fill="#6B4A00" opacity="0.6"/>
+
+  <!-- Bar 2 — middle -->
+  <rect x="24" y="52" width="72" height="20" rx="4" fill="url(#g2)"/>
+  <rect x="24" y="52" width="72" height="7" rx="4" fill="#FFE57A" opacity="0.30"/>
+  <line x1="30" y1="55" x2="90" y2="55" stroke="#FFD95A" stroke-width="0.8" opacity="0.5"/>
+  <circle cx="45" cy="63" r="1.8" fill="#8B6914" opacity="0.6"/>
+  <circle cx="60" cy="63" r="1.8" fill="#8B6914" opacity="0.6"/>
+  <circle cx="75" cy="63" r="1.8" fill="#8B6914" opacity="0.6"/>
+
+  <!-- Bar 1 — top (brightest) -->
+  <rect x="30" y="28" width="60" height="20" rx="4" fill="url(#g1)" filter="url(#s)"/>
+  <rect x="30" y="28" width="60" height="7" rx="4" fill="#FFF0A0" opacity="0.38"/>
+  <line x1="36" y1="31" x2="84" y2="31" stroke="#FFFFFF" stroke-width="0.8" opacity="0.4"/>
+  <!-- Hallmark -->
+  <text x="60" y="43" text-anchor="middle"
+        font-family="monospace" font-size="7.5" font-weight="700"
+        fill="#8B6500" letter-spacing="1" opacity="0.9">999.9</text>
+</svg>

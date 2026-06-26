@@ -1,0 +1,89 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 120" fill="none">
+  <defs>
+    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#F5C842;stop-opacity:1" />
+      <stop offset="40%" style="stop-color:#E8A900;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#B8860B;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="goldGrad2" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#FFE066;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#C9900A;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="barGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#FFD700;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#DAA520;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#8B6914;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="barGrad2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#F0C040;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#A07010;stop-opacity:1" />
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="1.5" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <!-- ── MARK: stacked gold bars ── -->
+
+  <!-- Back bar (shadow) -->
+  <rect x="11" y="38" width="72" height="20" rx="3" fill="#6B4A00" opacity="0.35"/>
+
+  <!-- Bar 3 (bottom) -->
+  <rect x="9" y="74" width="76" height="22" rx="3.5" fill="url(#barGrad2)"/>
+  <rect x="9" y="74" width="76" height="8" rx="3.5" fill="#FFE57A" opacity="0.35"/>
+  <!-- Bevel top edge -->
+  <line x1="14" y1="77" x2="80" y2="77" stroke="#FFD95A" stroke-width="1" opacity="0.6"/>
+  <!-- Hallmark dots -->
+  <circle cx="35" cy="85" r="1.5" fill="#A07010" opacity="0.7"/>
+  <circle cx="47" cy="85" r="1.5" fill="#A07010" opacity="0.7"/>
+  <circle cx="59" cy="85" r="1.5" fill="#A07010" opacity="0.7"/>
+
+  <!-- Bar 2 (middle) -->
+  <rect x="14" y="50" width="68" height="22" rx="3.5" fill="url(#barGrad)"/>
+  <rect x="14" y="50" width="68" height="8" rx="3.5" fill="#FFE57A" opacity="0.35"/>
+  <line x1="19" y1="53" x2="77" y2="53" stroke="#FFD95A" stroke-width="1" opacity="0.6"/>
+  <circle cx="39" cy="61" r="1.5" fill="#8B6914" opacity="0.7"/>
+  <circle cx="48" cy="61" r="1.5" fill="#8B6914" opacity="0.7"/>
+  <circle cx="57" cy="61" r="1.5" fill="#8B6914" opacity="0.7"/>
+
+  <!-- Bar 1 (top / front) -->
+  <rect x="19" y="26" width="58" height="22" rx="3.5" fill="url(#goldGrad2)" filter="url(#glow)"/>
+  <rect x="19" y="26" width="58" height="8" rx="3.5" fill="#FFF0A0" opacity="0.4"/>
+  <line x1="24" y1="29" x2="72" y2="29" stroke="#FFFFFF" stroke-width="1" opacity="0.45"/>
+  <!-- Subtle "999.9" text on top bar -->
+  <text x="48" y="41" text-anchor="middle" font-family="monospace" font-size="7" font-weight="700" fill="#8B6914" opacity="0.8" letter-spacing="1">999.9</text>
+
+  <!-- ── WORDMARK ── -->
+
+  <!-- Primary name -->
+  <text x="112" y="60"
+        font-family="'Segoe UI', system-ui, -apple-system, sans-serif"
+        font-size="36"
+        font-weight="800"
+        letter-spacing="-1.5"
+        fill="url(#goldGrad)">KONEX</text>
+
+  <!-- Thin rule below name -->
+  <rect x="112" y="67" width="230" height="1.5" rx="1" fill="url(#goldGrad)" opacity="0.5"/>
+
+  <!-- Subtitle -->
+  <text x="113" y="84"
+        font-family="'Segoe UI', system-ui, -apple-system, sans-serif"
+        font-size="10.5"
+        font-weight="400"
+        letter-spacing="4.5"
+        fill="#C9A030"
+        opacity="0.9">GOLD RESERVE MANAGEMENT</text>
+
+  <!-- Tiny LBMA badge -->
+  <rect x="112" y="92" width="46" height="13" rx="2" fill="#1a1400" stroke="#C9A030" stroke-width="0.8" opacity="0.85"/>
+  <text x="135" y="101.5" text-anchor="middle"
+        font-family="'Segoe UI', system-ui, sans-serif"
+        font-size="7" font-weight="700" letter-spacing="1.5" fill="#E8B800">LBMA</text>
+
+  <rect x="162" y="92" width="68" height="13" rx="2" fill="#1a1400" stroke="#C9A030" stroke-width="0.8" opacity="0.85"/>
+  <text x="196" y="101.5" text-anchor="middle"
+        font-family="'Segoe UI', system-ui, sans-serif"
+        font-size="7" font-weight="700" letter-spacing="1.5" fill="#E8B800">ISO 17025</text>
+</svg>

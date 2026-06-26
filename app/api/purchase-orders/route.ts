@@ -1,16 +1,17 @@
 import { NextResponse } from "next/server";
+import { randomBytes } from "crypto";
 import { sql, ensureTablesExist, ensurePurchaseOrderTermsColumns, PurchaseOrder } from "@/lib/db";
 import { getSessionUser, getCounterpartyScope } from "@/lib/session-user";
 
 function generateId(prefix: string): string {
-  return `${prefix}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  return `${prefix}-${Date.now()}-${randomBytes(4).toString("hex")}`;
 }
 
 function generateTrackingId(): string {
   const date = new Date();
   const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const random = Math.random().toString(36).substr(2, 6).toUpperCase();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const random = randomBytes(4).toString("hex").toUpperCase();
   return `PO-${year}${month}-${random}`;
 }
 
@@ -152,7 +153,14 @@ export async function POST(request: Request) {
     }
 
     const poId = generateId("po");
-    const trackingId = status === "submitted" ? generateTrackingId() : null;
+    // Always generate a unique tracking_id — even for drafts — so display fallbacks are never needed.
+    // Retry up to 3 times on the rare event of a collision (8 hex chars = 4B unique values).
+    let trackingId = generateTrackingId();
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const existing = await sql`SELECT 1 FROM purchase_orders WHERE tracking_id = ${trackingId} LIMIT 1`;
+      if (existing.length === 0) break;
+      trackingId = generateTrackingId();
+    }
 
     await sql`
       INSERT INTO purchase_orders (

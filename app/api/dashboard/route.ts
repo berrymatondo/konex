@@ -102,7 +102,7 @@ export async function GET(request: Request) {
         counterpartyId: po.counterparty_id,
         counterpartyName: po.legal_name || "Unknown",
         type: "purchase",
-        referenceNumber: po.tracking_id || `PO-${po.id.slice(0, 8).toUpperCase()}`,
+        referenceNumber: po.tracking_id ?? po.id,
         goldWeight: parseFloat(String(po.estimated_weight_kg || 0)),
         goldPurity: parseFloat(String((po.purity_factor || 0.88) * 100)),
         totalValue: parseFloat(String(po.total_estimated_value || 0)),

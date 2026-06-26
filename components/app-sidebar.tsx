@@ -199,14 +199,10 @@ function SidebarContent({ isCollapsed, onNavClick }: { isCollapsed: boolean; onN
           isCollapsed ? "justify-center px-2" : "gap-3 px-6"
         )}
       >
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-sidebar-primary">
-          <span className="text-lg font-bold text-sidebar-primary-foreground">G</span>
-        </div>
-        {!isCollapsed && (
-          <div className="flex flex-col overflow-hidden">
-            <span className="truncate text-sm font-semibold">{t.nav.goldAcquisition}</span>
-            <span className="truncate text-xs text-sidebar-foreground/70">{t.nav.centralBank}</span>
-          </div>
+        {isCollapsed ? (
+          <img src="/logo-mark.svg" alt="KONEX" className="h-9 w-9 shrink-0" />
+        ) : (
+          <img src="/logo.svg" alt="KONEX Gold Reserve Management" className="h-10 w-auto max-w-[200px]" />
         )}
       </Link>
 

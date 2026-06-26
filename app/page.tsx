@@ -21,6 +21,7 @@ interface DashboardData {
   };
   transactions: Array<{
     id: string;
+    counterpartyId: string;
     counterpartyName: string;
     type: string;
     referenceNumber: string;
