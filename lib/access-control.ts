@@ -52,18 +52,16 @@ export async function ensureAccessTableExists() {
     )
   `
 
-  const countResult = await sql`SELECT COUNT(*)::int AS count FROM role_page_access`
-  const isEmpty = (countResult[0]?.count ?? 0) === 0
-
-  if (isEmpty) {
-    for (const [role, keys] of Object.entries(DEFAULT_ACCESS)) {
-      for (const key of keys) {
-        await sql`
-          INSERT INTO role_page_access (role, page_key)
-          VALUES (${role}, ${key})
-          ON CONFLICT (role, page_key) DO NOTHING
-        `
-      }
+  // Always insert defaults with ON CONFLICT DO NOTHING so that new page-keys
+  // added to DEFAULT_ACCESS are seeded on next cold start without wiping
+  // any rows that were manually added or removed via the Admin panel.
+  for (const [role, keys] of Object.entries(DEFAULT_ACCESS)) {
+    for (const key of keys) {
+      await sql`
+        INSERT INTO role_page_access (role, page_key)
+        VALUES (${role}, ${key})
+        ON CONFLICT (role, page_key) DO NOTHING
+      `
     }
   }
 
