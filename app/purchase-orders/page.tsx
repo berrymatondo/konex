@@ -77,6 +77,7 @@ interface PurchaseOrder {
   }>;
 }
 
+
 function getStatusBadge(status: string, language: string) {
   const statusConfig: Record<string, { variant: "default" | "secondary" | "destructive" | "outline"; className?: string; label: { en: string; fr: string } }> = {
     draft: { variant: "outline", label: { en: "Draft", fr: "Brouillon" } },
@@ -110,7 +111,7 @@ function formatCurrency(value: number | null, currency: string = "USD"): string 
   if (!value) return "-";
   // Some purchase orders use non-ISO currency labels (e.g. "Mixte" for a
   // USD/CDF split), which Intl.NumberFormat rejects. Fall back to a plain
-  // number followed by the label in that case.
+  // number followed by the label in that case .
   try {
     return new Intl.NumberFormat("en-US", {
       style: "currency",
@@ -135,6 +136,7 @@ function PurchaseOrdersContent() {
     searchParams.get("status") ?? "all"
   );
 
+  // Commentaire
   // Keep filter in sync if the user navigates back with a different ?status=
   useEffect(() => {
     const s = searchParams.get("status");
