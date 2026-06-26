@@ -608,7 +608,7 @@ export default function PurchaseOrderDetailPage() {
         <AppSidebar />
         <div className="flex flex-1 flex-col overflow-hidden">
           <AppHeader 
-            title={`PO-${po.id.slice(0, 8).toUpperCase()}`}
+            title={po.tracking_id ?? po.id}
             subtitle={counterparty?.legalName || ""}
           />
 
@@ -664,7 +664,7 @@ export default function PurchaseOrderDetailPage() {
                     </div>
                     <div className="flex-1">
                       <h3 className="font-semibold text-emerald-300 text-xl">
-                        PO-{po.id.slice(0, 8).toUpperCase()} {language === "fr" ? "Confirmé" : "Confirmed"}
+                        {po.tracking_id ?? po.id} {language === "fr" ? "Confirmé" : "Confirmed"}
                       </h3>
                       <p className="mt-1 text-sm text-emerald-50/80">
                         {language === "fr" 
@@ -771,7 +771,7 @@ export default function PurchaseOrderDetailPage() {
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-                    <h1 className="text-xl sm:text-2xl font-bold">PO-{po.id.slice(0, 8).toUpperCase()}</h1>
+                    <h1 className="text-xl sm:text-2xl font-bold">{po.tracking_id ?? po.id}</h1>
                     <Badge variant="outline" className={currentStatus.className}>
                       <currentStatus.icon className="mr-1 h-3 w-3" />
                       {currentStatus.label}
@@ -794,7 +794,7 @@ export default function PurchaseOrderDetailPage() {
                     className="flex-1 sm:flex-none"
                     onClick={() => {
                       generatePurchaseOrderPDF({
-                        reference: po.tracking_id || `PO-${po.id.slice(0, 8).toUpperCase()}`,
+                        reference: po.tracking_id ?? po.id,
                         counterpartyName: counterparty?.legalName || po.counterparty_name || "Unknown",
                         status: po.status,
                         estimatedWeight: Number(po.estimated_weight_kg) || 0,
@@ -806,7 +806,7 @@ export default function PurchaseOrderDetailPage() {
                         createdAt: po.created_at,
                       }, {
                         title: language === "fr" ? "Ordre d'Achat" : "Purchase Order",
-                        filename: `PO-${po.tracking_id || po.id.slice(0, 8)}.pdf`,
+                        filename: `${po.tracking_id ?? po.id}.pdf`,
                       });
                     }}
                   >
@@ -991,7 +991,7 @@ export default function PurchaseOrderDetailPage() {
                               <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
                                 <RefField
                                   label={language === "fr" ? "N° de demande" : "Request No."}
-                                  value={`PO-${po.id.slice(0, 8).toUpperCase()}`}
+                                  value={po.tracking_id ?? po.id}
                                   mono
                                 />
                                 <RefField

@@ -252,7 +252,7 @@ export default function ManifestPage() {
     draft?.status === "returned" ||
     (draft?.status === "draft" && !!(draft?.review_notes || draft?.reason_code));
   const returnedFailedDocTypes = isResubmission && draft ? getFailedDocTypes(draft) : [];
-  const reference = po?.tracking_id || `PO-${(id || "").slice(0, 8).toUpperCase()}`;
+  const reference = po?.tracking_id ?? id ?? "";
   const poFineOz = po
     ? Math.floor(((Number(po.estimated_weight_kg || 0) * Number(po.purity_factor || 0.9995) * 1000) / OZ_TO_GRAM) * 1000) / 1000
     : 0;

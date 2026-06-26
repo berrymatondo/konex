@@ -138,9 +138,7 @@ export default function NewPurchaseOrderPage() {
   const [createdAt, setCreatedAt] = useState<Date | null>(null);
 
   useEffect(() => {
-    const year = new Date().getFullYear();
-    const seq = String(Math.floor(1000 + Math.random() * 9000));
-    setInternalRef(`BCC-OR-${year}-${seq}`);
+    setInternalRef("—");
     setCreatedAt(new Date());
   }, []);
 
@@ -342,7 +340,7 @@ export default function NewPurchaseOrderPage() {
                     </CardHeader>
                     <CardContent>
                       <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
-                        <RefField label={language === "fr" ? "N° de demande" : "Request No."} value={internalRef ?? "—"} mono />
+                        <RefField label={language === "fr" ? "N° de demande" : "Request No."} value={internalRef ?? "—"} mono title={language === "fr" ? "Assigné à la soumission" : "Assigned on submit"} />
                         <RefField
                           label={language === "fr" ? "Créée le" : "Created"}
                           value={

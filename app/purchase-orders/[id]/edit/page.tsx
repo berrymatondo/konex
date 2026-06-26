@@ -475,7 +475,7 @@ export default function EditPurchaseOrderPage() {
                     </CardHeader>
                     <CardContent>
                       <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
-                        <RefField label={language === "fr" ? "N° de demande" : "Request No."} value={po?.id ?? "—"} mono />
+                        <RefField label={language === "fr" ? "N° de demande" : "Request No."} value={po?.tracking_id ?? "—"} mono />
                         <RefField
                           label={language === "fr" ? "Créée le" : "Created"}
                           value={

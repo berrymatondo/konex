@@ -112,7 +112,7 @@ export default function ManifestRejectPage() {
   const [error, setError] = useState<string | null>(null);
 
   const isLoading = poLoading || mLoading;
-  const reference = po?.tracking_id || `PO-${(id || "").slice(0, 8).toUpperCase()}`;
+  const reference = po?.tracking_id ?? id ?? "";
   const manifestRef = manifest
     ? `MNF-${reference}-${String(manifest.attempt_number || 1).padStart(2, "0")}`
     : "—";

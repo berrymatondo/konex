@@ -305,7 +305,7 @@ export default function CounterpartyRespondPage() {
     }
   };
 
-  const reference = po ? po.tracking_id || `PO-${po.id.slice(0, 8).toUpperCase()}` : id;
+  const reference = po?.tracking_id ?? id ?? "";
 
   // Already responded?
   const alreadyResponded =

@@ -443,7 +443,7 @@ function PurchaseOrdersContent() {
                           <div className="min-w-0 flex-1">
                             <div className="flex flex-wrap items-center gap-2">
                               <span className="font-mono text-xs sm:text-sm text-muted-foreground">
-                                {po.trackingId || po.id.slice(0, 12)}
+                                {po.trackingId ?? po.id}
                               </span>
                               {getStatusBadge(po.status, language)}
                             </div>
