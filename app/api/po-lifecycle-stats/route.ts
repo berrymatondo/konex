@@ -5,19 +5,16 @@ import { getSessionUser } from "@/lib/session-user"
 const PHASE_MAP: Record<string, number> = {
   draft: 1,
   submitted: 2,
-  pending_compliance: 2,
-  pending_finance: 2,
-  approved: 2,
   rejected: 2,
+  approved: 3,
   sent_to_counterparty: 3,
   accepted: 4,
-  negotiating: 4,
   declined: 4,
-  in_transit: 5,
-  delivered: 5,
-  pending_settlement: 5,
-  settled: 5,
-  completed: 5,
+  manifest_validated: 5,
+  in_transit: 6,
+  delivered: 6,
+  negotiating: 6,
+  pending_settlement: 7,
   cancelled: 0,
 }
 
@@ -44,18 +41,18 @@ export async function GET() {
   }
 
   // Aggregate by phase
-  const byPhase: Record<number, number> = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }
+  const byPhase: Record<number, number> = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0 }
   for (const [status, count] of Object.entries(counts)) {
     const phase = PHASE_MAP[status] ?? -1
     if (phase >= 0) byPhase[phase] = (byPhase[phase] || 0) + count
   }
 
-  // Critical states
+  // Critical states (blocked flows)
   const critical = ["rejected", "declined", "cancelled"]
   const criticalCount = critical.reduce((s, st) => s + (counts[st] || 0), 0)
 
-  // Active pipeline (excludes completed, cancelled, rejected, declined, settled)
-  const terminal = ["completed", "cancelled", "rejected", "declined", "settled"]
+  // Active pipeline (excludes terminal states)
+  const terminal = ["pending_settlement", "cancelled", "rejected", "declined"]
   const activeCount = total - terminal.reduce((s, st) => s + (counts[st] || 0), 0)
 
   return NextResponse.json({ counts, total, byPhase, criticalCount, activeCount })
