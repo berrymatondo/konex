@@ -294,6 +294,7 @@ export default function ManifestPage() {
     setDocs((p) => ({ ...p, [docType]: file ? { file, name: file.name } : null }));
 
   const docReady = (t: string) => !!docs[t] || !!savedDocTypes[t];
+  const allDocsReady = DOC_TYPES.every(docReady);
 
   // ── Build FormData ────────────────────────────────────────────────────────
   const buildFormData = (withDecl: boolean, declValue?: boolean) => {
@@ -797,13 +798,7 @@ export default function ManifestPage() {
                       </div>
                     ))}
                   </div>
-                  <div className="flex items-center gap-3">
-                    <SaveIndicator />
-                    <Button variant="outline" size="sm" onClick={handleSave} disabled={saveStatus === "saving"}>
-                      {saveStatus === "saving" ? <RefreshCw className="mr-1.5 h-3 w-3 animate-spin" /> : <Save className="mr-1.5 h-3 w-3" />}
-                      Sauvegarder
-                    </Button>
-                  </div>
+                  <SaveIndicator />
                 </CardContent>
               </Card>
 
@@ -987,8 +982,18 @@ export default function ManifestPage() {
                 <Button variant="ghost" onClick={() => setStep((s) => Math.max(0, s - 1))} disabled={step === 0}>
                   <ArrowLeft className="mr-2 h-4 w-4" /> Précédent
                 </Button>
+                <Button variant="outline" onClick={handleSave} disabled={saveStatus === "saving"}>
+                  {saveStatus === "saving" ? <RefreshCw className="mr-1.5 h-4 w-4 animate-spin" /> : <Save className="mr-1.5 h-4 w-4" />}
+                  Sauvegarder
+                </Button>
                 {step < STEPS.length - 1 ? (
-                  <Button onClick={() => setStep((s) => s + 1)}>Suivant <ArrowRight className="ml-2 h-4 w-4" /></Button>
+                  <Button
+                    onClick={() => setStep((s) => s + 1)}
+                    disabled={step === 2 && !allDocsReady}
+                    title={step === 2 && !allDocsReady ? `${DOC_TYPES.filter(docReady).length} / ${DOC_TYPES.length} documents uploadés` : undefined}
+                  >
+                    Suivant <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
                 ) : (
                   <Button onClick={() => handleSubmit(declarationAccepted)} disabled={!declarationAccepted || submitting} className="bg-emerald-600 hover:bg-emerald-700 text-white">
                     {submitting ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}
