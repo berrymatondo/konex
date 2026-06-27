@@ -177,12 +177,14 @@ export default function PurchaseOrderDetailPage() {
   const { data: access } = useSWR<{ role: string | null }>("/api/access/me", fetcher);
   const isCounterparty = access?.role === "counterparty";
 
-  // Manifest data (visible to agents/admins when a manifest has been submitted)
+  // Manifest data — loaded for all roles. For counterparty the GET returns their
+  // own draft/submitted manifest; for agents/admins it returns the submitted one.
   const { data: manifest, mutate: mutateManifest } = useSWR<Manifest | null>(
-    !isCounterparty ? `/api/purchase-orders/${id}/manifest` : null,
+    id ? `/api/purchase-orders/${id}/manifest` : null,
     fetcher,
   );
   const hasSubmittedManifest = manifest?.status === "submitted" || manifest?.status === "accepted" || manifest?.status === "returned";
+  const counterpartyManifestSubmitted = isCounterparty && (manifest?.status === "submitted" || manifest?.status === "accepted" || po.status === "manifest_validated");
 
   // Manifest review state
   const [reasonCode, setReasonCode] = useState("");
@@ -596,11 +598,43 @@ export default function PurchaseOrderDetailPage() {
     negotiating: { label: language === "fr" ? "En négociation" : "Negotiating", className: "border-warning text-warning", icon: RefreshCw },
     declined: { label: language === "fr" ? "Décliné" : "Declined", className: "border-destructive text-destructive", icon: XCircle },
     cancelled: { label: language === "fr" ? "Annulé" : "Cancelled", className: "border-destructive text-destructive", icon: XCircle },
+    manifest_validated: { label: language === "fr" ? "Manifeste validé" : "Manifest Validated", className: "border-violet-500 text-violet-600", icon: CheckCircle2 },
   };
 
   const currentStatus = statusConfig[po.status] || statusConfig.draft;
   const canRespondToOffer = ["approved", "sent_to_counterparty", "negotiating"].includes(po.status);
   const canCancelTransmittedOrder = !isCounterparty && po.status === "sent_to_counterparty" && po.cp_response !== "accept";
+
+  // ── Manifest phase tracker ────────────────────────────────────────────────
+  type ManifestStage = { label: string; sub?: string; Icon: typeof Clock; cardStyle: string; iconColor: string; labelColor: string };
+  const isFr = language === "fr";
+  const ms = po.status === "manifest_validated"
+    ? (manifest?.status || "accepted")
+    : po.status === "accepted"
+    ? (manifest?.status ?? (manifest === null ? "none" : "loading"))
+    : null;
+
+  const manifestStages: ManifestStage[] | null = ms === null || ms === "loading" ? null
+    : ms === "accepted" ? [
+        { label: isFr ? "Manifeste soumis" : "Manifest submitted", Icon: CheckCircle2, cardStyle: "border-emerald-300/60 bg-emerald-50/40 dark:bg-emerald-950/20", iconColor: "text-emerald-600", labelColor: "text-emerald-700" },
+        { label: isFr ? "Révision BCC" : "BCC review", Icon: CheckCircle2, cardStyle: "border-emerald-300/60 bg-emerald-50/40 dark:bg-emerald-950/20", iconColor: "text-emerald-600", labelColor: "text-emerald-700" },
+        { label: isFr ? "Entrée coffre autorisée" : "Vault entry authorized", sub: manifest?.reviewed_at ? new Date(manifest.reviewed_at).toLocaleDateString(isFr ? "fr-FR" : "en-US") : undefined, Icon: CheckCircle2, cardStyle: "border-emerald-500 bg-emerald-500/10 dark:bg-emerald-950/30", iconColor: "text-emerald-600", labelColor: "text-emerald-700 font-semibold" },
+      ]
+    : ms === "submitted" ? [
+        { label: isFr ? "Manifeste soumis" : "Manifest submitted", sub: manifest?.submitted_at ? new Date(manifest.submitted_at).toLocaleDateString(isFr ? "fr-FR" : "en-US") : undefined, Icon: CheckCircle2, cardStyle: "border-emerald-300/60 bg-emerald-50/40 dark:bg-emerald-950/20", iconColor: "text-emerald-600", labelColor: "text-emerald-700" },
+        { label: isFr ? "Examen en cours" : "Under review", sub: isFr ? "Décision BCC en attente" : "BCC decision pending", Icon: Clock, cardStyle: "border-amber-400 bg-amber-50/60 dark:bg-amber-950/20 shadow-sm", iconColor: "text-amber-600", labelColor: "text-amber-700 font-semibold" },
+        { label: isFr ? "Entrée coffre" : "Vault entry", Icon: Lock, cardStyle: "border-border bg-muted/30", iconColor: "text-muted-foreground", labelColor: "text-muted-foreground" },
+      ]
+    : ms === "returned" ? [
+        { label: isFr ? "Resoumission requise" : "Resubmission required", sub: isFr ? "Retourné par la BCC" : "Returned by BCC", Icon: AlertTriangle, cardStyle: "border-destructive/50 bg-destructive/5 dark:bg-destructive/10 shadow-sm", iconColor: "text-destructive", labelColor: "text-destructive font-semibold" },
+        { label: isFr ? "Révision BCC" : "BCC review", Icon: Clock, cardStyle: "border-border bg-muted/30", iconColor: "text-muted-foreground", labelColor: "text-muted-foreground" },
+        { label: isFr ? "Entrée coffre" : "Vault entry", Icon: Lock, cardStyle: "border-border bg-muted/30", iconColor: "text-muted-foreground", labelColor: "text-muted-foreground" },
+      ]
+    : /* none / draft */ [
+        { label: isFr ? "En attente du manifeste" : "Awaiting manifest", sub: isCounterparty ? (isFr ? "Soumettez votre manifeste" : "Submit your manifest") : (isFr ? "Attente de la contrepartie" : "Awaiting counterparty"), Icon: Clock, cardStyle: "border-blue-400/70 bg-blue-50/50 dark:bg-blue-950/20 shadow-sm", iconColor: "text-blue-600", labelColor: "text-blue-700 font-semibold" },
+        { label: isFr ? "Révision BCC" : "BCC review", Icon: Clock, cardStyle: "border-border bg-muted/30", iconColor: "text-muted-foreground", labelColor: "text-muted-foreground" },
+        { label: isFr ? "Entrée coffre" : "Vault entry", Icon: Lock, cardStyle: "border-border bg-muted/30", iconColor: "text-muted-foreground", labelColor: "text-muted-foreground" },
+      ];
 
   return (
     <SidebarProvider>
@@ -901,13 +935,20 @@ export default function PurchaseOrderDetailPage() {
                         <span>{language === "fr" ? "Répondre à l'offre" : "Respond to Offer"}</span>
                       </Button>
                     ))}
-                  {isCounterparty && po.status === "accepted" && (
-                    <Link href={`/purchase-orders/${id}/manifest`} className="flex-1 sm:flex-none">
-                      <Button size="sm" className="w-full bg-emerald-600 hover:bg-emerald-700 text-white">
-                        <FileText className="mr-2 h-4 w-4" />
-                        <span>{language === "fr" ? "Soumettre le manifeste" : "Submit Manifest"}</span>
+                  {isCounterparty && ["accepted", "manifest_validated"].includes(po.status) && (
+                    counterpartyManifestSubmitted ? (
+                      <Button size="sm" className="flex-1 sm:flex-none" disabled>
+                        <CheckCircle2 className="mr-2 h-4 w-4 text-emerald-500" />
+                        <span>{language === "fr" ? "Manifeste soumis — en révision" : "Manifest submitted — under review"}</span>
                       </Button>
-                    </Link>
+                    ) : (
+                      <Link href={`/purchase-orders/${id}/manifest`} className="flex-1 sm:flex-none">
+                        <Button size="sm" className="w-full bg-emerald-600 hover:bg-emerald-700 text-white">
+                          <FileText className="mr-2 h-4 w-4" />
+                          <span>{language === "fr" ? "Soumettre le manifeste" : "Submit Manifest"}</span>
+                        </Button>
+                      </Link>
+                    )
                   )}
                   {!isCounterparty && po.status === "negotiating" && (
                     <Link href={`/purchase-orders/${id}/edit`} className="flex-1 sm:flex-none">
@@ -930,6 +971,24 @@ export default function PurchaseOrderDetailPage() {
                   }`}
                 >
                   {sendResult.text}
+                </div>
+              )}
+
+              {/* ── Manifest Phase Tracker ────────────────────────────────── */}
+              {manifestStages && (
+                <div className="rounded-xl border bg-card px-4 py-4">
+                  <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground mb-3">
+                    {isFr ? "Phase — manifeste d'expédition" : "Phase — shipping manifest"}
+                  </p>
+                  <div className="grid grid-cols-3 gap-2">
+                    {manifestStages.map((stage, i) => (
+                      <div key={i} className={`rounded-lg border px-3 py-3 flex flex-col items-center text-center transition-colors ${stage.cardStyle}`}>
+                        <stage.Icon className={`h-5 w-5 mb-1.5 ${stage.iconColor}`} />
+                        <p className={`text-xs leading-tight ${stage.labelColor}`}>{stage.label}</p>
+                        {stage.sub && <p className="text-[10px] text-muted-foreground mt-0.5 leading-tight">{stage.sub}</p>}
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
 

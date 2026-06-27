@@ -19,6 +19,27 @@ export async function GET() {
   try {
     await ensureTablesExist();
 
+    // Backfill: promote POs whose manifest was already validated by the BCC
+    // to the distinct 'manifest_validated' status. Wrapped in DO so it silently
+    // skips when the manifest table doesn't exist yet (fresh installs).
+    await sql`
+      DO $$
+      BEGIN
+        IF EXISTS (
+          SELECT FROM information_schema.tables
+          WHERE table_schema = 'public' AND table_name = 'counterparty_manifests'
+        ) THEN
+          UPDATE purchase_orders po
+          SET status = 'manifest_validated'
+          WHERE po.status = 'accepted'
+            AND EXISTS (
+              SELECT 1 FROM counterparty_manifests cm
+              WHERE cm.purchase_order_id = po.id AND cm.status = 'accepted'
+            );
+        END IF;
+      END $$
+    `;
+
     // Counterparty-profile users only see purchase orders for their counterparty.
     const scope = getCounterpartyScope(await getSessionUser());
     if (scope === null) {

@@ -79,6 +79,16 @@ export async function PUT(
     WHERE id = ${manifest.id as string}
   `
 
+  // When the manifest is validated, advance the PO to a distinct status so
+  // the list and detail pages can show it separately from "accepted" (which
+  // only means the counterparty accepted the offer).
+  if (action === "validate") {
+    await sql`
+      UPDATE purchase_orders SET status = 'manifest_validated'
+      WHERE id = ${id}
+    `
+  }
+
   const reference = (manifest.tracking_id as string | null) || `PO-${id.slice(0, 8).toUpperCase()}`
   const cpName = (manifest.counterparty_name as string | null) || "La contrepartie"
   const manifestLink = `${getBaseUrl()}/purchase-orders/${id}/manifest`

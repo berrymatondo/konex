@@ -59,6 +59,19 @@ async function ensureManifestTables() {
   await sql`ALTER TABLE counterparty_manifests ADD COLUMN IF NOT EXISTS manifest_reference TEXT`
   await sql`ALTER TABLE counterparty_manifests ADD COLUMN IF NOT EXISTS expected_arrival_date DATE`
   await sql`ALTER TABLE counterparty_manifests ADD COLUMN IF NOT EXISTS seal_number_secondary TEXT`
+  await sql`ALTER TABLE counterparty_manifests ADD COLUMN IF NOT EXISTS current_step INT DEFAULT 0`
+
+  // Backfill: promote any PO that is still 'accepted' but whose manifest was
+  // already validated by the BCC to the new 'manifest_validated' status.
+  await sql`
+    UPDATE purchase_orders po
+    SET status = 'manifest_validated'
+    WHERE po.status = 'accepted'
+      AND EXISTS (
+        SELECT 1 FROM counterparty_manifests cm
+        WHERE cm.purchase_order_id = po.id AND cm.status = 'accepted'
+      )
+  `
   await sql`
     CREATE TABLE IF NOT EXISTS manifest_documents (
       id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
@@ -276,6 +289,8 @@ export async function PATCH(
   const barsJsonRaw = (formData.get("barsJson") as string | null) || "[]"
   const declarantName = (formData.get("declarantName") as string | null) || null
   const declarantTitle = (formData.get("declarantTitle") as string | null) || null
+  const currentStepRaw = formData.get("currentStep")
+  const currentStep = currentStepRaw != null ? Number(currentStepRaw) : 0
 
   const bars = parseBars(barsJsonRaw)
   const { totalBars, totalGrossWeightKg, totalFineOz, poFineOz, variancePercent } = computeTotals(
@@ -311,6 +326,7 @@ export async function PATCH(
         bars_json = ${barsJsonRaw}::jsonb,
         declarant_name = ${declarantName},
         declarant_title = ${declarantTitle},
+        current_step = ${currentStep},
         updated_at = ${now}
       WHERE id = ${existingDraftId}
     `
@@ -346,7 +362,7 @@ export async function PATCH(
         waybill_number, departure_location, destination_vault, incoterms,
         seal_number, seal_number_secondary,
         total_bars, total_gross_weight_kg, total_fine_oz, po_fine_oz, variance_percent,
-        bars_json, declarant_name, declarant_title,
+        bars_json, declarant_name, declarant_title, current_step,
         review_notes, reason_code, failed_doc_types,
         created_at, updated_at
       ) VALUES (
@@ -355,7 +371,7 @@ export async function PATCH(
         ${waybillNumber}, ${departureLocation}, ${destinationVault}, ${incoterms},
         ${sealNumber}, ${sealNumberSecondary},
         ${totalBars}, ${totalGrossWeightKg}, ${totalFineOz}, ${poFineOz}, ${variancePercent},
-        ${barsJsonRaw}::jsonb, ${declarantName}, ${declarantTitle},
+        ${barsJsonRaw}::jsonb, ${declarantName}, ${declarantTitle}, ${currentStep},
         ${inheritedReviewNotes}, ${inheritedReasonCode}, ${inheritedFailedDocTypes}::jsonb,
         ${now}, ${now}
       )

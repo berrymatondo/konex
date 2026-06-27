@@ -64,6 +64,7 @@ interface DraftManifest {
   id: string;
   status: string;
   attempt_number: number;
+  current_step: number | null;
   shipment_date: string | null;
   carrier: string | null;
   waybill_number: string | null;
@@ -244,6 +245,7 @@ export default function ManifestPage() {
       setSavedDocTypes(byType);
     }
     if (draft.status === "draft") setLastSavedAt(new Date(draft.updated_at));
+    if (typeof draft.current_step === "number") setStep(draft.current_step);
     setDraftRestored(true);
   }, [draft, draftRestored]);
 
@@ -312,6 +314,7 @@ export default function ManifestPage() {
     }))));
     fd.append("declarantName", declarantName);
     fd.append("declarantTitle", declarantTitle);
+    fd.append("currentStep", String(step));
     if (withDecl) fd.append("declarationAccepted", String(declValue ?? declarationAccepted));
     for (const t of DOC_TYPES) { const d = docs[t]; if (d) fd.append(`doc_${t}`, d.file, d.name); }
     return fd;
@@ -359,6 +362,33 @@ export default function ManifestPage() {
           <AppSidebar />
           <div className="flex flex-1 items-center justify-center">
             <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground" />
+          </div>
+        </div>
+      </SidebarProvider>
+    );
+  }
+
+  if (po.status === "manifest_validated") {
+    return (
+      <SidebarProvider>
+        <div className="flex h-screen">
+          <AppSidebar />
+          <div className="flex flex-1 flex-col overflow-hidden">
+            <AppHeader title="Manifeste d'expédition" subtitle={reference} />
+            <main className="flex-1 overflow-y-auto p-6">
+              <div className="mx-auto max-w-2xl space-y-4">
+                <Link href={`/purchase-orders/${id}`}>
+                  <Button variant="ghost" size="sm"><ArrowLeft className="mr-2 h-4 w-4" /> Retour au bon de commande</Button>
+                </Link>
+                <Alert className="border-violet-400/50 bg-violet-50/50 dark:bg-violet-950/20">
+                  <CheckCircle2 className="h-4 w-4 text-violet-600" />
+                  <AlertTitle className="text-violet-800">Manifeste validé — Entrée coffre autorisée</AlertTitle>
+                  <AlertDescription className="text-violet-700">
+                    La Banque Centrale a validé votre manifeste d&apos;expédition. L&apos;entrée en coffre est autorisée.
+                  </AlertDescription>
+                </Alert>
+              </div>
+            </main>
           </div>
         </div>
       </SidebarProvider>
@@ -739,6 +769,36 @@ export default function ManifestPage() {
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+      </SidebarProvider>
+    );
+  }
+
+  // ── SUBMITTED STATE ───────────────────────────────────────────────────────
+  if (draft?.status === "submitted") {
+    return (
+      <SidebarProvider>
+        <div className="flex h-screen">
+          <AppSidebar />
+          <div className="flex flex-1 flex-col overflow-hidden">
+            <AppHeader title="Soumission du manifeste d'expédition" subtitle={reference} />
+            <main className="flex-1 overflow-y-auto p-6">
+              <div className="mx-auto max-w-2xl space-y-4">
+                <Link href={`/purchase-orders/${id}`}>
+                  <Button variant="ghost" size="sm"><ArrowLeft className="mr-2 h-4 w-4" /> Retour au bon de commande</Button>
+                </Link>
+                <Alert className="border-emerald-500/40 bg-emerald-500/10">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                  <AlertTitle className="text-emerald-800">Manifeste soumis — en attente de révision</AlertTitle>
+                  <AlertDescription className="text-emerald-700">
+                    Votre manifeste d&apos;expédition a été transmis à la Banque Centrale
+                    {draft.submitted_at ? ` le ${new Date(draft.submitted_at).toLocaleString("fr-FR")}` : ""}.
+                    Vous serez notifié(e) dès qu&apos;une décision sera rendue.
+                  </AlertDescription>
+                </Alert>
+              </div>
+            </main>
           </div>
         </div>
       </SidebarProvider>

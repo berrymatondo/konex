@@ -88,6 +88,7 @@ function getStatusBadge(status: string, language: string) {
     rejected: { variant: "destructive", label: { en: "Rejected", fr: "Rejeté" } },
     sent_to_counterparty: { variant: "secondary", className: "bg-cyan-100 text-cyan-800 dark:bg-cyan-900/30 dark:text-cyan-400", label: { en: "Sent to Counterparty", fr: "Transmis à la contrepartie" } },
     accepted: { variant: "default", className: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400", label: { en: "Accepted", fr: "Accepté" } },
+    manifest_validated: { variant: "default", className: "bg-violet-100 text-violet-800 dark:bg-violet-900/30 dark:text-violet-400", label: { en: "Manifest Validated", fr: "Manifeste validé" } },
     negotiating: { variant: "secondary", className: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400", label: { en: "Negotiating", fr: "En négociation" } },
     declined: { variant: "destructive", label: { en: "Declined", fr: "Décliné" } },
     dispatched: { variant: "default", className: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400", label: { en: "Dispatched", fr: "Expédié" } },
