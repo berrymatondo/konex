@@ -840,7 +840,7 @@ export default function PurchaseOrderDetailPage() {
                       size="sm"
                       className="flex-1 sm:flex-none"
                       onClick={handleSubmitToCounterparty}
-                      disabled={submittingToCp || !["approved", "sent_to_counterparty"].includes(po.status)}
+                      disabled={submittingToCp || po.status !== "approved"}
                     >
                       {submittingToCp ? (
                         <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
