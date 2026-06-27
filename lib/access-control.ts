@@ -14,6 +14,7 @@ const DEFAULT_ACCESS: Record<Exclude<UserRole, "admin">, string[]> = {
     "counterparties",
     "onboarding",
     "approval-queue",
+    "screening",
     "documentation",
     "reports",
     "audit",

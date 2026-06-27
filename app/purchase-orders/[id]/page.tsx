@@ -113,6 +113,7 @@ interface Counterparty {
   status: string;
   riskLevel: string | null;
   screeningStatus: string | null;
+  hasLinkedUser: boolean;
 }
 
 interface ManifestDocument {
@@ -494,11 +495,14 @@ export default function PurchaseOrderDetailPage() {
       const data = await res.json().catch(() => ({}));
       if (res.ok) {
         setSendResult({
-          type: "success",
-          text:
-            language === "fr"
-              ? `Bon de commande transmis à la contrepartie (${data.email}).`
-              : `Purchase order submitted to the counterparty (${data.email}).`,
+          type: data.emailError ? "error" : "success",
+          text: data.emailError
+            ? language === "fr"
+              ? `BC transmis. L'email n'a pas pu être envoyé (${data.email}).`
+              : `PO submitted. Email could not be delivered to ${data.email}.`
+            : language === "fr"
+            ? `Bon de commande transmis à la contrepartie (${data.email}).`
+            : `Purchase order submitted to the counterparty (${data.email}).`,
         });
         mutate();
       } else {
@@ -869,33 +873,36 @@ export default function PurchaseOrderDetailPage() {
                           : "Send"}
                     </span>
                   </Button>}
-                  {!isCounterparty && po.status !== "draft" && (
-                    <Button
-                      size="sm"
-                      className="flex-1 sm:flex-none"
-                      onClick={handleSubmitToCounterparty}
-                      disabled={submittingToCp || po.status !== "approved"}
-                    >
-                      {submittingToCp ? (
-                        <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                      ) : (
-                        <Building2 className="mr-2 h-4 w-4" />
-                      )}
-                      <span>
-                        {submittingToCp
-                          ? language === "fr"
-                            ? "Soumission..."
-                            : "Submitting..."
-                          : po.status === "sent_to_counterparty"
-                            ? language === "fr"
-                              ? "Renvoyer à la contrepartie"
-                              : "Resend to Counterparty"
-                            : language === "fr"
-                              ? "Soumettre à la contrepartie"
-                              : "Submit to Counterparty"}
-                      </span>
-                    </Button>
-                  )}
+                  {!isCounterparty && po.status !== "draft" && (() => {
+                    const noUser = counterparty !== undefined && counterparty?.hasLinkedUser === false;
+                    const isDisabled = submittingToCp || po.status !== "approved" || noUser;
+                    return (
+                      <Button
+                        size="sm"
+                        className="flex-1 sm:flex-none"
+                        onClick={handleSubmitToCounterparty}
+                        disabled={isDisabled}
+                        title={noUser ? (language === "fr" ? "Aucun utilisateur contrepartie trouvé" : "No counterparty user found") : undefined}
+                      >
+                        {submittingToCp ? (
+                          <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                        ) : noUser ? (
+                          <AlertTriangle className="mr-2 h-4 w-4" />
+                        ) : (
+                          <Building2 className="mr-2 h-4 w-4" />
+                        )}
+                        <span>
+                          {submittingToCp
+                            ? language === "fr" ? "Soumission..." : "Submitting..."
+                            : noUser
+                            ? language === "fr" ? "Aucun utilisateur trouvé" : "No user found"
+                            : po.status === "sent_to_counterparty"
+                            ? language === "fr" ? "Renvoyer à la contrepartie" : "Resend to Counterparty"
+                            : language === "fr" ? "Soumettre à la contrepartie" : "Submit to Counterparty"}
+                        </span>
+                      </Button>
+                    );
+                  })()}
                   {canCancelTransmittedOrder && (
                     <Button
                       variant="destructive"

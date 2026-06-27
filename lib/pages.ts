@@ -21,6 +21,7 @@ export const PAGES: AppPage[] = [
   { key: "counterparties", path: "/counterparties", labelFr: "Contreparties", labelEn: "Counterparties", group: "main" },
   { key: "onboarding", path: "/onboarding", labelFr: "Intégration", labelEn: "Onboarding", group: "main" },
   { key: "approval-queue", path: "/approval-queue", labelFr: "File d'approbation", labelEn: "Approval Queue", group: "main" },
+  { key: "screening", path: "/screening", labelFr: "Contrôle de conformité", labelEn: "Screening", group: "main" },
   { key: "risk-management", path: "/risk-management", labelFr: "Gestion des risques", labelEn: "Risk Management", group: "main" },
   { key: "monetary-policy", path: "/monetary-policy", labelFr: "Politique monétaire", labelEn: "Monetary Policy", group: "main" },
 

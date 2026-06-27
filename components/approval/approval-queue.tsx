@@ -236,7 +236,7 @@ export function ApprovalQueue({ counterparties }: ApprovalQueueProps) {
                     <div className="flex items-start justify-between gap-4">
                       <div className="min-w-0 flex-1">
                         <Link
-                          href={`/screening/${cp.id}`}
+                          href={`/counterparties/${cp.id}`}
                           className="font-medium hover:text-primary hover:underline"
                         >
                           {cp.legalName}
@@ -256,7 +256,7 @@ export function ApprovalQueue({ counterparties }: ApprovalQueueProps) {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem asChild>
-                            <Link href={`/screening/${cp.id}`}>
+                            <Link href={`/counterparties/${cp.id}`}>
                               <Eye className="mr-2 h-4 w-4" />
                               {t.common.view}
                             </Link>
@@ -344,7 +344,7 @@ export function ApprovalQueue({ counterparties }: ApprovalQueueProps) {
                       <TableCell>
                         <div>
                           <Link
-                            href={`/screening/${cp.id}`}
+                            href={`/counterparties/${cp.id}`}
                             className="font-medium hover:text-primary hover:underline"
                           >
                             {cp.legalName}
@@ -401,7 +401,7 @@ export function ApprovalQueue({ counterparties }: ApprovalQueueProps) {
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
                             <DropdownMenuItem asChild>
-                              <Link href={`/screening/${cp.id}`}>
+                              <Link href={`/counterparties/${cp.id}`}>
                                 <Eye className="mr-2 h-4 w-4" />
                                 {t.common.view}
                               </Link>

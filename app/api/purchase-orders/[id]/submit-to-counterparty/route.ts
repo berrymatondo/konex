@@ -94,23 +94,31 @@ export async function POST(
       console.error("Could not build PO PDF, sending email without attachment:", pdfError)
     }
 
-    const emailResult = await sendCounterpartyOrderEmail({
-      to: recipientEmail,
-      name: recipientName,
-      reference,
-      respondUrl,
-      goldType: (po.gold_type as string | null) || undefined,
-      estimatedWeight: Number.parseFloat(po.estimated_weight_kg) || undefined,
-      assayRange: (po.assay_range as string | null) || undefined,
-      incoterms: (po.incoterms as string | null) || undefined,
-      totalValue: Number.parseFloat(po.total_estimated_value) || undefined,
-      currency: (po.currency as string) || "USD",
-      pdf,
-      filename: `${reference}.pdf`,
-    })
-
-    if (!emailResult.ok) {
-      return NextResponse.json({ error: emailResult.error }, { status: 502 })
+    // Email is best-effort — a delivery failure must not block the PO status
+    // update. The in-app notification and audit log still fire regardless.
+    let emailError: string | undefined
+    try {
+      const emailResult = await sendCounterpartyOrderEmail({
+        to: recipientEmail,
+        name: recipientName,
+        reference,
+        respondUrl,
+        goldType: (po.gold_type as string | null) || undefined,
+        estimatedWeight: Number.parseFloat(po.estimated_weight_kg) || undefined,
+        assayRange: (po.assay_range as string | null) || undefined,
+        incoterms: (po.incoterms as string | null) || undefined,
+        totalValue: Number.parseFloat(po.total_estimated_value) || undefined,
+        currency: (po.currency as string) || "USD",
+        pdf,
+        filename: `${reference}.pdf`,
+      })
+      if (!emailResult.ok) {
+        emailError = emailResult.error
+        console.error("Email delivery failed (non-blocking):", emailError)
+      }
+    } catch (emailEx) {
+      emailError = String(emailEx)
+      console.error("Email send exception (non-blocking):", emailEx)
     }
 
     // Flip status and stamp the submission time.
@@ -143,7 +151,7 @@ export async function POST(
       performedBy: sessionUser.id,
     })
 
-    return NextResponse.json({ ok: true, email: recipientEmail })
+    return NextResponse.json({ ok: true, email: recipientEmail, emailError })
   } catch (error) {
     console.error("Error submitting purchase order to counterparty:", error)
     return NextResponse.json({ error: "Échec de la soumission à la contrepartie." }, { status: 500 })

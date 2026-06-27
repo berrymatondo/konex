@@ -36,6 +36,10 @@ export async function GET(
       SELECT * FROM screening_results WHERE counterparty_id = ${id}
     ` as ScreeningResult[];
 
+    const linkedUsers = await sql`
+      SELECT 1 FROM "user" WHERE counterparty_id = ${id} AND role = 'counterparty' LIMIT 1
+    `;
+
     const counterparty = {
       id: cp.id,
       legalName: cp.legal_name,
@@ -77,6 +81,7 @@ export async function GET(
         details: s.details,
         checkedAt: s.checked_at,
       })),
+      hasLinkedUser: linkedUsers.length > 0,
     };
 
     return NextResponse.json(counterparty);
