@@ -13,7 +13,7 @@ import {
   CheckCircle2, Clock, AlertTriangle, RefreshCw, FileText,
   Download, ChevronRight, Eye, CornerUpLeft, TrendingUp,
   ShieldCheck, BarChart2, Bell, Inbox, ArrowUpLeft,
-  Users, X,
+  Users, X, PencilLine,
 } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -21,10 +21,12 @@ interface Document { doc_type: string; file_name: string; uploaded_at: string }
 
 interface ManifestQueueItem {
   manifestId: string;
-  status: "submitted" | "returned" | "accepted";
+  status: "draft" | "submitted" | "returned" | "accepted";
   attemptNumber: number;
   submittedAt: string | null;
   reviewedAt: string | null;
+  createdAt: string | null;
+  updatedAt: string | null;
   reasonCode: string | null;
   reviewNotes: string | null;
   failedDocTypes: string[];
@@ -34,6 +36,7 @@ interface ManifestQueueItem {
   waybillNumber: string | null;
   deliveryVaultId: string | null;
   poId: string;
+  poStatus: string | null;
   trackingId: string | null;
   reference: string;
   poFineOz: number;
@@ -60,6 +63,7 @@ interface QueueCounts {
   resubmissions: number;
   returned: number;
   accepted: number;
+  draft: number;
   slaWatch: number;
   slaOverdue: number;
 }
@@ -108,6 +112,7 @@ function fmtShort(iso: string | null): string {
 function RowStripe({ item }: { item: ManifestQueueItem }) {
   if (item.status === "accepted") return <div className="absolute left-0 inset-y-0 w-[3px] bg-emerald-500 rounded-l" />;
   if (item.status === "returned") return <div className="absolute left-0 inset-y-0 w-[3px] bg-red-500 rounded-l" />;
+  if (item.status === "draft") return <div className="absolute left-0 inset-y-0 w-[3px] bg-slate-400 rounded-l" />;
   if (item.slaOverdue) return <div className="absolute left-0 inset-y-0 w-[3px] bg-red-400 rounded-l" />;
   if (item.isResubmission) return <div className="absolute left-0 inset-y-0 w-[3px] bg-violet-500 rounded-l" />;
   if (item.isFlagged || item.slaPct >= 75) return <div className="absolute left-0 inset-y-0 w-[3px] bg-amber-400 rounded-l" />;
@@ -189,7 +194,7 @@ function NotifBell({ items }: { items: ManifestQueueItem[] }) {
 // ─── Detail panel ─────────────────────────────────────────────────────────────
 function DetailPanel({ item, onClose }: { item: ManifestQueueItem; onClose: () => void }) {
   const manifestRef = `MNF-${item.reference}-${String(item.attemptNumber).padStart(2, "0")}`;
-  const submittedShort = fmtShort(item.submittedAt);
+  const displayDate = item.submittedAt || item.updatedAt || item.createdAt;
 
   return (
     <div className="w-72 border-l flex-shrink-0 overflow-y-auto bg-muted/10 flex flex-col text-xs divide-y">
@@ -198,10 +203,18 @@ function DetailPanel({ item, onClose }: { item: ManifestQueueItem; onClose: () =
         <div>
           <p className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">Manifeste</p>
           <p className="font-bold text-sm font-mono mt-0.5">{manifestRef}</p>
-          <p className="text-[11px] text-muted-foreground mt-0.5">{item.counterpartyName || item.counterpartyId} · {submittedShort}</p>
+          <p className="text-[11px] text-muted-foreground mt-0.5">{item.counterpartyName || item.counterpartyId} · {fmtShort(displayDate)}</p>
         </div>
         <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={onClose}><X className="h-3.5 w-3.5" /></Button>
       </div>
+
+      {/* Draft notice */}
+      {item.status === "draft" && (
+        <div className="px-4 py-2.5 bg-slate-50 border-b border-slate-200 flex gap-2 text-[11px] text-slate-700">
+          <PencilLine className="h-3.5 w-3.5 shrink-0 text-slate-500 mt-0.5" />
+          <span>Brouillon en cours — la contrepartie n'a pas encore soumis ce manifeste.</span>
+        </div>
+      )}
 
       {/* Final attempt warning */}
       {item.isFinalAttempt && item.status === "submitted" && (
@@ -275,7 +288,7 @@ function DetailPanel({ item, onClose }: { item: ManifestQueueItem; onClose: () =
         ))}
         <div className="flex justify-between pt-1.5 border-t mt-1.5">
           <span className="text-muted-foreground">Lingots</span>
-          <span className="font-medium">{item.barCount}</span>
+          <span className="font-medium">{item.barCount > 0 ? item.barCount : "—"}</span>
         </div>
         <div className="flex justify-between pt-1.5 border-t">
           <span className="text-muted-foreground">Oz fin déclarés</span>
@@ -359,7 +372,7 @@ function DetailPanel({ item, onClose }: { item: ManifestQueueItem; onClose: () =
         <Link href={`/purchase-orders/${item.poId}`} className="block">
           <Button className="w-full" size="sm">
             <Eye className="mr-1.5 h-3.5 w-3.5" />
-            Ouvrir pour examen →
+            Ouvrir le bon de commande →
           </Button>
         </Link>
         {item.status === "submitted" && (
@@ -370,12 +383,14 @@ function DetailPanel({ item, onClose }: { item: ManifestQueueItem; onClose: () =
             </Button>
           </Link>
         )}
-        <Link href={`/purchase-orders/${item.poId}/manifest/document`} className="block">
-          <Button variant="ghost" size="sm" className="w-full text-muted-foreground">
-            <FileText className="mr-1.5 h-3.5 w-3.5" />
-            Voir document formel
-          </Button>
-        </Link>
+        {item.status !== "draft" && (
+          <Link href={`/purchase-orders/${item.poId}/manifest/document`} className="block">
+            <Button variant="ghost" size="sm" className="w-full text-muted-foreground">
+              <FileText className="mr-1.5 h-3.5 w-3.5" />
+              Voir document formel
+            </Button>
+          </Link>
+        )}
       </div>
     </div>
   );
@@ -386,6 +401,7 @@ function buildTimeline(item: ManifestQueueItem) {
   const fail = { color: "text-destructive bg-red-50 border-red-300" };
   const active = { color: "text-violet-600 bg-violet-50 border-violet-300" };
   const pending = { color: "text-muted-foreground bg-muted/30 border-border" };
+  const draft = { color: "text-slate-500 bg-slate-50 border-slate-300" };
 
   const tl = [
     { icon: CheckCircle2, ...done, label: "Bon de commande reçu", sub: "" },
@@ -395,9 +411,13 @@ function buildTimeline(item: ManifestQueueItem) {
     tl.push({ icon: X, ...fail, label: "Tentative 1 retournée", sub: REASON_LABELS[item.reasonCode ?? ""] || "Voir détails" });
   }
 
-  if (item.status === "submitted") {
+  if (item.status === "draft") {
+    tl.push({ icon: PencilLine, ...draft, label: "Manifeste en cours de rédaction", sub: fmtShort(item.updatedAt || item.createdAt) });
+    tl.push({ icon: FileText, ...pending, label: "Soumission attendue", sub: "En attente de la contrepartie" });
+    tl.push({ icon: FileText, ...pending, label: "Entrée en coffre", sub: "Pending" });
+  } else if (item.status === "submitted") {
     tl.push({ icon: CheckCircle2, ...done, label: `Manifeste soumis — tentative ${item.attemptNumber}`, sub: fmtShort(item.submittedAt) });
-    tl.push({ icon: Eye, ...active, label: "En cours d'examen", sub: "Vous examinez ce manifeste" });
+    tl.push({ icon: Eye, ...active, label: "En cours d'examen", sub: "En attente de révision BCC" });
     tl.push({ icon: FileText, ...pending, label: "Entrée en coffre", sub: "En attente d'autorisation" });
   } else if (item.status === "returned") {
     tl.push({ icon: X, ...fail, label: `Tentative ${item.attemptNumber} retournée`, sub: fmtShort(item.reviewedAt) });
@@ -415,24 +435,26 @@ function buildTimeline(item: ManifestQueueItem) {
 export default function ManifestQueuePage() {
   const { data, isLoading, mutate } = useSWR<QueueResponse>("/api/manifest-queue", fetcher, { refreshInterval: 30_000 });
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"submitted" | "returned" | "accepted" | "all" | "resubmissions">("submitted");
+  const [activeTab, setActiveTab] = useState<"submitted" | "returned" | "accepted" | "draft" | "all" | "resubmissions">("submitted");
 
   const items = data?.items ?? [];
-  const counts = data?.counts ?? { pending: 0, resubmissions: 0, returned: 0, accepted: 0, slaWatch: 0, slaOverdue: 0 };
+  const counts = data?.counts ?? { pending: 0, resubmissions: 0, returned: 0, accepted: 0, draft: 0, slaWatch: 0, slaOverdue: 0 };
 
   const filtered = items.filter((i) => {
     if (activeTab === "submitted") return i.status === "submitted";
     if (activeTab === "resubmissions") return i.status === "submitted" && i.isResubmission;
     if (activeTab === "returned") return i.status === "returned";
     if (activeTab === "accepted") return i.status === "accepted";
+    if (activeTab === "draft") return i.status === "draft";
     return true;
   });
 
   const selected = selectedId ? items.find((i) => i.manifestId === selectedId) ?? null : null;
 
   const avgReviewH = "3.1";
-  const slaCompliance = items.length > 0
-    ? Math.round(items.filter((i) => !i.slaOverdue).length / items.length * 100)
+  const submittedItems = items.filter((i) => i.status === "submitted");
+  const slaCompliance = submittedItems.length > 0
+    ? Math.round(submittedItems.filter((i) => !i.slaOverdue).length / submittedItems.length * 100)
     : 100;
 
   return (
@@ -468,6 +490,12 @@ export default function ManifestQueuePage() {
                 active={activeTab === "returned"}
                 onClick={() => setActiveTab("returned")}
               />
+              <NavItem
+                icon={PencilLine} label="Brouillons"
+                count={counts.draft} countColor="gray"
+                active={activeTab === "draft"}
+                onClick={() => setActiveTab("draft")}
+              />
 
               <NavSection label="Historique" />
               <NavItem
@@ -480,7 +508,7 @@ export default function ManifestQueuePage() {
 
               <NavSection label="Référence" />
               <NavItem icon={Users} label="Registre" onClick={() => {}} />
-              <NavItem icon={FileText} label="POs ouverts" onClick={() => setActiveTab("all")} />
+              <NavItem icon={FileText} label="Tous les manifestes" active={activeTab === "all"} onClick={() => setActiveTab("all")} />
             </div>
 
             {/* ── Main content ─────────────────────────────────────── */}
@@ -493,7 +521,7 @@ export default function ManifestQueuePage() {
                     { icon: Clock, label: "En attente", value: counts.pending, note: `${counts.resubmissions} resoumission${counts.resubmissions !== 1 ? "s" : ""}`, color: "text-blue-600 bg-blue-50" },
                     { icon: TrendingUp, label: "Délai moy. examen", value: `${avgReviewH} h`, note: "objectif < 8 h", color: "text-violet-600 bg-violet-50" },
                     { icon: ShieldCheck, label: "Conformité SLA", value: `${slaCompliance}%`, note: `${counts.slaWatch} en alerte`, color: slaCompliance >= 90 ? "text-emerald-600 bg-emerald-50" : "text-amber-600 bg-amber-50" },
-                    { icon: BarChart2, label: "Autorisés (total)", value: counts.accepted, note: "toutes dates", color: "text-emerald-600 bg-emerald-50" },
+                    { icon: BarChart2, label: "Autorisés (total)", value: counts.accepted, note: `${counts.draft} brouillon${counts.draft !== 1 ? "s" : ""}`, color: "text-emerald-600 bg-emerald-50" },
                   ].map(({ icon: Icon, label, value, note, color }) => (
                     <div key={label} className="flex items-start gap-2">
                       <div className={`rounded-lg p-1.5 ${color} shrink-0`}>
@@ -519,6 +547,7 @@ export default function ManifestQueuePage() {
                   { key: "resubmissions", label: "Resoumissions", count: counts.resubmissions },
                   { key: "returned", label: "Retournés", count: counts.returned },
                   { key: "accepted", label: "Autorisés", count: counts.accepted },
+                  { key: "draft", label: "Brouillons", count: counts.draft },
                   { key: "all", label: "Tous", count: items.length },
                 ] as const).map(({ key, label, count }) => (
                   <button
@@ -559,13 +588,16 @@ export default function ManifestQueuePage() {
                   <div className="divide-y">
                     {filtered.map((item) => {
                       const isSelected = selectedId === item.manifestId;
+                      const displayTime = item.submittedAt || item.updatedAt || item.createdAt;
                       return (
                         <button
                           key={item.manifestId}
                           type="button"
                           onClick={() => setSelectedId(isSelected ? null : item.manifestId)}
                           className={`w-full relative pl-4 pr-4 py-3 text-left transition-colors hover:bg-muted/30 ${
-                            isSelected ? "bg-muted/50" : item.isResubmission && item.status === "submitted" ? "bg-violet-50/30 dark:bg-violet-950/10" : ""
+                            isSelected ? "bg-muted/50" :
+                            item.status === "draft" ? "bg-slate-50/40 dark:bg-slate-950/10" :
+                            item.isResubmission && item.status === "submitted" ? "bg-violet-50/30 dark:bg-violet-950/10" : ""
                           }`}
                         >
                           <RowStripe item={item} />
@@ -574,6 +606,7 @@ export default function ManifestQueuePage() {
                             <div className={`h-2 w-2 rounded-full shrink-0 ${
                               item.status === "accepted" ? "bg-emerald-500" :
                               item.status === "returned" ? "bg-red-500" :
+                              item.status === "draft" ? "bg-slate-400" :
                               item.isResubmission ? "bg-violet-500" :
                               item.slaOverdue ? "bg-red-400" :
                               "bg-blue-500"
@@ -596,10 +629,12 @@ export default function ManifestQueuePage() {
                               <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
                                 <span className="font-medium text-foreground">{item.counterpartyName || "—"}</span>
                                 {item.counterpartyCountry && <span>{item.counterpartyCountry}</span>}
-                                <span className="font-mono">{(item.declaredFineOz > 0 ? item.declaredFineOz : item.poFineOz).toFixed(3)} oz fin</span>
+                                {(item.declaredFineOz > 0 || item.poFineOz > 0) && (
+                                  <span className="font-mono">{(item.declaredFineOz > 0 ? item.declaredFineOz : item.poFineOz).toFixed(3)} oz fin</span>
+                                )}
                                 {item.barCount > 0 && <span>{item.barCount} lingots</span>}
                                 {item.carrier && <span>{item.carrier}</span>}
-                                <span>{fmtTime(item.submittedAt)}</span>
+                                <span>{fmtTime(displayTime)}</span>
                               </div>
                               {/* Resubmission diff summary */}
                               {item.isResubmission && item.replacedDocTypes.length > 0 && (
@@ -647,6 +682,7 @@ export default function ManifestQueuePage() {
 function StatusBadge({ item }: { item: ManifestQueueItem }) {
   if (item.status === "accepted") return <Badge className="bg-emerald-100 text-emerald-700 border-0 text-[10px]">Autorisé</Badge>;
   if (item.status === "returned") return <Badge className="bg-red-100 text-red-700 border-0 text-[10px]">Retourné ({item.totalReturns}×)</Badge>;
+  if (item.status === "draft") return <Badge className="bg-slate-100 text-slate-600 border-0 text-[10px]">Brouillon</Badge>;
   if (item.isResubmission) return <Badge className="bg-violet-100 text-violet-700 border-0 text-[10px]">Tentative {item.attemptNumber}/2</Badge>;
   if (item.isFlagged) return <Badge className="bg-amber-100 text-amber-700 border-0 text-[10px]">Signalé</Badge>;
   return <Badge className="bg-blue-100 text-blue-700 border-0 text-[10px]">En attente</Badge>;
@@ -697,7 +733,6 @@ function NavItem({
   );
 }
 
-// Lucide doesn't export `Layers` but it's common — fallback
 function Layers({ className }: { className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>

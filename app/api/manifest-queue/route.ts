@@ -9,10 +9,10 @@ export async function GET() {
     return NextResponse.json({ error: "Accès réservé aux agents." }, { status: 403 })
   }
 
-  // Show ALL manifests (not deduped per PO) so resubmissions appear alongside their original
+  // Show ALL manifests (including drafts) so BCC can see the full picture
   const rows = await sql`
     SELECT
-      m.id                        AS manifest_id,
+      m.id                          AS manifest_id,
       m.status,
       m.attempt_number,
       m.submitted_at,
@@ -24,22 +24,25 @@ export async function GET() {
       m.waybill_number,
       m.carrier,
       m.shipment_date,
-      m.destination_vault         AS delivery_vault_id,
+      m.destination_vault           AS delivery_vault_id,
       m.bars_json,
-      po.id                       AS po_id,
+      m.created_at,
+      m.updated_at,
+      po.id                         AS po_id,
       po.tracking_id,
       po.estimated_weight_kg,
       po.purity_factor,
       po.incoterms,
-      po.delivery_vault_id        AS po_vault,
-      c.id                        AS counterparty_id,
-      c.legal_name                AS counterparty_name,
-      c.country                   AS counterparty_country,
+      po.delivery_vault_id          AS po_vault,
+      po.status                     AS po_status,
+      c.id                          AS counterparty_id,
+      c.legal_name                  AS counterparty_name,
+      c.country_of_incorporation    AS counterparty_country,
       COALESCE(
         (SELECT COUNT(*) FROM counterparty_manifests m2
          WHERE m2.purchase_order_id = po.id AND m2.status = 'returned'),
         0
-      )::int                      AS total_returns,
+      )::int                        AS total_returns,
       COALESCE(
         (SELECT json_agg(json_build_object(
           'doc_type', d.doc_type,
@@ -47,8 +50,8 @@ export async function GET() {
           'uploaded_at', d.uploaded_at
         )) FROM manifest_documents d WHERE d.manifest_id = m.id),
         '[]'::json
-      )                           AS documents,
-      prev.failed_doc_types       AS prev_failed_doc_types
+      )                             AS documents,
+      prev.failed_doc_types         AS prev_failed_doc_types
     FROM counterparty_manifests m
     JOIN purchase_orders po ON po.id = m.purchase_order_id
     LEFT JOIN counterparties c ON c.id = m.counterparty_id
@@ -60,11 +63,15 @@ export async function GET() {
         AND status = 'returned'
       LIMIT 1
     ) prev ON true
-    WHERE m.status IN ('submitted', 'returned', 'accepted')
     ORDER BY
-      CASE m.status WHEN 'submitted' THEN 0 WHEN 'returned' THEN 1 ELSE 2 END,
+      CASE m.status
+        WHEN 'submitted' THEN 0
+        WHEN 'returned'  THEN 1
+        WHEN 'draft'     THEN 2
+        ELSE 3
+      END,
       m.attempt_number DESC,
-      m.submitted_at ASC
+      COALESCE(m.submitted_at, m.updated_at, m.created_at) ASC
   `
 
   const items = rows.map((r: Record<string, unknown>) => {
@@ -89,7 +96,6 @@ export async function GET() {
     const slaOverdue = slaDue ? Date.now() > slaDue.getTime() : false
     const totalReturns = Number(r.total_returns || 0)
 
-    // Compute which docs are replaced vs carried for resubmissions
     let replacedDocTypes: string[] = []
     try {
       const raw = r.prev_failed_doc_types
@@ -105,7 +111,6 @@ export async function GET() {
     const isResubmission = Number(r.attempt_number || 1) > 1
     const isFinalAttempt = Number(r.attempt_number || 1) >= 2
 
-    // Compute return reason label for returned manifests
     let failedDocTypes: string[] = []
     try {
       const raw = r.failed_doc_types
@@ -118,6 +123,8 @@ export async function GET() {
       attemptNumber: Number(r.attempt_number || 1),
       submittedAt: r.submitted_at,
       reviewedAt: r.reviewed_at,
+      createdAt: r.created_at,
+      updatedAt: r.updated_at,
       reasonCode: r.reason_code,
       reviewNotes: r.review_notes,
       failedDocTypes,
@@ -127,6 +134,7 @@ export async function GET() {
       waybillNumber: r.waybill_number,
       deliveryVaultId: r.delivery_vault_id || r.po_vault,
       poId: r.po_id,
+      poStatus: r.po_status,
       trackingId: r.tracking_id,
       reference: (r.tracking_id as string | null) || `PO-${String(r.po_id).slice(0, 8).toUpperCase()}`,
       poFineOz,
@@ -154,6 +162,7 @@ export async function GET() {
     resubmissions: items.filter((i) => i.status === "submitted" && i.isResubmission).length,
     returned: items.filter((i) => i.status === "returned").length,
     accepted: items.filter((i) => i.status === "accepted").length,
+    draft: items.filter((i) => i.status === "draft").length,
     slaWatch: items.filter((i) => i.status === "submitted" && i.slaPct >= 75 && !i.slaOverdue).length,
     slaOverdue: items.filter((i) => i.status === "submitted" && i.slaOverdue).length,
   }
