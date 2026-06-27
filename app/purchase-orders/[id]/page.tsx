@@ -599,7 +599,7 @@ export default function PurchaseOrderDetailPage() {
   };
 
   const currentStatus = statusConfig[po.status] || statusConfig.draft;
-  const canRespondToOffer = ["sent_to_counterparty", "submitted", "approved"].includes(po.status);
+  const canRespondToOffer = ["approved", "sent_to_counterparty", "negotiating"].includes(po.status);
   const canCancelTransmittedOrder = !isCounterparty && po.status === "sent_to_counterparty" && po.cp_response !== "accept";
 
   return (
@@ -840,7 +840,7 @@ export default function PurchaseOrderDetailPage() {
                       size="sm"
                       className="flex-1 sm:flex-none"
                       onClick={handleSubmitToCounterparty}
-                      disabled={submittingToCp || !["submitted", "approved", "sent_to_counterparty"].includes(po.status)}
+                      disabled={submittingToCp || !["approved", "sent_to_counterparty"].includes(po.status)}
                     >
                       {submittingToCp ? (
                         <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
@@ -887,7 +887,7 @@ export default function PurchaseOrderDetailPage() {
                     </Button>
                   )}
                   {isCounterparty &&
-                    ["submitted", "approved", "sent_to_counterparty", "negotiating"].includes(po.status) &&
+                    ["approved", "sent_to_counterparty", "negotiating"].includes(po.status) &&
                     (canRespondToOffer ? (
                       <Link href={`/purchase-orders/${id}/respond`} className="flex-1 sm:flex-none">
                         <Button size="sm" className="w-full">

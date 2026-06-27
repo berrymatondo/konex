@@ -34,10 +34,10 @@ export async function POST(
     }
     const po = rows[0]
 
-    // A submitted or fully-approved order can be transmitted to the counterparty.
-    if (!["submitted", "approved", "sent_to_counterparty"].includes(po.status as string)) {
+    // Only an approved (or already transmitted) order can be sent to the counterparty.
+    if (!["approved", "sent_to_counterparty"].includes(po.status as string)) {
       return NextResponse.json(
-        { error: "Le bon de commande doit être soumis ou approuvé avant d'être transmis à la contrepartie." },
+        { error: "Le bon de commande doit être approuvé par la BCC avant d'être transmis à la contrepartie." },
         { status: 400 },
       )
     }
