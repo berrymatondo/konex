@@ -148,11 +148,11 @@ export async function POST(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
-    // The counterparty may respond once the order is approved by the Central
-    // Bank, has been explicitly transmitted, or is already under negotiation.
-    if (!["approved", "sent_to_counterparty", "negotiating"].includes(po.status as string)) {
+    // The counterparty may respond once the order has been submitted or
+    // explicitly transmitted, or is already under negotiation.
+    if (!["submitted", "approved", "sent_to_counterparty", "negotiating"].includes(po.status as string)) {
       return NextResponse.json(
-        { error: "Ce bon de commande n'est pas encore disponible pour réponse (statut requis : approuvé)." },
+        { error: "Ce bon de commande n'est pas encore disponible pour réponse." },
         { status: 400 },
       )
     }

@@ -34,10 +34,10 @@ export async function POST(
     }
     const po = rows[0]
 
-    // Only an approved (dual-approved) order can be transmitted.
-    if (po.status !== "approved" && po.status !== "sent_to_counterparty") {
+    // A submitted or fully-approved order can be transmitted to the counterparty.
+    if (!["submitted", "approved", "sent_to_counterparty"].includes(po.status as string)) {
       return NextResponse.json(
-        { error: "Le bon de commande doit être approuvé avant d'être soumis à la contrepartie." },
+        { error: "Le bon de commande doit être soumis ou approuvé avant d'être transmis à la contrepartie." },
         { status: 400 },
       )
     }
