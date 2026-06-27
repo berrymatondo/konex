@@ -46,26 +46,41 @@ export async function POST(
       return NextResponse.json({ error: "Aucune contrepartie associée à ce bon de commande." }, { status: 400 })
     }
 
-    // Resolve the recipient: prefer the linked user account email.
-    let recipientEmail: string | null = null
-    let recipientName: string =
+    // Collect all unique recipients: linked user account + counterparty primary email.
+    const defaultName =
       (po.counterparty_contact as string | null) || (po.counterparty_name as string | null) || "Contrepartie"
+
+    const recipients: { email: string; name: string }[] = []
+
     const users = await sql`
-      SELECT email, name FROM "user" WHERE counterparty_id = ${po.counterparty_id as string} LIMIT 1
+      SELECT email, name FROM "user"
+      WHERE counterparty_id = ${po.counterparty_id as string} AND role = 'counterparty'
+      LIMIT 1
     `
     if (users.length > 0 && users[0].email) {
-      recipientEmail = users[0].email as string
-      recipientName = (users[0].name as string | null) || recipientName
+      recipients.push({
+        email: users[0].email as string,
+        name: (users[0].name as string | null) || defaultName,
+      })
     }
-    if (!recipientEmail) {
-      recipientEmail = (po.counterparty_email as string | null) || null
+
+    const cpEmail = (po.counterparty_email as string | null) || null
+    if (cpEmail) {
+      const already = recipients.some((r) => r.email.toLowerCase() === cpEmail.toLowerCase())
+      if (!already) {
+        recipients.push({ email: cpEmail, name: defaultName })
+      }
     }
-    if (!recipientEmail) {
+
+    if (recipients.length === 0) {
       return NextResponse.json(
         { error: "Aucune adresse email trouvée pour cette contrepartie." },
         { status: 400 },
       )
     }
+
+    // Primary recipient (user account) drives the name used in audit + notification.
+    const recipientEmail = recipients.map((r) => r.email).join(", ")
 
     const reference = (po.tracking_id as string | null) || `PO-${id.slice(0, 8).toUpperCase()}`
     const respondUrl = `${getBaseUrl()}/purchase-orders/${id}/respond`
@@ -94,31 +109,33 @@ export async function POST(
       console.error("Could not build PO PDF, sending email without attachment:", pdfError)
     }
 
-    // Email is best-effort — a delivery failure must not block the PO status
-    // update. The in-app notification and audit log still fire regardless.
+    // Email is best-effort — delivery failures must not block the PO status
+    // update. Send one email per unique recipient address.
     let emailError: string | undefined
-    try {
-      const emailResult = await sendCounterpartyOrderEmail({
-        to: recipientEmail,
-        name: recipientName,
-        reference,
-        respondUrl,
-        goldType: (po.gold_type as string | null) || undefined,
-        estimatedWeight: Number.parseFloat(po.estimated_weight_kg) || undefined,
-        assayRange: (po.assay_range as string | null) || undefined,
-        incoterms: (po.incoterms as string | null) || undefined,
-        totalValue: Number.parseFloat(po.total_estimated_value) || undefined,
-        currency: (po.currency as string) || "USD",
-        pdf,
-        filename: `${reference}.pdf`,
-      })
-      if (!emailResult.ok) {
-        emailError = emailResult.error
-        console.error("Email delivery failed (non-blocking):", emailError)
+    for (const recipient of recipients) {
+      try {
+        const emailResult = await sendCounterpartyOrderEmail({
+          to: recipient.email,
+          name: recipient.name,
+          reference,
+          respondUrl,
+          goldType: (po.gold_type as string | null) || undefined,
+          estimatedWeight: Number.parseFloat(po.estimated_weight_kg) || undefined,
+          assayRange: (po.assay_range as string | null) || undefined,
+          incoterms: (po.incoterms as string | null) || undefined,
+          totalValue: Number.parseFloat(po.total_estimated_value) || undefined,
+          currency: (po.currency as string) || "USD",
+          pdf,
+          filename: `${reference}.pdf`,
+        })
+        if (!emailResult.ok) {
+          emailError = emailResult.error
+          console.error(`Email delivery failed to ${recipient.email} (non-blocking):`, emailError)
+        }
+      } catch (emailEx) {
+        emailError = String(emailEx)
+        console.error(`Email send exception to ${recipient.email} (non-blocking):`, emailEx)
       }
-    } catch (emailEx) {
-      emailError = String(emailEx)
-      console.error("Email send exception (non-blocking):", emailEx)
     }
 
     // Flip status and stamp the submission time.
