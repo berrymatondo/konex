@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { sql, createAuditLog, ensurePurchaseOrderTermsColumns, ensurePurchaseOrderResponseColumns } from "@/lib/db";
 import { notifyCounterparty } from "@/lib/notifications";
+import { getSessionUser, getCounterpartyScope } from "@/lib/session-user";
+
+const COUNTERPARTY_VISIBLE_STATUSES = ['approved', 'sent_to_counterparty', 'accepted', 'manifest_validated'];
 
 export async function GET(
   request: Request,
@@ -10,7 +13,7 @@ export async function GET(
     const { id } = await params;
 
     const result = await sql`
-      SELECT 
+      SELECT
         po.*,
         c.legal_name as counterparty_name
       FROM purchase_orders po
@@ -22,7 +25,17 @@ export async function GET(
       return NextResponse.json({ error: "Purchase order not found" }, { status: 404 });
     }
 
-    return NextResponse.json(result[0]);
+    const po = result[0];
+
+    // Counterparty users can only access POs that have been approved or beyond.
+    const scope = getCounterpartyScope(await getSessionUser());
+    if (typeof scope === "string") {
+      if (po.counterparty_id !== scope || !COUNTERPARTY_VISIBLE_STATUSES.includes(po.status as string)) {
+        return NextResponse.json({ error: "Purchase order not found" }, { status: 404 });
+      }
+    }
+
+    return NextResponse.json(po);
   } catch (error) {
     console.error("Error fetching purchase order:", error);
     return NextResponse.json(

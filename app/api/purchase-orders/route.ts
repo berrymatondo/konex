@@ -46,6 +46,10 @@ export async function GET() {
       return NextResponse.json([]);
     }
 
+    // Counterparties only see POs that have been approved (or further).
+    // Statuses below 'approved' (draft, submitted) are internal BCC workflow.
+    const COUNTERPARTY_VISIBLE_STATUSES = ['approved', 'sent_to_counterparty', 'accepted', 'manifest_validated'];
+
     const purchaseOrders = (scope === undefined
       ? await sql`
           SELECT po.*, c.legal_name as counterparty_name, c.risk_level as counterparty_risk_level
@@ -58,6 +62,7 @@ export async function GET() {
           FROM purchase_orders po
           LEFT JOIN counterparties c ON po.counterparty_id = c.id
           WHERE po.counterparty_id = ${scope}
+            AND po.status = ANY(${COUNTERPARTY_VISIBLE_STATUSES})
           ORDER BY po.created_at DESC
         `) as (PurchaseOrder & { counterparty_name: string; counterparty_risk_level: string | null })[];
 
