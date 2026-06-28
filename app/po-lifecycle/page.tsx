@@ -134,8 +134,69 @@ function Arrow({ d, color, label, lx, ly, dashed, thin }: {
   );
 }
 
+// ─── Histogram (top-right area) ──────────────────────────────────────────────
+const HIST_BARS = [
+  { status: "draft",                label: "Brouillon",         color: "#3b82f6" },
+  { status: "submitted",            label: "Soumis",            color: "#60a5fa" },
+  { status: "approved",             label: "Approuvé",          color: "#22c55e" },
+  { status: "rejected",             label: "Rejeté",            color: "#ef4444" },
+  { status: "sent_to_counterparty", label: "Transmis à la CP",  color: "#818cf8" },
+  { status: "accepted",             label: "Accepté",           color: "#4ade80" },
+  { status: "negotiating",          label: "En négociation",    color: "#f97316" },
+  { status: "declined",             label: "Décliné",           color: "#f87171" },
+  { status: "in_transit",           label: "En Transit",        color: "#64748b" },
+  { status: "delivered",            label: "Livré",             color: "#94a3b8" },
+  { status: "pending_settlement",   label: "Attente Règlement", color: "#f59e0b" },
+  { status: "cancelled",            label: "Annulé",            color: "#dc2626" },
+];
+
+function Histogram({ counts, x, y, w, h }: { counts: Record<string, number>; x: number; y: number; w: number; h: number }) {
+  const maxCount = Math.max(1, ...HIST_BARS.map(b => counts[b.status] ?? 0));
+  const pad = 14;
+  const titleH = 34;
+  const labelW = 132;
+  const countW = 34;
+  const barGap = 6;
+  const barAreaW = w - pad * 2 - labelW - barGap - countW - barGap;
+  const rowH = (h - titleH - pad * 2) / HIST_BARS.length;
+
+  return (
+    <g>
+      <rect x={x} y={y} width={w} height={h} rx={10} fill="#080f1e" stroke="#1e293b" strokeWidth={1.5} />
+      <text x={x + pad} y={y + pad + 12} fill="#475569" fontSize={9} fontWeight="700" letterSpacing="0.1em" fontFamily="ui-sans-serif,system-ui,sans-serif">
+        RÉPARTITION PAR STATUT
+      </text>
+      <line x1={x + pad} y1={y + titleH} x2={x + w - pad} y2={y + titleH} stroke="#1e293b" strokeWidth={1} />
+
+      {HIST_BARS.map((bar, i) => {
+        const count = counts[bar.status] ?? 0;
+        const filled = maxCount > 0 ? (count / maxCount) * barAreaW : 0;
+        const rowY = y + titleH + pad + i * rowH;
+        const barH = Math.min(rowH - 6, 11);
+        const barY = rowY + (rowH - barH) / 2;
+        const barX = x + pad + labelW + barGap;
+
+        return (
+          <g key={bar.status}>
+            <text x={x + pad} y={rowY + rowH / 2 + 3.5} fill="#64748b" fontSize={9} fontFamily="ui-sans-serif,system-ui,sans-serif">
+              {bar.label}
+            </text>
+            <rect x={barX} y={barY} width={barAreaW} height={barH} rx={3} fill="#0f172a" />
+            {count > 0 && (
+              <rect x={barX} y={barY} width={filled} height={barH} rx={3} fill={`${bar.color}cc`} />
+            )}
+            <text x={barX + barAreaW + barGap} y={rowY + rowH / 2 + 3.5} fill={count > 0 ? bar.color : "#1e293b"} fontSize={9} fontWeight="700" fontFamily="ui-monospace,monospace">
+              {count}
+            </text>
+          </g>
+        );
+      })}
+    </g>
+  );
+}
+
 // ─── Main SVG diagram ─────────────────────────────────────────────────────────
-function LifecycleSVG() {
+function LifecycleSVG({ counts }: { counts: Record<string, number> }) {
   const cx = (x: number) => x + CW / 2;
   const cy = (y: number) => y + CH / 2;
   const L  = (x: number) => x;
@@ -265,6 +326,9 @@ function LifecycleSVG() {
       </text>
       <line x1={cx(28)} y1={608} x2={cx(28)} y2={614} stroke="#ef444450" strokeWidth={1} strokeDasharray="3,2" />
 
+      {/* ── Histogram (top-right empty space) ──────────────────────────── */}
+      <Histogram counts={counts} x={700} y={82} w={804} h={355} />
+
       {/* ── Optional nodes ──────────────────────────────────────────────── */}
       {OPT_NODES.map((n) => <SvgOptCard key={n.slug} node={n} />)}
 
@@ -385,7 +449,7 @@ export default function PoLifecyclePage() {
           {/* Diagram */}
           <div className="flex-1 overflow-auto" style={{ background: "#070d1a" }}>
             <div className="relative w-full" style={{ aspectRatio: `${SVG_W}/${SVG_H}`, minWidth: 900 }}>
-              <LifecycleSVG />
+              <LifecycleSVG counts={counts} />
 
               {/* Interactive overlays */}
               {NODES.map((node) => {
