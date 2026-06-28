@@ -7,256 +7,287 @@ import { AppSidebar } from "@/components/app-sidebar";
 import { SidebarProvider } from "@/components/sidebar-provider";
 import { AppHeader } from "@/components/app-header";
 import { Button } from "@/components/ui/button";
-import { RefreshCw, Activity, AlertTriangle, TrendingUp } from "lucide-react";
+import { RefreshCw } from "lucide-react";
 
 // ─── SVG coordinate space ─────────────────────────────────────────────────────
-const SVG_W = 2100;
-const SVG_H = 600;
+const SVG_W = 1520;
+const SVG_H = 910;
 
 function pX(x: number) { return `${(x / SVG_W) * 100}%`; }
 function pY(y: number) { return `${(y / SVG_H) * 100}%`; }
 
+// ─── Card style presets ───────────────────────────────────────────────────────
+const STYLE = {
+  bcc:     { bg: "#0d1e3d", border: "#3b82f6", lbl: "#60a5fa",  txt: "#bfdbfe" },
+  bcc_ok:  { bg: "#052e16", border: "#22c55e", lbl: "#86efac",  txt: "#bbf7d0" },
+  bcc_err: { bg: "#3b0a0a", border: "#ef4444", lbl: "#fca5a5",  txt: "#fecaca" },
+  cp:      { bg: "#2c1503", border: "#f97316", lbl: "#fdba74",  txt: "#fed7aa" },
+  cp_ok:   { bg: "#052e16", border: "#22c55e", lbl: "#86efac",  txt: "#bbf7d0" },
+  cp_err:  { bg: "#3b0a0a", border: "#ef4444", lbl: "#fca5a5",  txt: "#fecaca" },
+  sys:     { bg: "#0f172a", border: "#475569", lbl: "#94a3b8",  txt: "#cbd5e1" },
+  sys_ok:  { bg: "#052e16", border: "#22c55e", lbl: "#86efac",  txt: "#bbf7d0" },
+  sys_pay: { bg: "#1a0e02", border: "#f59e0b", lbl: "#fcd34d",  txt: "#fde68a" },
+  opt:     { bg: "#0f172a", border: "#334155", lbl: "#64748b",  txt: "#94a3b8" },
+} as const;
+type StyleKey = keyof typeof STYLE;
+
 // ─── Node definitions ─────────────────────────────────────────────────────────
 interface NodeDef {
   status: string;
+  x: number; y: number;
+  w?: number; h?: number;
   label: string;
-  color: "blue" | "green" | "red" | "violet" | "orange" | "amber" | "gray";
-  warn: boolean;
-  cx: number; cy: number; rw: number; rh: number;
-  phase: number;
+  actor: string;
+  style: StyleKey;
+  optional?: boolean;
+  warn?: boolean;
 }
+
+const CW = 188; // card width
+const CH = 90;  // card height
 
 const NODES: NodeDef[] = [
-  // Phase 1 — Création
-  { status: "draft",                label: "Brouillon",          color: "blue",   warn: false, cx: 100,  cy: 280, rw: 155, rh: 44, phase: 1 },
-  // Phase 2 — Approbation
-  { status: "submitted",            label: "Soumis",             color: "blue",   warn: false, cx: 323,  cy: 200, rw: 155, rh: 44, phase: 2 },
-  { status: "rejected",             label: "Rejeté",             color: "red",    warn: true,  cx: 323,  cy: 395, rw: 155, rh: 44, phase: 2 },
-  // Phase 3 — Transmission
-  { status: "approved",             label: "Approuvé",           color: "green",  warn: false, cx: 590,  cy: 200, rw: 155, rh: 44, phase: 3 },
-  { status: "sent_to_counterparty", label: "Transmis CP",        color: "blue",   warn: false, cx: 855,  cy: 200, rw: 165, rh: 44, phase: 3 },
-  // Phase 4 — Réponse CP
-  { status: "accepted",             label: "Accepté",            color: "green",  warn: false, cx: 1085, cy: 152, rw: 155, rh: 44, phase: 4 },
-  { status: "declined",             label: "Décliné",            color: "red",    warn: true,  cx: 1085, cy: 328, rw: 155, rh: 44, phase: 4 },
-  // Phase 5 — Manifeste
-  { status: "manifest_validated",   label: "Manifeste validé",   color: "violet", warn: false, cx: 1315, cy: 152, rw: 195, rh: 44, phase: 5 },
-  // Phase 6 — Entrée coffre
-  { status: "in_transit",           label: "En transit",         color: "gray",   warn: false, cx: 1540, cy: 200, rw: 155, rh: 44, phase: 6 },
-  { status: "delivered",            label: "Livré",              color: "green",  warn: false, cx: 1760, cy: 152, rw: 155, rh: 44, phase: 6 },
-  { status: "negotiating",          label: "En négociation",     color: "orange", warn: false, cx: 1760, cy: 348, rw: 165, rh: 44, phase: 6 },
-  // Phase 7 — Règlement
-  { status: "pending_settlement",   label: "Attente règlement",  color: "amber",  warn: false, cx: 2000, cy: 200, rw: 185, rh: 44, phase: 7 },
-  // Terminal error
-  { status: "cancelled",            label: "Annulé",             color: "red",    warn: true,  cx: 590,  cy: 510, rw: 155, rh: 44, phase: 0 },
+  // Phase 1
+  { status: "draft",                x: 28,   y: 110,  label: "Brouillon",         actor: "Agent BCC",    style: "bcc" },
+  // Phase 2
+  { status: "submitted",            x: 28,   y: 275,  label: "Soumis",            actor: "Agent BCC",    style: "bcc" },
+  { status: "approved",             x: 28,   y: 410,  label: "Approuvé",          actor: "Agent BCC",    style: "bcc_ok" },
+  { status: "rejected",             x: 258,  y: 410,  label: "Rejeté",            actor: "Agent BCC",    style: "bcc_err", warn: true },
+  // Phase 3
+  { status: "sent_to_counterparty", x: 28,   y: 630,  label: "Transmis à la CP",  actor: "Agent BCC",    style: "bcc" },
+  // Phase 4
+  { status: "accepted",             x: 495,  y: 462,  label: "Accepté",           actor: "Contrepartie", style: "cp_ok" },
+  { status: "negotiating",          x: 495,  y: 568,  label: "En négociation",    actor: "Contrepartie", style: "cp" },
+  { status: "declined",             x: 495,  y: 674,  label: "Décliné",           actor: "Contrepartie", style: "cp_err", warn: true },
+  // Phase 5
+  { status: "in_transit",           x: 748,  y: 462,  label: "En Transit",        actor: "Agent BCC",    style: "sys" },
+  { status: "delivered",            x: 968,  y: 462,  label: "Livré",             actor: "Système",      style: "sys" },
+  { status: "pending_settlement",   x: 968,  y: 576,  label: "Attente Règlement", actor: "Système",      style: "sys_pay" },
+  { status: "settled",              x: 855,  y: 694,  label: "Réglé",             actor: "Système",      style: "sys_ok" },
+  { status: "completed",            x: 1074, y: 694,  label: "Terminé ✓",         actor: "Système",      style: "sys_ok" },
+  // Terminal
+  { status: "cancelled",            x: 28,   y: 800,  label: "Annulé",            actor: "Agent BCC",    style: "bcc_err", warn: true },
 ];
 
-// ─── Phase summary ────────────────────────────────────────────────────────────
-const PHASES = [
-  { id: 1, label: "Création",      icon: "✏️",  statuses: ["draft"] },
-  { id: 2, label: "Approbation",   icon: "🔏",  statuses: ["submitted", "rejected"] },
-  { id: 3, label: "Transmission",  icon: "📤",  statuses: ["approved", "sent_to_counterparty"] },
-  { id: 4, label: "Réponse CP",    icon: "🤝",  statuses: ["accepted", "declined"] },
-  { id: 5, label: "Manifeste",     icon: "📦",  statuses: ["manifest_validated"] },
-  { id: 6, label: "Entrée coffre", icon: "🏦",  statuses: ["in_transit", "delivered", "negotiating"] },
-  { id: 7, label: "Règlement",     icon: "💰",  statuses: ["pending_settlement"] },
-  { id: 0, label: "Annulés",       icon: "⛔",  statuses: ["cancelled"] },
+// Optional system states (no real DB status, shown dashed)
+const OPT_NODES = [
+  { x: 258, y: 275, label: "Attente Conformité", actor: "Optionnel · Système", slug: "pending_approval" },
+  { x: 258, y: 375, label: "Attente Finance",    actor: "Optionnel · Système", slug: "pending_finance" },
 ];
 
-// ─── Colors ───────────────────────────────────────────────────────────────────
-const COLORS: Record<string, { bg: string; glow: string; fill: string; stroke: string; nodeText: string }> = {
-  blue:   { bg: "#2563eb", glow: "#3b82f680", fill: "#0f2347", stroke: "#3b82f6", nodeText: "#93c5fd" },
-  green:  { bg: "#059669", glow: "#10b98180", fill: "#052e16", stroke: "#22c55e", nodeText: "#86efac" },
-  red:    { bg: "#dc2626", glow: "#ef444480", fill: "#450a0a", stroke: "#ef4444", nodeText: "#fca5a5" },
-  violet: { bg: "#7c3aed", glow: "#8b5cf680", fill: "#2e1065", stroke: "#8b5cf6", nodeText: "#c4b5fd" },
-  orange: { bg: "#ea580c", glow: "#f9731680", fill: "#431407", stroke: "#f97316", nodeText: "#fdba74" },
-  amber:  { bg: "#d97706", glow: "#f59e0b80", fill: "#451a03", stroke: "#f59e0b", nodeText: "#fcd34d" },
-  gray:   { bg: "#475569", glow: "#64748b80", fill: "#0f172a", stroke: "#64748b", nodeText: "#94a3b8" },
-};
-
-// ─── Types ────────────────────────────────────────────────────────────────────
-interface StatsData {
-  counts: Record<string, number>;
-  total: number;
-  byPhase: Record<number, number>;
-  criticalCount: number;
-  activeCount: number;
-}
-
+// ─── SWR types ────────────────────────────────────────────────────────────────
+interface StatsData { counts: Record<string, number>; total: number; criticalCount: number; activeCount: number; }
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
-// ─── Inline SVG diagram ───────────────────────────────────────────────────────
-function LifecycleSVG() {
+// ─── SVG card helper ──────────────────────────────────────────────────────────
+function SvgCard({ node }: { node: NodeDef }) {
+  const s = STYLE[node.style];
+  const w = node.w ?? CW;
+  const h = node.h ?? CH;
   return (
-    <svg
-      viewBox={`0 0 ${SVG_W} ${SVG_H}`}
-      style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}
-      aria-label="Cycle de vie des bons de commande"
-    >
+    <g>
+      {/* Outer glow */}
+      <rect x={node.x - 1} y={node.y - 1} width={w + 2} height={h + 2} rx={9} fill="none" stroke={s.border} strokeWidth={0.4} opacity={0.3} />
+      {/* Card */}
+      <rect x={node.x} y={node.y} width={w} height={h} rx={8} fill={s.bg} stroke={s.border} strokeWidth={node.optional ? 1 : 2} strokeDasharray={node.optional ? "4,3" : undefined} />
+      {/* Actor label */}
+      <text x={node.x + w / 2} y={node.y + 17} textAnchor="middle" fill={s.lbl} fontSize={8.5} fontWeight="700" letterSpacing="0.04em" fontFamily="ui-sans-serif,system-ui,sans-serif">{node.actor}</text>
+      {/* Status name */}
+      <text x={node.x + w / 2} y={node.y + 52} textAnchor="middle" fill={s.txt} fontSize={15} fontWeight="800" fontFamily="ui-sans-serif,system-ui,sans-serif">{node.label}</text>
+      {/* Slug */}
+      <text x={node.x + w / 2} y={node.y + 73} textAnchor="middle" fill={`${s.border}80`} fontSize={8.5} fontStyle="italic" fontFamily="ui-monospace,monospace">{node.status}</text>
+    </g>
+  );
+}
+
+function SvgOptCard({ node }: { node: typeof OPT_NODES[0] }) {
+  const s = STYLE.opt;
+  return (
+    <g>
+      <rect x={node.x} y={node.y} width={CW} height={CH} rx={8} fill={s.bg} stroke={s.border} strokeWidth={1} strokeDasharray="4,3" />
+      <text x={node.x + CW / 2} y={node.y + 17} textAnchor="middle" fill={s.lbl} fontSize={8} fontWeight="600" fontFamily="ui-sans-serif,system-ui,sans-serif">{node.actor}</text>
+      <text x={node.x + CW / 2} y={node.y + 52} textAnchor="middle" fill={s.txt} fontSize={14} fontWeight="700" fontFamily="ui-sans-serif,system-ui,sans-serif">{node.label}</text>
+      <text x={node.x + CW / 2} y={node.y + 73} textAnchor="middle" fill={`${s.border}60`} fontSize={8.5} fontStyle="italic" fontFamily="ui-monospace,monospace">{node.slug}</text>
+    </g>
+  );
+}
+
+// ─── Arrow with label ─────────────────────────────────────────────────────────
+function Arrow({ d, color, label, lx, ly, dashed, thin }: {
+  d: string; color: string; label?: string; lx?: number; ly?: number; dashed?: boolean; thin?: boolean;
+}) {
+  const id = `ah-${color.replace("#", "")}`;
+  return (
+    <>
       <defs>
-        <marker id="ah-b" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#60a5fa" /></marker>
-        <marker id="ah-g" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#4ade80" /></marker>
-        <marker id="ah-r" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#f87171" /></marker>
-        <marker id="ah-v" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#a78bfa" /></marker>
-        <marker id="ah-s" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#94a3b8" /></marker>
-        <marker id="ah-o" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#fb923c" /></marker>
-        <marker id="ah-a" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#fbbf24" /></marker>
+        <marker id={id} markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+          <polygon points="0 0,8 3,0 6" fill={color} />
+        </marker>
       </defs>
+      <path d={d} fill="none" stroke={color} strokeWidth={thin ? 1 : 1.5}
+        strokeDasharray={dashed ? "5,3" : undefined} opacity={dashed ? 0.7 : 1}
+        markerEnd={`url(#${id})`} />
+      {label && lx !== undefined && ly !== undefined && (
+        <text x={lx} y={ly} fill={`${color}cc`} fontSize={9} fontFamily="ui-sans-serif,system-ui,sans-serif">{label}</text>
+      )}
+    </>
+  );
+}
 
+// ─── Main SVG diagram ─────────────────────────────────────────────────────────
+function LifecycleSVG() {
+  const cx = (x: number) => x + CW / 2;
+  const cy = (y: number) => y + CH / 2;
+  const L  = (x: number) => x;
+  const R  = (x: number) => x + CW;
+  const T  = (y: number) => y;
+  const B  = (y: number) => y + CH;
+
+  return (
+    <svg viewBox={`0 0 ${SVG_W} ${SVG_H}`} style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}>
       {/* Background */}
-      <rect width={SVG_W} height={SVG_H} fill="#0f172a" />
+      <rect width={SVG_W} height={SVG_H} fill="#070d1a" />
 
-      {/* ── Phase bands ──────────────────────────────────────────────────── */}
-      {/* Phase 1 – Création       0–200  */}
-      <rect x={0}    y={88} width={200}  height={512} fill="#1e3a5f18" stroke="#1e3a5f50" strokeWidth={0.5} />
-      {/* Phase 2 – Approbation    200–445 */}
-      <rect x={200}  y={88} width={245}  height={512} fill="#1e293b15" stroke="#1e293b50" strokeWidth={0.5} />
-      {/* Phase 3 – Transmission   445–745 */}
-      <rect x={445}  y={88} width={300}  height={512} fill="#05431022" stroke="#05431050" strokeWidth={0.5} />
-      {/* Phase 4 – Réponse CP     745–1010 */}
-      <rect x={745}  y={88} width={265}  height={512} fill="#43140720" stroke="#43140750" strokeWidth={0.5} />
-      {/* Phase 5 – Manifeste      1010–1230 */}
-      <rect x={1010} y={88} width={220}  height={512} fill="#2e106520" stroke="#2e106550" strokeWidth={0.5} />
-      {/* Phase 6 – Entrée coffre  1230–1875 */}
-      <rect x={1230} y={88} width={645}  height={512} fill="#1e293b18" stroke="#1e293b50" strokeWidth={0.5} />
-      {/* Phase 7 – Règlement      1875–2100 */}
-      <rect x={1875} y={88} width={225}  height={512} fill="#45170320" stroke="#45170350" strokeWidth={0.5} />
+      {/* ── Title ───────────────────────────────────────────────────────── */}
+      <text x={SVG_W / 2} y={38} textAnchor="middle" fill="#f1f5f9" fontSize={22} fontWeight="800" fontFamily="ui-sans-serif,system-ui,sans-serif">
+        Cycle de vie — Bons de Commande
+      </text>
 
-      {/* Phase separators */}
-      {[200, 445, 745, 1010, 1230, 1875].map((x) => (
-        <line key={x} x1={x} y1={88} x2={x} y2={SVG_H} stroke="#1e293b" strokeWidth={1} />
-      ))}
-
-      {/* Phase labels */}
-      <text x={100}  y={110} textAnchor="middle" fill="#3b82f6" fontSize={10} fontWeight="700" letterSpacing="0.06em">PHASE 1 · CRÉATION</text>
-      <text x={323}  y={110} textAnchor="middle" fill="#64748b" fontSize={10} fontWeight="700" letterSpacing="0.06em">PHASE 2 · APPROBATION</text>
-      <text x={595}  y={110} textAnchor="middle" fill="#22c55e" fontSize={10} fontWeight="700" letterSpacing="0.06em">PHASE 3 · TRANSMISSION</text>
-      <text x={878}  y={110} textAnchor="middle" fill="#f97316" fontSize={10} fontWeight="700" letterSpacing="0.06em">PHASE 4 · RÉPONSE CP</text>
-      <text x={1120} y={110} textAnchor="middle" fill="#8b5cf6" fontSize={10} fontWeight="700" letterSpacing="0.06em">PHASE 5 · MANIFESTE</text>
-      <text x={1553} y={110} textAnchor="middle" fill="#94a3b8" fontSize={10} fontWeight="700" letterSpacing="0.06em">PHASE 6 · ENTRÉE COFFRE</text>
-      <text x={1988} y={110} textAnchor="middle" fill="#f59e0b" fontSize={10} fontWeight="700" letterSpacing="0.06em">PHASE 7 · RÈGLEMENT</text>
-
-      {/* ── Arrows ───────────────────────────────────────────────────────── */}
-
-      {/* Main success flow */}
-      {/* draft(right=177) → submitted(left=246) */}
-      <path d="M 178 280 C 210 280, 210 200, 246 200" fill="none" stroke="#3b82f6" strokeWidth={1.5} markerEnd="url(#ah-b)" />
-      {/* submitted(right=401) → approved(left=513) */}
-      <path d="M 401 200 L 513 200" fill="none" stroke="#3b82f6" strokeWidth={1.5} markerEnd="url(#ah-b)" />
-      {/* approved(right=668) → sent_to_cp(left=773) */}
-      <path d="M 668 200 L 773 200" fill="none" stroke="#22c55e" strokeWidth={1.5} markerEnd="url(#ah-g)" />
-      {/* sent_to_cp(right=938) → accepted(left=1008) */}
-      <path d="M 938 200 C 970 200, 970 152, 1008 152" fill="none" stroke="#22c55e" strokeWidth={1.5} markerEnd="url(#ah-g)" />
-      {/* accepted(right=1163) → manifest_validated(left=1218) */}
-      <path d="M 1163 152 L 1218 152" fill="none" stroke="#8b5cf6" strokeWidth={1.5} markerEnd="url(#ah-v)" />
-      {/* manifest_validated(right=1413) → in_transit(left=1463) */}
-      <path d="M 1413 152 C 1438 152, 1438 200, 1463 200" fill="none" stroke="#64748b" strokeWidth={1.5} markerEnd="url(#ah-s)" />
-      {/* in_transit(right=1618) → delivered(left=1683) */}
-      <path d="M 1618 200 C 1648 200, 1648 152, 1683 152" fill="none" stroke="#22c55e" strokeWidth={1.5} markerEnd="url(#ah-g)" />
-      {/* delivered(right=1838) → pending_settlement(left=1908) */}
-      <path d="M 1838 152 C 1868 152, 1868 200, 1908 200" fill="none" stroke="#f59e0b" strokeWidth={1.5} markerEnd="url(#ah-a)" />
-
-      {/* Negotiation branch */}
-      {/* in_transit(bottom=222) → negotiating(left=1678) */}
-      <path d="M 1540 222 C 1540 348, 1678 348" fill="none" stroke="#f97316" strokeWidth={1.5} strokeDasharray="6,3" markerEnd="url(#ah-o)" />
-      {/* negotiating(right=1843) → pending_settlement(left=1908) — orange arc up */}
-      <path d="M 1843 348 C 1878 348, 1878 200, 1908 200" fill="none" stroke="#f97316" strokeWidth={1.5} markerEnd="url(#ah-a)" />
-
-      {/* Error / rejection branches — red dashed */}
-      {/* submitted(bottom=222) → rejected(top=373) */}
-      <path d="M 323 222 L 323 373" fill="none" stroke="#ef4444" strokeWidth={1.5} strokeDasharray="5,3" markerEnd="url(#ah-r)" />
-      {/* rejected(bottom=417) → cancelled(left=513) */}
-      <path d="M 323 417 C 323 510, 513 510" fill="none" stroke="#ef4444" strokeWidth={1} strokeDasharray="4,3" markerEnd="url(#ah-r)" />
-      {/* sent_to_cp(bottom=222) → declined(left=1008) */}
-      <path d="M 855 222 C 855 328, 1008 328" fill="none" stroke="#ef4444" strokeWidth={1.5} strokeDasharray="5,3" markerEnd="url(#ah-r)" />
-      {/* declined(bottom=350) → cancelled(right=668) */}
-      <path d="M 1085 350 L 1085 510 L 668 510" fill="none" stroke="#ef4444" strokeWidth={1} strokeDasharray="4,3" markerEnd="url(#ah-r)" />
-
-      {/* ── Nodes ────────────────────────────────────────────────────────── */}
-      {NODES.map((node) => {
-        const col = COLORS[node.color];
-        return (
-          <g key={node.status}>
-            <rect
-              x={node.cx - node.rw / 2} y={node.cy - node.rh / 2}
-              width={node.rw} height={node.rh}
-              rx={8} fill={col.fill} stroke={col.stroke} strokeWidth={1.5}
-            />
-            <text
-              x={node.cx} y={node.cy}
-              textAnchor="middle" dominantBaseline="middle"
-              fill={col.nodeText} fontSize={12} fontWeight="600"
-              fontFamily="ui-sans-serif, system-ui, sans-serif"
-            >
-              {node.label}
-            </text>
-          </g>
-        );
-      })}
-
-      {/* ── Legend ───────────────────────────────────────────────────────── */}
-      <g transform="translate(12, 10)">
-        {[
-          { fill: "#0f2347",  stroke: "#3b82f6", label: "Agent BCC" },
-          { fill: "#431407",  stroke: "#f97316", label: "Contrepartie" },
-          { fill: "#052e16",  stroke: "#22c55e", label: "Succès" },
-          { fill: "#450a0a",  stroke: "#ef4444", label: "Erreur" },
-          { fill: "#2e1065",  stroke: "#8b5cf6", label: "Manifeste" },
-          { fill: "#431407",  stroke: "#f97316", label: "Négociation" },
-          { fill: "#451a03",  stroke: "#f59e0b", label: "Règlement" },
-        ].map(({ fill, stroke, label }, i) => (
-          <g key={label} transform={`translate(${i * 120}, 0)`}>
-            <rect x={0} y={0} width={13} height={13} rx={2} fill={fill} stroke={stroke} strokeWidth={1.5} />
-            <text x={18} y={10} fill="#94a3b8" fontSize={11} fontFamily="ui-sans-serif, system-ui, sans-serif">{label}</text>
-          </g>
-        ))}
-        <g transform="translate(840, 0)">
-          <line x1={0} y1={6} x2={37} y2={6} stroke="#475569" strokeWidth={1.5} strokeDasharray="5,3" />
-          <text x={42} y={10} fill="#94a3b8" fontSize={11} fontFamily="ui-sans-serif, system-ui, sans-serif">Branche rejet</text>
+      {/* ── Legend ──────────────────────────────────────────────────────── */}
+      {[
+        { x: 60,  color: "#3b82f6", label: "Agent BCC" },
+        { x: 200, color: "#f97316", label: "Contrepartie" },
+        { x: 340, color: "#64748b", label: "Système" },
+        { x: 460, color: "#ef4444", label: "Erreur / Annulé" },
+        { x: 610, color: "#22c55e", label: "Succès / Complété" },
+      ].map(({ x, color, label }) => (
+        <g key={label} transform={`translate(${x}, 58)`}>
+          <rect x={0} y={-9} width={14} height={14} rx={3} fill={`${color}20`} stroke={color} strokeWidth={1.5} />
+          <text x={20} y={2} fill="#94a3b8" fontSize={11} fontFamily="ui-sans-serif,system-ui,sans-serif">{label}</text>
         </g>
+      ))}
+      <g transform="translate(790, 58)">
+        <line x1={0} y1={-2} x2={34} y2={-2} stroke="#475569" strokeWidth={1.5} strokeDasharray="5,3" />
+        <text x={40} y={2} fill="#94a3b8" fontSize={11} fontFamily="ui-sans-serif,system-ui,sans-serif">État optionnel</text>
       </g>
+
+      {/* ── Phase boxes ─────────────────────────────────────────────────── */}
+      {/* Phase 1 */}
+      <rect x={16} y={92} width={212} height={118} rx={8} fill="#1e3a5f0a" stroke="#3b82f640" strokeWidth={1.5} />
+      <text x={24} y={106} fill="#3b82f6" fontSize={8.5} fontWeight="700" letterSpacing="0.1em" fontFamily="ui-sans-serif,system-ui,sans-serif">PHASE 1 · CRÉATION</text>
+      {/* Phase 2 */}
+      <rect x={16} y={258} width={452} height={254} rx={8} fill="#1e3a5f08" stroke="#3b82f630" strokeWidth={1.5} />
+      <text x={24} y={272} fill="#3b82f6" fontSize={8.5} fontWeight="700" letterSpacing="0.1em" fontFamily="ui-sans-serif,system-ui,sans-serif">PHASE 2 · APPROBATION INTERNE</text>
+      {/* Phase 3 */}
+      <rect x={16} y={614} width={212} height={118} rx={8} fill="#1e3a5f0a" stroke="#3b82f640" strokeWidth={1.5} />
+      <text x={24} y={628} fill="#3b82f6" fontSize={8.5} fontWeight="700" letterSpacing="0.1em" fontFamily="ui-sans-serif,system-ui,sans-serif">PHASE 3 · TRANSMISSION</text>
+      {/* Phase 4 */}
+      <rect x={483} y={447} width={212} height={328} rx={8} fill="#43140708" stroke="#f9731630" strokeWidth={1.5} />
+      <text x={491} y={461} fill="#f97316" fontSize={8.5} fontWeight="700" letterSpacing="0.08em" fontFamily="ui-sans-serif,system-ui,sans-serif">PHASE 4 · RÉPONSE CONTREPARTIE</text>
+      {/* Phase 5 */}
+      <rect x={734} y={447} width={756} height={352} rx={8} fill="#1e293b08" stroke="#47556930" strokeWidth={1.5} />
+      <text x={742} y={461} fill="#94a3b8" fontSize={8.5} fontWeight="700" letterSpacing="0.08em" fontFamily="ui-sans-serif,system-ui,sans-serif">PHASE 5 · LIVRAISON & RÈGLEMENT</text>
+      {/* Cancelled box */}
+      <rect x={16} y={784} width={212} height={108} rx={8} fill="#450a0a08" stroke="#ef444440" strokeWidth={1.5} strokeDasharray="5,3" />
+
+      {/* ── Arrows ──────────────────────────────────────────────────────── */}
+
+      {/* draft → submitted: "Soumettre pour approbation" */}
+      <Arrow d={`M ${cx(28)} ${B(110)} L ${cx(28)} ${T(275)}`} color="#3b82f6"
+        label="Soumettre pour approbation" lx={148} ly={196} />
+
+      {/* submitted → optional states */}
+      <Arrow d={`M ${R(28)} ${cy(275)} L ${L(258)} ${cy(275)}`} color="#475569" dashed thin
+        label="Conformité" lx={222} ly={cy(275) - 5} />
+      <Arrow d={`M ${cx(258)} ${B(275)} L ${cx(258)} ${T(375)}`} color="#475569" dashed thin />
+
+      {/* submitted → approved: "Double approbation (OTP + Conformité)" */}
+      <Arrow d={`M ${cx(28)} ${B(275)} L ${cx(28)} ${T(410)}`} color="#3b82f6"
+        label="Double approbation" lx={148} ly={330} />
+      <text x={148} y={342} fill="#3b82f680" fontSize={8.5} fontFamily="ui-sans-serif,system-ui,sans-serif">(OTP + Conformité)</text>
+
+      {/* approved → rejected */}
+      <Arrow d={`M ${R(28)} ${cy(410)} L ${L(258)} ${cy(410)}`} color="#ef4444"
+        label="Rejeter" lx={204} ly={cy(410) - 6} />
+
+      {/* approved → sent_to_cp: "Transmettre à la contrepartie" */}
+      <Arrow d={`M ${cx(28)} ${B(410)} L ${cx(28)} ${T(630)}`} color="#22c55e"
+        label="Transmettre à" lx={148} ly={533} />
+      <text x={148} y={545} fill="#22c55e80" fontSize={8.5} fontFamily="ui-sans-serif,system-ui,sans-serif">la contrepartie</text>
+
+      {/* BCC agent can also re-submit from rejected */}
+      <Arrow d={`M ${cx(28)} ${B(410)} L ${cx(28)} ${T(630)}`} color="#22c55e" />
+
+      {/* sent_to_cp → accepted: Accepter */}
+      <Arrow d={`M ${R(28)} ${28 + 630 + 28} C 340 ${28 + 630 + 28}, 340 ${cy(462)}, ${L(495)} ${cy(462)}`}
+        color="#22c55e" label="Accepter" lx={258} ly={cy(462) - 6} />
+
+      {/* sent_to_cp → negotiating: Négocier */}
+      <Arrow d={`M ${R(28)} ${cy(630)} L ${L(495)} ${cy(568)}`}
+        color="#f97316" dashed label="Négocier" lx={265} ly={cy(630) - 4} />
+
+      {/* sent_to_cp → declined: Décliner */}
+      <Arrow d={`M ${R(28)} ${28 + 630 + 62} C 340 ${28 + 630 + 62}, 340 ${cy(674)}, ${L(495)} ${cy(674)}`}
+        color="#ef4444" dashed label="Décliner" lx={255} ly={cy(674) + 12} />
+
+      {/* accepted → in_transit: Expédier */}
+      <Arrow d={`M ${R(495)} ${cy(462)} L ${L(748)} ${cy(462)}`}
+        color="#64748b" label="Expédier" lx={R(495) + 6} ly={cy(462) - 6} />
+
+      {/* in_transit → delivered: Réception coffre */}
+      <Arrow d={`M ${R(748)} ${cy(462)} L ${L(968)} ${cy(462)}`}
+        color="#64748b" label="Réception coffre" lx={R(748) + 4} ly={cy(462) - 6} />
+
+      {/* delivered → pending_settlement: Paiement initié */}
+      <Arrow d={`M ${cx(968)} ${B(462)} L ${cx(968)} ${T(576)}`}
+        color="#f59e0b" label="Paiement initié" lx={cx(968) + 8} ly={B(462) + 26} />
+
+      {/* pending_settlement → settled: Paiement reçu */}
+      <Arrow d={`M ${cx(968)} ${B(576)} C ${cx(968)} ${B(576) + 20}, ${cx(855)} ${B(576) + 20}, ${cx(855)} ${T(694)}`}
+        color="#22c55e" label="Paiement reçu" lx={870} ly={B(576) + 14} />
+
+      {/* settled → completed: Clôture */}
+      <Arrow d={`M ${R(855)} ${cy(694)} L ${L(1074)} ${cy(694)}`}
+        color="#22c55e" label="Clôture" lx={R(855) + 4} ly={cy(694) - 6} />
+
+      {/* rejected → cancelled (long dashed path) */}
+      <Arrow d={`M ${cx(258)} ${B(410)} C ${cx(258)} 790, ${cx(28)} 790, ${cx(28)} ${T(800)}`}
+        color="#ef4444" dashed thin />
+
+      {/* declined → cancelled (long dashed path going below) */}
+      <Arrow d={`M ${cx(495)} ${B(674)} C ${cx(495)} 870, ${cx(28)} 870, ${cx(28)} ${B(800)}`}
+        color="#ef4444" dashed thin />
+
+      {/* Agent cancel note */}
+      <rect x={16} y={584} width={212} height={24} rx={4} fill="#450a0a20" />
+      <text x={cx(28)} y={600} textAnchor="middle" fill="#fca5a580" fontSize={8} fontFamily="ui-sans-serif,system-ui,sans-serif">
+        Agent: Annuler (draft, submitted, sent_to_cp...)
+      </text>
+      <line x1={cx(28)} y1={608} x2={cx(28)} y2={614} stroke="#ef444450" strokeWidth={1} strokeDasharray="3,2" />
+
+      {/* ── Optional nodes ──────────────────────────────────────────────── */}
+      {OPT_NODES.map((n) => <SvgOptCard key={n.slug} node={n} />)}
+
+      {/* ── Status cards (drawn on top) ──────────────────────────────────── */}
+      {NODES.map((n) => <SvgCard key={n.status} node={n} />)}
     </svg>
   );
 }
 
-// ─── Count badge ──────────────────────────────────────────────────────────────
-function CountBadge({ count, node, hovered }: { count: number; node: NodeDef; hovered: boolean }) {
-  const isWarn = node.warn && count > 0;
-  const col = COLORS[node.color];
-  const bx = node.cx + node.rw / 2 - 14;
-  const by = node.cy;
+// ─── Count badge (HTML overlay) ───────────────────────────────────────────────
+function CountBadge({ node, count, hovered }: { node: NodeDef; count: number; hovered: boolean }) {
+  const s = STYLE[node.style];
+  const bx = (node.x + (node.w ?? CW)) - 10;
+  const by = node.y + 10;
 
-  if (count === 0) {
-    return (
-      <div style={{
-        position: "absolute", left: pX(bx), top: pY(by),
-        transform: "translate(-50%, -50%)",
-        width: 8, height: 8, borderRadius: "50%",
-        background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.14)",
-        pointerEvents: "none",
-      }} />
-    );
-  }
+  if (count === 0) return (
+    <div style={{ position: "absolute", left: pX(bx), top: pY(by), transform: "translate(-50%,-50%)", width: 7, height: 7, borderRadius: "50%", background: "#1e293b", border: "1px solid #334155", pointerEvents: "none" }} />
+  );
 
   return (
-    <div style={{
-      position: "absolute", left: pX(bx), top: pY(by),
-      transform: "translate(-50%, -50%)",
-      pointerEvents: "none", zIndex: 10,
-      scale: hovered ? "1.3" : "1", transition: "scale .15s",
-    }}>
-      {isWarn && (
-        <div className="animate-ping" style={{
-          position: "absolute", inset: -3, borderRadius: 14, background: col.glow, zIndex: -1,
-        }} />
-      )}
-      <div style={{
-        minWidth: count > 9 ? 26 : 20, height: 20, padding: "0 5px", borderRadius: 10,
-        background: col.bg, boxShadow: `0 0 10px ${col.glow}, 0 2px 6px rgba(0,0,0,0.5)`,
-        display: "flex", alignItems: "center", justifyContent: "center",
-        fontWeight: 800, fontSize: 11, color: "#fff",
-        fontFamily: "ui-monospace, monospace", letterSpacing: "-0.03em",
-        border: `1.5px solid ${col.bg}dd`,
-      }}>
+    <div style={{ position: "absolute", left: pX(bx), top: pY(by), transform: `translate(-50%,-50%) scale(${hovered ? 1.2 : 1})`, pointerEvents: "none", zIndex: 10, transition: "transform .15s" }}>
+      {node.warn && <div className="animate-ping" style={{ position: "absolute", inset: -3, borderRadius: 12, background: `${s.border}40`, zIndex: -1 }} />}
+      <div style={{ minWidth: count > 9 ? 24 : 20, height: 20, padding: "0 5px", borderRadius: 10, background: s.border, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 11, color: "#fff", fontFamily: "ui-monospace,monospace", boxShadow: `0 0 10px ${s.border}80, 0 2px 6px rgba(0,0,0,.6)`, border: `1.5px solid ${s.border}88` }}>
         {count > 99 ? "99+" : count}
       </div>
     </div>
@@ -265,48 +296,37 @@ function CountBadge({ count, node, hovered }: { count: number; node: NodeDef; ho
 
 // ─── Tooltip ──────────────────────────────────────────────────────────────────
 function Tooltip({ node, count, total }: { node: NodeDef; count: number; total: number }) {
-  const isWarn = node.warn && count > 0;
+  const s = STYLE[node.style];
   const pct = total > 0 && count > 0 ? Math.round((count / total) * 100) : 0;
-  const col = COLORS[node.color];
-  const above = node.cy > 430;
-  const ttY = above ? node.cy - node.rh / 2 - 8 : node.cy + node.rh / 2 + 8;
+  const above = node.y > 700;
+  const ttY = above ? node.y - 8 : node.y + CH + 8;
+  const nearRight = node.x > SVG_W - 300;
 
   return (
-    <div style={{
-      position: "absolute", left: pX(node.cx), top: pY(ttY),
-      transform: above ? "translate(-50%, -100%)" : "translate(-50%, 0)",
-      zIndex: 50, pointerEvents: "none",
-    }}>
-      <div style={{
-        background: "#0f172a", border: `1px solid ${col.bg}55`, borderRadius: 10,
-        padding: "10px 14px", whiteSpace: "nowrap",
-        boxShadow: `0 8px 30px rgba(0,0,0,0.7), 0 0 0 1px ${col.bg}22`, minWidth: 170,
-      }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
-          <div style={{ width: 8, height: 8, borderRadius: "50%", background: col.bg, boxShadow: `0 0 6px ${col.glow}` }} />
-          <span style={{ fontSize: 12, fontWeight: 700, color: "#f1f5f9" }}>{node.label}</span>
+    <div style={{ position: "absolute", left: pX(nearRight ? node.x : node.x + CW / 2), top: pY(ttY), transform: above ? `translate(${nearRight ? "-100%" : "-50%"}, -100%)` : `translate(${nearRight ? "-100%" : "-50%"}, 0)`, zIndex: 50, pointerEvents: "none" }}>
+      <div style={{ background: "#0a1220", border: `1px solid ${s.border}44`, borderRadius: 10, padding: "12px 16px", whiteSpace: "nowrap", boxShadow: `0 10px 40px rgba(0,0,0,.8)`, minWidth: 190 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 8 }}>
+          <div style={{ width: 9, height: 9, borderRadius: "50%", background: s.border }} />
+          <span style={{ fontSize: 13, fontWeight: 700, color: "#f1f5f9" }}>{node.label}</span>
+          <span style={{ fontSize: 9, color: "#475569", marginLeft: "auto" }}>{node.actor}</span>
         </div>
-        <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
-          <span style={{
-            fontSize: 28, fontWeight: 800, lineHeight: 1, fontFamily: "ui-monospace, monospace",
-            color: count === 0 ? "#334155" : isWarn ? "#f87171" : col.bg,
-          }}>{count}</span>
+        <div style={{ display: "flex", alignItems: "baseline", gap: 7 }}>
+          <span style={{ fontSize: 28, fontWeight: 900, fontFamily: "ui-monospace,monospace", color: count === 0 ? "#334155" : s.border }}>{count}</span>
           <span style={{ fontSize: 11, color: "#64748b" }}>bon{count !== 1 ? "s" : ""} de commande</span>
         </div>
         {total > 0 && (
           <div style={{ marginTop: 8 }}>
             <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: "#475569", marginBottom: 3 }}>
-              <span>Part du total</span>
-              <span style={{ color: pct > 0 ? "#94a3b8" : "#334155" }}>{pct}%</span>
+              <span>Part du total</span><span style={{ color: pct > 0 ? "#94a3b8" : "#334155" }}>{pct}%</span>
             </div>
             <div style={{ height: 3, background: "#1e293b", borderRadius: 2, overflow: "hidden" }}>
-              <div style={{ width: `${pct}%`, height: "100%", background: col.bg, borderRadius: 2, transition: "width .3s" }} />
+              <div style={{ width: `${pct}%`, height: "100%", background: s.border, transition: "width .4s" }} />
             </div>
           </div>
         )}
-        <div style={{ marginTop: 7, paddingTop: 7, borderTop: "0.5px solid #1e293b", display: "flex", justifyContent: "space-between" }}>
-          <span style={{ fontSize: 10, color: "#475569", fontFamily: "ui-monospace", fontStyle: "italic" }}>{node.status}</span>
-          <span style={{ fontSize: 9, color: "#334155" }}>Cliquer pour filtrer</span>
+        <div style={{ marginTop: 8, paddingTop: 6, borderTop: "0.5px solid #1e293b", display: "flex", justifyContent: "space-between" }}>
+          <code style={{ fontSize: 9, color: "#475569" }}>{node.status}</code>
+          <span style={{ fontSize: 9, color: "#334155" }}>cliquer pour filtrer</span>
         </div>
       </div>
     </div>
@@ -315,153 +335,83 @@ function Tooltip({ node, count, total }: { node: NodeDef; count: number; total: 
 
 // ─── Main page ────────────────────────────────────────────────────────────────
 export default function PoLifecyclePage() {
-  const { data, isLoading, mutate } = useSWR<StatsData>(
-    "/api/po-lifecycle-stats", fetcher, { refreshInterval: 30_000 },
-  );
+  const { data, isLoading, mutate } = useSWR<StatsData>("/api/po-lifecycle-stats", fetcher, { refreshInterval: 30_000 });
 
   const [hovered, setHovered] = useState<string | null>(null);
   const [lastRefreshed, setLastRefreshed] = useState(new Date());
   const [, setTick] = useState(0);
 
-  useEffect(() => {
-    const t = setInterval(() => setTick((n) => n + 1), 1000);
-    return () => clearInterval(t);
-  }, []);
-
+  useEffect(() => { const t = setInterval(() => setTick((n) => n + 1), 1000); return () => clearInterval(t); }, []);
   useEffect(() => { if (data) setLastRefreshed(new Date()); }, [data]);
 
   const secSince = Math.floor((Date.now() - lastRefreshed.getTime()) / 1000);
-  const nextIn = Math.max(0, 30 - secSince);
-
-  const counts = data?.counts ?? {};
-  const total = data?.total ?? 0;
-  const criticalCount = data?.criticalCount ?? 0;
-  const activeCount = data?.activeCount ?? 0;
+  const nextIn   = Math.max(0, 30 - secSince);
+  const counts   = data?.counts ?? {};
+  const total    = data?.total  ?? 0;
 
   return (
     <SidebarProvider>
       <div className="flex h-screen" style={{ background: "#070d1a" }}>
         <AppSidebar />
         <div className="flex flex-1 flex-col overflow-hidden">
-          <AppHeader
-            title="Tableau de bord stratégique"
-            subtitle="Cycle de vie — Bons de commande · Vue temps réel"
-          />
+          <AppHeader title="Cycle de vie — Bons de commande" subtitle="Vue d'ensemble du flux opérationnel" />
 
-          {/* ── Alert strip ───────────────────────────────────────────── */}
-          {criticalCount > 0 && (
-            <div
-              className="shrink-0 flex items-center gap-3 px-5 py-2 border-b animate-pulse"
-              style={{ background: "#450a0a30", borderColor: "#dc262640" }}
-            >
-              <AlertTriangle className="h-4 w-4 text-red-500 shrink-0" />
-              <span className="text-sm font-medium text-red-300">
-                {criticalCount} bon{criticalCount > 1 ? "s" : ""} de commande en état critique
-                <span className="font-normal text-red-400/70 ml-1.5">(rejeté, décliné ou annulé)</span>
-              </span>
-              <Link href="/purchase-orders?status=rejected" className="ml-auto text-xs text-red-400 hover:text-red-200 underline">
-                Voir →
-              </Link>
+          {/* Topbar */}
+          <div className="shrink-0 flex items-center justify-between px-5 py-2 border-b" style={{ background: "#0d1527", borderColor: "#1e293b" }}>
+            <div className="flex items-center gap-4 text-sm">
+              <span style={{ color: "#475569" }}>Total :</span>
+              <span className="font-black text-white font-mono">{total}</span>
+              <span style={{ color: "#334155" }}>·</span>
+              <span style={{ color: "#475569" }}>Pipeline actif :</span>
+              <span className="font-bold text-emerald-400 font-mono">{data?.activeCount ?? 0}</span>
+              {(data?.criticalCount ?? 0) > 0 && (
+                <>
+                  <span style={{ color: "#334155" }}>·</span>
+                  <span className="font-bold text-red-400 font-mono animate-pulse">{data?.criticalCount} critique{(data?.criticalCount ?? 0) > 1 ? "s" : ""}</span>
+                </>
+              )}
             </div>
-          )}
-
-          {/* ── Phase summary strip ───────────────────────────────────── */}
-          <div className="shrink-0 flex items-stretch border-b overflow-x-auto" style={{ background: "#0d1527", borderColor: "#1e293b" }}>
-            <div className="flex items-center gap-3 px-4 py-2.5 border-r shrink-0" style={{ borderColor: "#1e293b" }}>
-              <div className="rounded-lg p-1.5" style={{ background: "#1e293b" }}>
-                <Activity className="h-4 w-4 text-slate-300" />
-              </div>
-              <div>
-                <p className="text-[10px] text-slate-500 uppercase tracking-wider">Total POs</p>
-                <p className="text-xl font-black text-white leading-none font-mono">{total}</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3 px-4 py-2.5 border-r shrink-0" style={{ borderColor: "#1e293b" }}>
-              <div className="rounded-lg p-1.5" style={{ background: "#0c2a1e" }}>
-                <TrendingUp className="h-4 w-4 text-emerald-400" />
-              </div>
-              <div>
-                <p className="text-[10px] text-slate-500 uppercase tracking-wider">Pipeline actif</p>
-                <p className="text-xl font-black text-emerald-400 leading-none font-mono">{activeCount}</p>
-              </div>
-            </div>
-
-            {PHASES.map((ph) => {
-              const phCount = ph.statuses.reduce((s, st) => s + (counts[st] || 0), 0);
-              const isAlert = ph.id === 0 && phCount > 0;
-              return (
-                <div
-                  key={ph.id}
-                  className="flex items-center gap-2 px-3 py-2.5 border-r shrink-0"
-                  style={{ borderColor: "#1e293b", background: isAlert ? "#1a050540" : "transparent" }}
-                >
-                  <span className="text-sm leading-none">{ph.icon}</span>
-                  <div>
-                    <p className="text-[10px] tracking-wider whitespace-nowrap" style={{ color: "#475569" }}>
-                      {ph.id === 0 ? "Annulés" : `Ph.${ph.id} · ${ph.label}`}
-                    </p>
-                    <p
-                      className="text-lg font-bold leading-none font-mono"
-                      style={{ color: isAlert && phCount > 0 ? "#f87171" : phCount > 0 ? "#e2e8f0" : "#334155" }}
-                    >
-                      {phCount}
-                    </p>
-                  </div>
-                </div>
-              );
-            })}
-
-            <div className="ml-auto flex items-center gap-3 px-4 shrink-0">
-              <div className="flex items-center gap-1.5">
-                <span className="h-2 w-2 rounded-full" style={{ background: nextIn > 5 ? "#22c55e" : "#f59e0b", animation: "pulse 2s infinite" }} />
-                <span className="text-[10px]" style={{ color: "#475569" }}>
-                  {isLoading ? "Actualisation…" : `Prochain dans ${nextIn}s`}
-                </span>
-              </div>
-              <Button
-                variant="ghost" size="sm" className="h-7 text-xs"
-                style={{ color: "#64748b", background: "transparent" }}
-                onClick={() => { mutate(); setLastRefreshed(new Date()); }}
-                disabled={isLoading}
-              >
+            <div className="flex items-center gap-3">
+              <span className="h-2 w-2 rounded-full" style={{ background: nextIn > 5 ? "#22c55e" : "#f59e0b", boxShadow: nextIn > 5 ? "0 0 6px #22c55e" : "0 0 6px #f59e0b" }} />
+              <span className="text-[11px] text-slate-500">{isLoading ? "Actualisation…" : `Actualisation dans ${nextIn}s`}</span>
+              <Button variant="ghost" size="sm" className="h-7 text-xs text-slate-500" style={{ background: "transparent" }}
+                onClick={() => { mutate(); setLastRefreshed(new Date()); }} disabled={isLoading}>
                 <RefreshCw className={`mr-1.5 h-3 w-3 ${isLoading ? "animate-spin" : ""}`} />
                 Actualiser
               </Button>
             </div>
           </div>
 
-          {/* ── Diagram ───────────────────────────────────────────────── */}
+          {/* Diagram */}
           <div className="flex-1 overflow-auto" style={{ background: "#070d1a" }}>
-            <div className="relative w-full" style={{ aspectRatio: `${SVG_W}/${SVG_H}`, minWidth: 1100 }}>
+            <div className="relative w-full" style={{ aspectRatio: `${SVG_W}/${SVG_H}`, minWidth: 900 }}>
               <LifecycleSVG />
 
+              {/* Interactive overlays */}
               {NODES.map((node) => {
                 const count = counts[node.status] || 0;
                 const isHov = hovered === node.status;
-                const col = COLORS[node.color];
+                const s = STYLE[node.style];
+                const w = node.w ?? CW;
+                const h = node.h ?? CH;
 
-                const areaL = pX(node.cx - node.rw / 2);
-                const areaT = pY(node.cy - node.rh / 2);
-                const areaW = `${(node.rw / SVG_W) * 100}%`;
-                const areaH = `${(node.rh / SVG_H) * 100}%`;
+                const aL = pX(node.x);
+                const aT = pY(node.y);
+                const aW = `${(w / SVG_W) * 100}%`;
+                const aH = `${(h / SVG_H) * 100}%`;
 
                 return (
                   <div key={node.status}>
                     {isHov && (
-                      <div style={{
-                        position: "absolute", left: areaL, top: areaT, width: areaW, height: areaH,
-                        border: `2px solid ${col.bg}`, borderRadius: 8,
-                        boxShadow: `0 0 16px ${col.glow}`, pointerEvents: "none", zIndex: 5,
-                      }} />
+                      <div style={{ position: "absolute", left: aL, top: aT, width: aW, height: aH, border: `2px solid ${s.border}`, borderRadius: 9, boxShadow: `0 0 22px ${s.border}60`, pointerEvents: "none", zIndex: 5 }} />
                     )}
-                    <Link
-                      href={`/purchase-orders?status=${node.status}`}
-                      style={{ position: "absolute", left: areaL, top: areaT, width: areaW, height: areaH, cursor: "pointer", zIndex: 8 }}
+                    <Link href={`/purchase-orders?status=${node.status}`}
+                      style={{ position: "absolute", left: aL, top: aT, width: aW, height: aH, cursor: "pointer", zIndex: 8 }}
                       onMouseEnter={() => setHovered(node.status)}
                       onMouseLeave={() => setHovered(null)}
-                      title={`${node.label} — ${count} PO${count !== 1 ? "s" : ""}`}
+                      title={`${node.label} · ${count} PO`}
                     />
-                    <CountBadge count={count} node={node} hovered={isHov} />
+                    <CountBadge node={node} count={count} hovered={isHov} />
                     {isHov && <Tooltip node={node} count={count} total={total} />}
                   </div>
                 );

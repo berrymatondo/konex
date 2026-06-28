@@ -19,7 +19,6 @@ import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
 
-// Shape returned by /api/purchase-orders (already scoped to the counterparty).
 interface PurchaseOrder {
   id: string;
   counterpartyName: string;
@@ -56,58 +55,58 @@ function formatWeight(value: number | string | null) {
 function formatDate(value: string | null) {
   if (!value) return "—";
   return new Date(value).toLocaleDateString("fr-FR", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
+    day: "2-digit", month: "2-digit", year: "numeric",
   });
 }
 
 function formatDateTime(value: string | null) {
   if (!value) return "—";
   return new Date(value).toLocaleString("fr-FR", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
+    day: "2-digit", month: "2-digit", year: "numeric",
+    hour: "2-digit", minute: "2-digit",
   });
 }
 
-// Maps an internal PO status to a counterparty-facing label, tone and bucket.
-type StatusTone = "toHandle" | "negotiation" | "sent" | "pending" | "closed" | "delivered" | "declined" | "draft";
+// ─── Status mapping (real statuses only) ──────────────────────────────────────
+type StatusTone = "toHandle" | "inProgress" | "negotiating" | "settlement" | "closed" | "declined" | "approved";
 
 function counterpartyStatus(status: string): { label: string; tone: StatusTone } {
   switch (status) {
-    case "submitted":
-    case "pending_compliance":
-    case "pending_finance":
-      return { label: "À traiter", tone: "toHandle" };
     case "approved":
-      return { label: "En attente BCC", tone: "pending" };
+      return { label: "En attente d'envoi", tone: "approved" };
+    case "sent_to_counterparty":
+      return { label: "À traiter", tone: "toHandle" };
+    case "accepted":
+      return { label: "Accepté — manifeste requis", tone: "toHandle" };
+    case "manifest_validated":
+      return { label: "Manifeste validé", tone: "inProgress" };
     case "in_transit":
-      return { label: "Expédition", tone: "negotiation" };
+      return { label: "En transit", tone: "inProgress" };
     case "delivered":
-      return { label: "Livrée", tone: "delivered" };
-    case "completed":
-      return { label: "Clôturée", tone: "closed" };
-    case "rejected":
-      return { label: "Déclinée", tone: "declined" };
+      return { label: "Livré", tone: "inProgress" };
+    case "negotiating":
+      return { label: "En négociation", tone: "negotiating" };
+    case "pending_settlement":
+      return { label: "En cours de règlement", tone: "settlement" };
+    case "declined":
+      return { label: "Décliné", tone: "declined" };
+    case "cancelled":
+      return { label: "Annulé", tone: "declined" };
     default:
-      return { label: "Brouillon", tone: "draft" };
+      return { label: status, tone: "closed" };
   }
 }
 
 function StatusBadge({ status }: { status: string }) {
   const { label, tone } = counterpartyStatus(status);
   const toneClass: Record<StatusTone, string> = {
-    toHandle: "border-warning/30 bg-warning/10 text-warning",
-    negotiation: "border-info/30 bg-info/10 text-info",
-    sent: "border-accent/30 bg-accent/10 text-accent",
-    pending: "border-success/30 bg-success/10 text-success",
-    closed: "border-muted-foreground/30 bg-muted text-muted-foreground",
-    delivered: "border-success/30 bg-success/10 text-success",
-    declined: "border-destructive/30 bg-destructive/10 text-destructive",
-    draft: "border-muted-foreground/30 bg-muted text-muted-foreground",
+    toHandle:    "border-warning/30 bg-warning/10 text-warning",
+    inProgress:  "border-info/30 bg-info/10 text-info",
+    negotiating: "border-orange-400/30 bg-orange-400/10 text-orange-400",
+    settlement:  "border-amber-400/30 bg-amber-400/10 text-amber-400",
+    approved:    "border-muted-foreground/30 bg-muted text-muted-foreground",
+    closed:      "border-muted-foreground/30 bg-muted text-muted-foreground",
+    declined:    "border-destructive/30 bg-destructive/10 text-destructive",
   };
   return (
     <Badge variant="outline" className={cn("font-medium", toneClass[tone])}>
@@ -126,12 +125,11 @@ function purityRange(po: PurchaseOrder) {
   return p > 0 ? `${p.toFixed(0)} %` : "—";
 }
 
-// Map raw gold-type keys (e.g. "dore_bars") to human-readable French labels.
 const GOLD_TYPE_LABELS: Record<string, string> = {
-  dore_bars: "Lingots Doré",
+  dore_bars:    "Lingots Doré",
   refined_bars: "Lingots Raffinés",
-  gold_dust: "Poudre d'Or",
-  scrap_gold: "Or de Récupération",
+  gold_dust:    "Poudre d'Or",
+  scrap_gold:   "Or de Récupération",
 };
 
 function goldTypeLabel(goldType: string | null | undefined) {
@@ -139,62 +137,60 @@ function goldTypeLabel(goldType: string | null | undefined) {
   return GOLD_TYPE_LABELS[goldType] || goldType;
 }
 
-const ACTIVE_STATUSES = ["submitted", "pending_compliance", "pending_finance", "approved", "in_transit"];
-const HISTORY_STATUSES = ["delivered", "completed", "rejected"];
+// Statuses where the counterparty must take action
+const ACTION_STATUSES    = ["sent_to_counterparty", "accepted"];
+// Statuses that are active (in progress but no action needed from CP)
+const PROGRESS_STATUSES  = ["approved", "manifest_validated", "in_transit", "delivered", "negotiating", "pending_settlement"];
+// All statuses visible to counterparty (approved onwards)
+const ACTIVE_STATUSES    = [...ACTION_STATUSES, ...PROGRESS_STATUSES];
+// Terminal/history statuses
+const HISTORY_STATUSES   = ["declined", "cancelled"];
 
-type HistoryFilter = "all" | "accepted" | "declined" | "closed" | "expired";
+type HistoryFilter = "all" | "declined" | "cancelled";
 
 export function CounterpartyDashboard() {
   const { data, isLoading } = useSWR<PurchaseOrder[]>("/api/purchase-orders", fetcher);
   const orders = useMemo(() => (Array.isArray(data) ? data : []), [data]);
 
   const [historyFilter, setHistoryFilter] = useState<HistoryFilter>("all");
-  const [historyPage, setHistoryPage] = useState(1);
+  const [historyPage, setHistoryPage]     = useState(1);
   const pageSize = 5;
 
-  // Derived KPIs from real, counterparty-scoped purchase orders.
-  const toHandle = orders.filter((o) =>
-    ["submitted", "pending_compliance", "pending_finance"].includes(o.status)
-  );
-  const inProgress = orders.filter((o) => ["approved", "in_transit"].includes(o.status));
+  // KPIs
+  const toHandle    = orders.filter((o) => ACTION_STATUSES.includes(o.status));
+  const inProgress  = orders.filter((o) => PROGRESS_STATUSES.includes(o.status));
+
   const now = new Date();
   const acceptedThisMonth = orders.filter((o) => {
-    if (!["approved", "delivered", "completed"].includes(o.status)) return false;
+    if (!["accepted", "manifest_validated", "in_transit", "delivered", "pending_settlement"].includes(o.status)) return false;
     const d = new Date(o.approvedAt || o.createdAt);
     return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
   });
   const acceptedVolume = acceptedThisMonth.reduce((sum, o) => sum + Number(o.estimatedWeightKg || 0), 0);
-  const respondedCount = orders.filter((o) => o.status !== "draft" && !toHandle.includes(o)).length;
+
+  const respondedCount = orders.filter((o) =>
+    !["approved", "sent_to_counterparty"].includes(o.status)
+  ).length;
   const responseRate = orders.length > 0 ? Math.round((respondedCount / orders.length) * 100) : 0;
 
   const activeOrders = orders.filter((o) => ACTIVE_STATUSES.includes(o.status));
-  const priorityOrder = toHandle[0] || activeOrders[0];
+  // Priority: action-needed first, then in-progress
+  const priorityOrder = toHandle[0] || inProgress[0];
 
-  // Recent activity feed derived from the latest order updates.
   const recentActivity = [...orders]
     .sort(
       (a, b) =>
         new Date(b.approvedAt || b.submittedAt || b.createdAt).getTime() -
-        new Date(a.approvedAt || a.submittedAt || a.createdAt).getTime()
+        new Date(a.approvedAt || a.submittedAt || a.createdAt).getTime(),
     )
     .slice(0, 3);
 
-  const historyOrders = orders.filter((o) => HISTORY_STATUSES.includes(o.status));
+  const historyOrders   = orders.filter((o) => HISTORY_STATUSES.includes(o.status));
   const filteredHistory = historyOrders.filter((o) => {
-    switch (historyFilter) {
-      case "accepted":
-        return o.status === "delivered" || o.status === "completed";
-      case "declined":
-        return o.status === "rejected";
-      case "closed":
-        return o.status === "completed";
-      case "expired":
-        return false;
-      default:
-        return true;
-    }
+    if (historyFilter === "all") return true;
+    return o.status === historyFilter;
   });
-  const totalPages = Math.max(1, Math.ceil(filteredHistory.length / pageSize));
+  const totalPages  = Math.max(1, Math.ceil(filteredHistory.length / pageSize));
   const pagedHistory = filteredHistory.slice((historyPage - 1) * pageSize, historyPage * pageSize);
 
   if (isLoading) {
@@ -299,8 +295,7 @@ export function CounterpartyDashboard() {
                         <td className="px-4 py-4 text-right">
                           <Link href={`/purchase-orders/${po.id}`}>
                             <Button variant="secondary" size="sm">
-                              Examiner
-                              <ChevronRight className="ml-1 h-4 w-4" />
+                              Examiner <ChevronRight className="ml-1 h-4 w-4" />
                             </Button>
                           </Link>
                         </td>
@@ -324,7 +319,7 @@ export function CounterpartyDashboard() {
               </div>
               {priorityOrder && (
                 <Badge variant="outline" className="border-warning/30 bg-warning/10 text-warning">
-                  À traiter
+                  {ACTION_STATUSES.includes(priorityOrder.status) ? "À traiter" : "En cours"}
                 </Badge>
               )}
             </CardHeader>
@@ -335,14 +330,8 @@ export function CounterpartyDashboard() {
                   <div className="grid grid-cols-2 gap-3">
                     <PriorityField label="Quantité demandée" value={formatWeight(priorityOrder.estimatedWeightKg)} />
                     <PriorityField label="Type d'or" value={`${goldTypeLabel(priorityOrder.goldType)} · ${purityRange(priorityOrder)}`} />
-                    <PriorityField
-                      label="Livraison"
-                      value={`${priorityOrder.incoterms} · ${priorityOrder.deliveryVaultId}`}
-                    />
-                    <PriorityField
-                      label="Montant indicatif"
-                      value={formatCurrency(priorityOrder.totalEstimatedValue, priorityOrder.currency)}
-                    />
+                    <PriorityField label="Livraison" value={`${priorityOrder.incoterms} · ${priorityOrder.deliveryVaultId}`} />
+                    <PriorityField label="Montant indicatif" value={formatCurrency(priorityOrder.totalEstimatedValue, priorityOrder.currency)} />
                   </div>
                   <Link href={`/purchase-orders/${priorityOrder.id}`} className="block">
                     <Button className="w-full">Examiner la demande</Button>
@@ -400,21 +389,16 @@ export function CounterpartyDashboard() {
           <div className="flex flex-wrap gap-1">
             {(
               [
-                ["all", "Toutes"],
-                ["accepted", "Acceptées"],
+                ["all",      "Toutes"],
                 ["declined", "Déclinées"],
-                ["closed", "Clôturées"],
-                ["expired", "Expirées"],
+                ["cancelled","Annulées"],
               ] as [HistoryFilter, string][]
             ).map(([key, label]) => (
               <Button
                 key={key}
                 size="sm"
                 variant={historyFilter === key ? "default" : "ghost"}
-                onClick={() => {
-                  setHistoryFilter(key);
-                  setHistoryPage(1);
-                }}
+                onClick={() => { setHistoryFilter(key); setHistoryPage(1); }}
               >
                 {label}
               </Button>
@@ -447,7 +431,9 @@ export function CounterpartyDashboard() {
                       <td className="px-4 py-4 text-muted-foreground">{formatDate(po.createdAt)}</td>
                       <td className="px-4 py-4 text-foreground">{formatWeight(po.estimatedWeightKg)}</td>
                       <td className="px-4 py-4 text-foreground">
-                        {po.status === "rejected" ? "—" : formatCurrency(po.totalEstimatedValue, po.currency)}
+                        {po.status === "declined" || po.status === "cancelled"
+                          ? "—"
+                          : formatCurrency(po.totalEstimatedValue, po.currency)}
                       </td>
                       <td className="px-4 py-4">
                         <StatusBadge status={po.status} />
@@ -477,8 +463,7 @@ export function CounterpartyDashboard() {
             </span>
             <div className="flex gap-1">
               <Button
-                size="icon"
-                variant="ghost"
+                size="icon" variant="ghost"
                 disabled={historyPage <= 1}
                 onClick={() => setHistoryPage((p) => Math.max(1, p - 1))}
               >
@@ -486,8 +471,7 @@ export function CounterpartyDashboard() {
                 <span className="sr-only">Page précédente</span>
               </Button>
               <Button
-                size="icon"
-                variant="ghost"
+                size="icon" variant="ghost"
                 disabled={historyPage >= totalPages}
                 onClick={() => setHistoryPage((p) => Math.min(totalPages, p + 1))}
               >
@@ -503,11 +487,7 @@ export function CounterpartyDashboard() {
 }
 
 function KpiCard({
-  icon: Icon,
-  iconClass,
-  label,
-  value,
-  hint,
+  icon: Icon, iconClass, label, value, hint,
 }: {
   icon: typeof FileText;
   iconClass: string;

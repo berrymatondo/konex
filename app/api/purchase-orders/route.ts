@@ -48,7 +48,12 @@ export async function GET() {
 
     // Counterparties only see POs that have been approved (or further).
     // Statuses below 'approved' (draft, submitted) are internal BCC workflow.
-    const COUNTERPARTY_VISIBLE_STATUSES = ['approved', 'sent_to_counterparty', 'accepted', 'manifest_validated'];
+    // Counterparty sees POs from "approved" onwards — never draft/submitted (internal BCC states).
+    const COUNTERPARTY_VISIBLE_STATUSES = [
+      'approved', 'sent_to_counterparty', 'accepted', 'manifest_validated',
+      'in_transit', 'delivered', 'negotiating', 'pending_settlement',
+      'declined', 'cancelled',
+    ];
 
     const purchaseOrders = (scope === undefined
       ? await sql`

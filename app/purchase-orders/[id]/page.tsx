@@ -185,7 +185,7 @@ export default function PurchaseOrderDetailPage() {
     fetcher,
   );
   const hasSubmittedManifest = manifest?.status === "submitted" || manifest?.status === "accepted" || manifest?.status === "returned";
-  const counterpartyManifestSubmitted = isCounterparty && (manifest?.status === "submitted" || manifest?.status === "accepted" || po.status === "manifest_validated");
+  const counterpartyManifestSubmitted = isCounterparty && (manifest?.status === "submitted" || manifest?.status === "accepted" || po?.status === "manifest_validated");
 
   // Manifest review state
   const [reasonCode, setReasonCode] = useState("");

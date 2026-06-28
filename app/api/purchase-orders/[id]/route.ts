@@ -3,7 +3,11 @@ import { sql, createAuditLog, ensurePurchaseOrderTermsColumns, ensurePurchaseOrd
 import { notifyCounterparty } from "@/lib/notifications";
 import { getSessionUser, getCounterpartyScope } from "@/lib/session-user";
 
-const COUNTERPARTY_VISIBLE_STATUSES = ['approved', 'sent_to_counterparty', 'accepted', 'manifest_validated'];
+const COUNTERPARTY_VISIBLE_STATUSES = [
+  'approved', 'sent_to_counterparty', 'accepted', 'manifest_validated',
+  'in_transit', 'delivered', 'negotiating', 'pending_settlement',
+  'declined', 'cancelled',
+];
 
 export async function GET(
   request: Request,
