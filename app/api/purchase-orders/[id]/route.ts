@@ -57,6 +57,8 @@ export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const sessionUser = await getSessionUser();
+
   try {
     const { id } = await params;
     const body = await request.json();
@@ -170,14 +172,15 @@ export async function PUT(
             cp_response = NULL,
             cp_responded_at = NULL,
             cp_comment = NULL,
-            sent_to_counterparty_at = NULL
+            sent_to_counterparty_at = NULL,
+            created_by = ${sessionUser?.id ?? null}
           WHERE id = ${id}
         `;
       }
     }
     // Update purchase order based on status changes
     else if (status === "approved") {
-      const existingPO = await sql`SELECT expected_dispatch_date FROM purchase_orders WHERE id = ${id}`;
+      const existingPO = await sql`SELECT expected_dispatch_date, created_by FROM purchase_orders WHERE id = ${id}`;
       if (existingPO.length === 0) {
         return NextResponse.json({ error: "Purchase order not found" }, { status: 404 });
       }
@@ -185,6 +188,14 @@ export async function PUT(
         return NextResponse.json(
           { error: "Cannot approve: desired delivery window start date is required." },
           { status: 400 }
+        );
+      }
+
+      // The approver must be a different user from the one who submitted the PO.
+      if (sessionUser && existingPO[0].created_by && sessionUser.id === existingPO[0].created_by) {
+        return NextResponse.json(
+          { error: "Conflit d'intérêts : vous ne pouvez pas approuver un bon de commande que vous avez soumis." },
+          { status: 403 }
         );
       }
 
@@ -255,8 +266,9 @@ export async function PUT(
         );
       }
       await sql`
-        UPDATE purchase_orders 
-        SET status = ${status}, submitted_at = ${now}
+        UPDATE purchase_orders
+        SET status = ${status}, submitted_at = ${now},
+            created_by = ${sessionUser?.id ?? null}
         WHERE id = ${id}
       `;
     } else if (status === "cancelled") {

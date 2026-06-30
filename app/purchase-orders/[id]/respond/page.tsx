@@ -15,6 +15,14 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -33,6 +41,7 @@ import {
   Truck,
   Upload,
   Loader2,
+  PackageCheck,
 } from "lucide-react";
 import { useLanguage } from "@/lib/i18n/language-context";
 
@@ -110,11 +119,19 @@ export default function CounterpartyRespondPage() {
   const [comment, setComment] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  // Shown right after the counterparty accepts an offer, to make sure they
+  // don't miss that the shipping manifest is the required next step.
+  const [showAcceptedModal, setShowAcceptedModal] = useState(false);
 
   // Assay certificate upload state.
   const [assayCertificateFile, setAssayCertificateFile] = useState<File | null>(null);
   const [uploadingCert, setUploadingCert] = useState(false);
   const [certFileName, setCertFileName] = useState<string>("");
+
+  // Draft save / negotiation mode — kept together at the top so the hook
+  // order is stable and Turbopack's SWC transform never misses them.
+  const [savingDraft, setSavingDraft] = useState(false);
+  const [negotiationMode, setNegotiationMode] = useState(false);
 
   // Counter-proposal / proposed-lot fields (editable).
   const [lot, setLot] = useState({
@@ -197,8 +214,6 @@ export default function CounterpartyRespondPage() {
       minimumFractionDigits: d,
       maximumFractionDigits: d,
     });
-
-  const [savingDraft, setSavingDraft] = useState(false);
 
   const buildResponseFormData = (decision: Decision | "save") => {
     const fd = new FormData();
@@ -294,6 +309,7 @@ export default function CounterpartyRespondPage() {
           type: "success",
           text: isFr ? "Votre réponse a été transmise à la Banque Centrale." : "Your response was sent to the Central Bank.",
         });
+        if (d === "accept") setShowAcceptedModal(true);
         mutate();
       } else {
         setResult({ type: "error", text: data.error || res.statusText });
@@ -318,6 +334,10 @@ export default function CounterpartyRespondPage() {
   const fineWeightOz = (fineWeightKg * 1000) / OZ_TO_GRAM;
   const unitPrice =
     (Number(po?.lbma_price_per_oz || 0)) * (1 + Number(po?.premium_discount || 0) / 100);
+
+  // Pre-computed so the JSX never contains a ternary with a state variable
+  // in a className prop (avoids Turbopack/SWC JSX-parse issues).
+  const actionCardClass = negotiationMode ? "border-warning" : "";
 
   return (
     <SidebarProvider>
@@ -386,7 +406,7 @@ export default function CounterpartyRespondPage() {
                         ) : (
                           <RefreshCw className="h-5 w-5 text-warning shrink-0" />
                         )}
-                        <div>
+                        <div className="flex-1">
                           <p className="font-medium">
                             {po.status === "accepted"
                               ? isFr
@@ -402,6 +422,23 @@ export default function CounterpartyRespondPage() {
                           </p>
                           {po.cp_comment && (
                             <p className="text-sm text-muted-foreground mt-1">{po.cp_comment}</p>
+                          )}
+                          {po.status === "accepted" && (
+                            <>
+                              <p className="text-sm text-muted-foreground mt-1">
+                                {isFr
+                                  ? "Étape suivante requise : soumettez le manifeste d'expédition (lingots, documents et déclaration) pour finaliser l'opération."
+                                  : "Required next step: submit the shipping manifest (bars, documents and declaration) to finalize the shipment."}
+                              </p>
+                              <Button
+                                size="sm"
+                                className="mt-3"
+                                onClick={() => router.push(`/purchase-orders/${id}/manifest`)}
+                              >
+                                <PackageCheck className="mr-2 h-4 w-4" />
+                                {isFr ? "Soumettre le manifeste" : "Submit the manifest"}
+                              </Button>
+                            </>
                           )}
                         </div>
                       </CardContent>
@@ -695,53 +732,109 @@ export default function CounterpartyRespondPage() {
 
                       {/* Actions */}
                       {!alreadyResponded && (
-                        <Card>
+                        <Card className={actionCardClass}>
+                          {negotiationMode && (
+                            <div className="rounded-t-lg border-b border-warning/40 bg-warning/10 px-4 py-3">
+                              <p className="text-sm font-semibold text-warning">
+                                {isFr
+                                  ? "Mode négociation — modifiez les termes ci-dessus puis confirmez l'envoi"
+                                  : "Negotiation mode — update the terms above, then confirm submission"}
+                              </p>
+                              <p className="text-[11px] text-muted-foreground mt-0.5">
+                                {isFr
+                                  ? "Vos modifications (quantité, pureté, dates, premium) seront transmises à la BCC."
+                                  : "Your changes (quantity, purity, dates, premium) will be sent to the BCC."}
+                              </p>
+                            </div>
+                          )}
                           <CardContent className="space-y-3 py-4">
-                            <Button
-                              variant="outline"
-                              className="w-full"
-                              disabled={submitting || savingDraft || uploadingCert}
-                              onClick={handleSaveDraft}
-                            >
-                              {savingDraft ? (
-                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                              ) : (
-                                <FileText className="mr-2 h-4 w-4" />
-                              )}
-                              {isFr ? "Enregistrer le brouillon" : "Save draft"}
-                            </Button>
-                            <Separator />
-                            <Button
-                              className="w-full bg-success text-success-foreground hover:bg-success/90"
-                              disabled={submitting || savingDraft}
-                              onClick={() => handleSubmit("accept")}
-                            >
-                              <CheckCircle2 className="mr-2 h-4 w-4" />
-                              {isFr ? "Accepter l'offre" : "Accept offer"}
-                            </Button>
-                            <Button
-                              className="w-full"
-                              variant="default"
-                              disabled={submitting || savingDraft}
-                              onClick={() => handleSubmit("negotiate")}
-                            >
-                              <RefreshCw className="mr-2 h-4 w-4" />
-                              {isFr ? "Négocier l'offre" : "Negotiate offer"}
-                            </Button>
-                            <Button
-                              className="w-full"
-                              variant="destructive"
-                              disabled={submitting || savingDraft}
-                              onClick={() => handleSubmit("decline")}
-                            >
-                              <XCircle className="mr-2 h-4 w-4" />
-                              {isFr ? "Décliner l'offre" : "Decline offer"}
-                            </Button>
-                            <p className="text-[11px] text-muted-foreground text-center">
-                              {isFr
-                                ? "« Négocier » enregistre votre contre-proposition (lot, dates, premium)."
-                                : "“Negotiate” records your counter-proposal (lot, dates, premium)."}
-                            </p>
+                            {!negotiationMode ? (
+                              <>
+                                <Button
+                                  variant="outline"
+                                  className="w-full"
+                                  disabled={submitting || savingDraft || uploadingCert}
+                                  onClick={handleSaveDraft}
+                                >
+                                  {savingDraft ? (
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                  ) : (
+                                    <FileText className="mr-2 h-4 w-4" />
+                                  )}
+                                  {isFr ? "Enregistrer le brouillon" : "Save draft"}
+                                </Button>
+                                <Separator />
+                                <Button
+                                  className="w-full bg-success text-success-foreground hover:bg-success/90"
+                                  disabled={submitting || savingDraft}
+                                  onClick={() => handleSubmit("accept")}
+                                >
+                                  <CheckCircle2 className="mr-2 h-4 w-4" />
+                                  {isFr ? "Accepter l'offre" : "Accept offer"}
+                                </Button>
+                                <Button
+                                  className="w-full"
+                                  variant="default"
+                                  disabled={submitting || savingDraft}
+                                  onClick={async () => {
+                                    // Save the current draft first so nothing is lost,
+                                    // then enter negotiation edit mode.
+                                    await handleSaveDraft();
+                                    setNegotiationMode(true);
+                                  }}
+                                >
+                                  <RefreshCw className="mr-2 h-4 w-4" />
+                                  {isFr ? "Négocier l'offre" : "Negotiate offer"}
+                                </Button>
+                                <Button
+                                  className="w-full"
+                                  variant="destructive"
+                                  disabled={submitting || savingDraft}
+                                  onClick={() => handleSubmit("decline")}
+                                >
+                                  <XCircle className="mr-2 h-4 w-4" />
+                                  {isFr ? "Décliner l'offre" : "Decline offer"}
+                                </Button>
+                              </>
+                            ) : (
+                              <>
+                                <Button
+                                  variant="outline"
+                                  className="w-full"
+                                  disabled={submitting || savingDraft || uploadingCert}
+                                  onClick={handleSaveDraft}
+                                >
+                                  {savingDraft ? (
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                  ) : (
+                                    <FileText className="mr-2 h-4 w-4" />
+                                  )}
+                                  {isFr ? "Enregistrer le brouillon" : "Save draft"}
+                                </Button>
+                                <Separator />
+                                <Button
+                                  className="w-full"
+                                  variant="default"
+                                  disabled={submitting || savingDraft}
+                                  onClick={() => handleSubmit("negotiate")}
+                                >
+                                  {submitting ? (
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                  ) : (
+                                    <RefreshCw className="mr-2 h-4 w-4" />
+                                  )}
+                                  {isFr ? "Confirmer et envoyer la négociation" : "Confirm & send negotiation"}
+                                </Button>
+                                <Button
+                                  className="w-full"
+                                  variant="ghost"
+                                  disabled={submitting || savingDraft}
+                                  onClick={() => setNegotiationMode(false)}
+                                >
+                                  {isFr ? "Annuler" : "Cancel"}
+                                </Button>
+                              </>
+                            )}
                           </CardContent>
                         </Card>
                       )}
@@ -753,6 +846,31 @@ export default function CounterpartyRespondPage() {
           </main>
         </div>
       </div>
+
+      <Dialog open={showAcceptedModal} onOpenChange={setShowAcceptedModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-success">
+              <CheckCircle2 className="h-5 w-5" />
+              {isFr ? "Offre acceptée" : "Offer accepted"}
+            </DialogTitle>
+            <DialogDescription>
+              {isFr
+                ? "Votre acceptation a été transmise à la Banque Centrale. Pour finaliser l'expédition, vous devez maintenant soumettre le manifeste d'expédition (lingots, documents et déclaration)."
+                : "Your acceptance has been sent to the Central Bank. To finalize the shipment, you must now submit the shipping manifest (bars, documents and declaration)."}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setShowAcceptedModal(false)}>
+              {isFr ? "Plus tard" : "Later"}
+            </Button>
+            <Button onClick={() => router.push(`/purchase-orders/${id}/manifest`)}>
+              <PackageCheck className="mr-2 h-4 w-4" />
+              {isFr ? "Soumettre le manifeste" : "Submit the manifest"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </SidebarProvider>
   );
 }

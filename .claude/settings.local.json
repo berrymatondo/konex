@@ -1,7 +1,13 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npx tsc *)"
+      "Bash(npx tsc *)",
+      "Bash(npx kill-port *)",
+      "Bash(taskkill //F //PID 46032)",
+      "Bash(curl -s -i http://localhost:3000/api/auth/get-session)",
+      "Read(//tmp/**)",
+      "Bash(curl -s -i -X POST http://localhost:3000/api/auth/sign-in/email -H 'Content-Type: application/json' -d '{\"email\":\"vault@test.com\",\"password\":\"wrongpassword123\"}')",
+      "Bash(tail -10 /tmp/dev2.log)"
     ]
   }
 }

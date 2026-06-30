@@ -23,5 +23,5 @@ export async function GET() {
   const roles = await listRoles()
   const roleLabel = roles.find((r) => r.key === role)?.label ?? role
 
-  return NextResponse.json({ role, roleLabel, allowedPaths, isAdmin: role === "admin" })
+  return NextResponse.json({ id: session.user.id, role, roleLabel, allowedPaths, isAdmin: role === "admin" })
 }

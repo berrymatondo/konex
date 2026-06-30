@@ -126,6 +126,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const sessionUser = await getSessionUser();
   try {
     await ensureTablesExist();
     await ensurePurchaseOrderTermsColumns();
@@ -207,7 +208,7 @@ export async function POST(request: Request) {
         ${incoterms}, ${deliveryVaultId}, ${expectedDispatchDate || null}, ${notes || null},
         ${lbmaPricePerOz || null}, ${purityFactor || null}, ${premiumDiscount || 0}, ${logisticsCost || 0},
         ${totalEstimatedValue || null}, ${currency || 'USD'}, ${priceLockExpiry || null}, ${trackingId},
-        ${'compliance_officer'}, ${status === 'submitted' ? new Date().toISOString() : null},
+        ${sessionUser?.id ?? null}, ${status === 'submitted' ? new Date().toISOString() : null},
         ${tolerancePercent ?? null}, ${deliveryWindowEnd || null}, ${paymentUsdCdfSplit || null},
         ${paymentTiming || null}, ${paymentTerm || null}, ${prepaymentPercent ?? null}, ${cdfFxBasis || null}
       )

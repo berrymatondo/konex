@@ -76,6 +76,7 @@ interface PurchaseOrder {
   counterparty_id: string;
   counterparty_name?: string;
   status: string;
+  created_by: string | null;
   estimated_weight_kg: number;
   gold_type: string;
   assay_range: string;
@@ -175,7 +176,7 @@ export default function PurchaseOrderDetailPage() {
   );
   // Current user role — counterparty users get a "Respond to offer" CTA instead
   // of the Central Bank action buttons.
-  const { data: access } = useSWR<{ role: string | null }>("/api/access/me", fetcher);
+  const { data: access } = useSWR<{ id: string | null; role: string | null }>("/api/access/me", fetcher);
   const isCounterparty = access?.role === "counterparty";
 
   // Manifest data — loaded for all roles. For counterparty the GET returns their
@@ -272,10 +273,12 @@ export default function PurchaseOrderDetailPage() {
   const requiresDualApproval = (po?.total_estimated_value || 0) > DUAL_APPROVAL_THRESHOLD;
   const approvalsNeeded = requiresDualApproval ? 2 : 1;
   const approvalsComplete = approvals.length >= approvalsNeeded;
-  const allCompliancesPassed = 
+  const allCompliancesPassed =
     complianceChecks.counterpartyStatus === "passed" &&
     (complianceChecks.eddComplete === "passed" || complianceChecks.eddComplete === "na") &&
     complianceChecks.sanctionsRecheck === "passed";
+  // Segregation of duties: the agent who submitted the PO cannot approve it.
+  const isSelfApproval = !!(access?.id && po?.created_by && access.id === po.created_by);
 
   // Run compliance re-check
   const runComplianceRecheck = async () => {
@@ -360,6 +363,16 @@ export default function PurchaseOrderDetailPage() {
         language === "fr"
           ? `Impossible d'approuver. Champs manquants: ${poValidation.missingFields.join(", ")}`
           : `Cannot approve. Missing fields: ${poValidation.missingFields.join(", ")}`
+      );
+      return;
+    }
+
+    // The approver must be different from the agent who submitted the PO.
+    if (access?.id && po?.created_by && access.id === po.created_by) {
+      alert(
+        language === "fr"
+          ? "Vous ne pouvez pas approuver un bon de commande que vous avez soumis. Un autre agent doit valider cette approbation."
+          : "You cannot approve a purchase order that you submitted. Another agent must validate this approval."
       );
       return;
     }
@@ -1438,10 +1451,13 @@ export default function PurchaseOrderDetailPage() {
                                     setOtpVerified(false); // Reset verification if OTP changes
                                   }}
                                   className="font-mono text-center text-lg tracking-widest"
-                                  disabled={otpVerified}
+                                  disabled={otpVerified || isSelfApproval}
                                 />
                                 {!otpVerified ? (
-                                  <Button onClick={handleVerifyOTP} disabled={currentApproverOTP.length !== 6}>
+                                  <Button
+                                    onClick={handleVerifyOTP}
+                                    disabled={currentApproverOTP.length !== 6 || isSelfApproval}
+                                  >
                                     <Lock className="mr-2 h-4 w-4" />
                                     {language === "fr" ? "Vérifier" : "Verify"}
                                   </Button>
@@ -1491,6 +1507,21 @@ export default function PurchaseOrderDetailPage() {
                             </Alert>
                           )}
                           
+                          {/* Self-approval block */}
+                          {isSelfApproval && (
+                            <Alert variant="destructive">
+                              <Shield className="h-4 w-4" />
+                              <AlertTitle>
+                                {language === "fr" ? "Approbation impossible" : "Approval not allowed"}
+                              </AlertTitle>
+                              <AlertDescription>
+                                {language === "fr"
+                                  ? "Vous avez soumis ce bon de commande. Un autre agent doit l'approuver (séparation des tâches)."
+                                  : "You submitted this purchase order. Another agent must approve it (segregation of duties)."}
+                              </AlertDescription>
+                            </Alert>
+                          )}
+
                           {/* Rejection/Approval Notes */}
                           <div className="space-y-2">
                             <Label htmlFor="approval-notes">
@@ -1519,7 +1550,7 @@ export default function PurchaseOrderDetailPage() {
                           </Button>
   <Button
   className="flex-1"
-  disabled={!otpVerified || !allCompliancesPassed || !poValidation.isValid || approvalsComplete}
+  disabled={!otpVerified || !allCompliancesPassed || !poValidation.isValid || approvalsComplete || isSelfApproval}
   onClick={handleApprove}
   >
                             <CheckCircle2 className="mr-2 h-4 w-4" />

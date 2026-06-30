@@ -119,7 +119,7 @@ const ASSAY_BOUNDS: Record<string, { low: number; central: number; high: number 
   "99.5+": { low: 0.995, central: 0.9999, high: 0.9999 },
 };
 
-type PurchaseOrderAction = "draft" | "submit" | "transmit";
+type PurchaseOrderAction = "draft" | "submit";
 
 export default function EditPurchaseOrderPage() {
   const router = useRouter();
@@ -311,7 +311,7 @@ export default function EditPurchaseOrderPage() {
       missingFields.push(language === "fr" ? "Contrepartie" : "Counterparty");
     }
 
-    if (action === "submit" || action === "transmit") {
+    if (action === "submit") {
       if (!formData.estimatedWeightKg || parseFloat(formData.estimatedWeightKg) <= 0) {
         missingFields.push(language === "fr" ? "Quantité cible" : "Target Quantity");
       }
@@ -896,12 +896,6 @@ export default function EditPurchaseOrderPage() {
                         <Send className="mr-2 h-4 w-4" />
                         {language === "fr" ? "Soumettre pour approbation" : "Submit for Approval"}
                       </Button>
-                      {po?.status !== "draft" && (
-                        <Button variant="ghost" onClick={() => handleAction("transmit")} disabled={busy}>
-                          <Send className="mr-2 h-4 w-4" />
-                          {language === "fr" ? "Transmettre à la contrepartie" : "Transmit to Counterparty"}
-                        </Button>
-                      )}
                     </div>
                   </div>
                 </div>

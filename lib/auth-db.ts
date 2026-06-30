@@ -1,7 +1,10 @@
-import { Pool } from "pg"
+import { Pool } from "@neondatabase/serverless"
 
-// Dedicated pg Pool for Better Auth. The rest of the app keeps using the
-// existing `@neondatabase/serverless` client in lib/db.ts for raw SQL.
+// Dedicated pool for Better Auth, built on the same `@neondatabase/serverless`
+// driver as lib/db.ts. Better Auth needs a pg.Pool-shaped client (not the
+// tagged-template `sql` helper), but a raw `pg` Pool opens a direct TCP+SSL
+// connection to Neon that gets reset (ECONNRESET) in this environment —
+// Neon's serverless Pool tunnels over WebSockets instead and is reliable here.
 export const authPool = new Pool({
   connectionString: process.env.DATABASE_URL,
 })
