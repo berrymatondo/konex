@@ -26,6 +26,7 @@ import {
   Landmark,
   Inbox,
   GitMerge,
+  ArrowLeftRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import useSWR from "swr";
@@ -165,6 +166,7 @@ function SidebarContent({ isCollapsed, onNavClick }: { isCollapsed: boolean; onN
     { title: t.nav.approvalQueue, href: "/approval-queue", icon: ClipboardList },
     { title: t.nav.riskManagement, href: "/risk-management", icon: ShieldAlert },
     { title: language === "fr" ? "Politique Monétaire" : "Monetary Policy", href: "/monetary-policy", icon: Landmark },
+    { title: language === "fr" ? "Transactions" : "Transactions", href: "/transactions", icon: ArrowLeftRight },
   ].filter((item) => canSee(item.href));
 
   const operationsNavItems = [

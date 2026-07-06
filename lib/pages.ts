@@ -17,7 +17,8 @@ export interface AppPage {
  */
 export const PAGES: AppPage[] = [
   // Main
-  { key: "dashboard", path: "/", labelFr: "Tableau de bord", labelEn: "Dashboard", group: "main" },
+  { key: "dashboard", path: "/", labelFr: "Market Oversight", labelEn: "Market Oversight", group: "main" },
+  { key: "transactions", path: "/transactions", labelFr: "Transactions", labelEn: "Transactions", group: "main" },
   { key: "counterparties", path: "/counterparties", labelFr: "Contreparties", labelEn: "Counterparties", group: "main" },
   { key: "onboarding", path: "/onboarding", labelFr: "Intégration", labelEn: "Onboarding", group: "main" },
   { key: "approval-queue", path: "/approval-queue", labelFr: "File d'approbation", labelEn: "Approval Queue", group: "main" },
