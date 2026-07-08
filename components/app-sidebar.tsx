@@ -27,6 +27,10 @@ import {
   Inbox,
   GitMerge,
   ArrowLeftRight,
+  TrendingUp,
+  Sliders,
+  PieChart,
+  Activity,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import useSWR from "swr";
@@ -169,6 +173,13 @@ function SidebarContent({ isCollapsed, onNavClick }: { isCollapsed: boolean; onN
     { title: language === "fr" ? "Transactions" : "Transactions", href: "/transactions", icon: ArrowLeftRight },
   ].filter((item) => canSee(item.href));
 
+  const monetaryPolicyNavItems = [
+    { title: language === "fr" ? "Prévisions" : "Forecasts", href: "/previsions", icon: TrendingUp },
+    { title: language === "fr" ? "Calibration" : "Calibration", href: "/calibration", icon: Sliders },
+    { title: language === "fr" ? "Gestion des réserves" : "Reserve Management", href: "/gestion-reserves", icon: PieChart },
+    { title: language === "fr" ? "Impact Macro" : "Macro Impact", href: "/impact-macro", icon: Activity },
+  ].filter((item) => canSee(item.href));
+
   const operationsNavItems = [
     { title: t.nav.purchaseOrders, href: "/purchase-orders", icon: Package },
     { title: language === "fr" ? "File Manifestes" : "Manifest Queue", href: "/manifest-queue", icon: Inbox },
@@ -232,6 +243,30 @@ function SidebarContent({ isCollapsed, onNavClick }: { isCollapsed: boolean; onN
               ))}
             </ul>
           </div>
+
+          {monetaryPolicyNavItems.length > 0 && (
+            <div>
+              {!isCollapsed && (
+                <p className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/50">
+                  {language === "fr" ? "Politique Monétaire" : "Monetary Policy"}
+                </p>
+              )}
+              <ul className="space-y-1">
+                {monetaryPolicyNavItems.map((item) => (
+                  <li key={item.href}>
+                    <NavItem
+                      href={item.href}
+                      icon={item.icon}
+                      title={item.title}
+                      isActive={pathname === item.href || pathname.startsWith(item.href + "/")}
+                      isCollapsed={isCollapsed}
+                      onClick={onNavClick}
+                    />
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
 
           <div>
             {!isCollapsed && (

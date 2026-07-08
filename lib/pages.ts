@@ -25,6 +25,10 @@ export const PAGES: AppPage[] = [
   { key: "screening", path: "/screening", labelFr: "Contrôle de conformité", labelEn: "Screening", group: "main" },
   { key: "risk-management", path: "/risk-management", labelFr: "Gestion des risques", labelEn: "Risk Management", group: "main" },
   { key: "monetary-policy", path: "/monetary-policy", labelFr: "Politique monétaire", labelEn: "Monetary Policy", group: "main" },
+  { key: "previsions", path: "/previsions", labelFr: "Prévisions", labelEn: "Forecasts", group: "main" },
+  { key: "calibration", path: "/calibration", labelFr: "Calibration", labelEn: "Calibration", group: "main" },
+  { key: "gestion-reserves", path: "/gestion-reserves", labelFr: "Gestion des réserves", labelEn: "Reserve Management", group: "main" },
+  { key: "impact-macro", path: "/impact-macro", labelFr: "Impact Macro", labelEn: "Macro Impact", group: "main" },
 
   // Operations
   { key: "purchase-orders", path: "/purchase-orders", labelFr: "Ordres d'achat", labelEn: "Purchase Orders", group: "operations" },
