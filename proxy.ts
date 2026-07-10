@@ -15,7 +15,7 @@ const sql = neon(process.env.DATABASE_URL!)
 // Cache mémoire court des accès par token de session, pour éviter une requête
 // SQL à chaque navigation. TTL volontairement bas (sécurité vs perf).
 const ACCESS_TTL_MS = 30_000
-const accessCache = new Map<string, { expires: number; allowedPaths: string[]; isAdmin: boolean }>()
+const accessCache = new Map<string, { expires: number; allowedPaths: string[]; isAdmin: boolean; role: string }>()
 
 /**
  * Résout le rôle et les pages autorisées directement en base à partir du
@@ -24,10 +24,10 @@ const accessCache = new Map<string, { expires: number; allowedPaths: string[]; i
  */
 async function loadAccess(
   sessionToken: string,
-): Promise<{ allowedPaths: string[]; isAdmin: boolean } | null> {
+): Promise<{ allowedPaths: string[]; isAdmin: boolean; role: string } | null> {
   const cached = accessCache.get(sessionToken)
   if (cached && cached.expires > Date.now()) {
-    return { allowedPaths: cached.allowedPaths, isAdmin: cached.isAdmin }
+    return { allowedPaths: cached.allowedPaths, isAdmin: cached.isAdmin, role: cached.role }
   }
 
   try {
@@ -62,8 +62,9 @@ async function loadAccess(
       expires: Date.now() + ACCESS_TTL_MS,
       allowedPaths,
       isAdmin,
+      role,
     })
-    return { allowedPaths, isAdmin }
+    return { allowedPaths, isAdmin, role }
   } catch {
     // En cas d'erreur DB, ne pas bloquer un utilisateur authentifié.
     return null
@@ -88,6 +89,17 @@ export async function proxy(request: NextRequest) {
   // Authentifié : application des accès par profil (masquage + blocage URL).
   if (sessionCookie && !isPublicRoute) {
     const access = await loadAccess(String(sessionCookie))
+
+    // Counterparties must never see Market Oversight: redirect them from "/"
+    // to "/transactions". Other profiles always land on "/" regardless of
+    // whether "dashboard" is explicitly listed in their access rows.
+    const isCounterparty = /contrepart|counterpart/.test(access?.role ?? "")
+    if (pathname === "/" && access && !access.isAdmin && isCounterparty) {
+      const landing = access.allowedPaths.includes("/transactions")
+        ? "/transactions"
+        : (access.allowedPaths.find((p) => p && p !== "/") ?? "/sign-in")
+      return NextResponse.redirect(new URL(landing, request.url))
+    }
 
     if (access && !access.isAdmin && !ALWAYS_ALLOWED.includes(pathname)) {
       // /admin est réservé aux administrateurs.

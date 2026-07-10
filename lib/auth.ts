@@ -1,5 +1,6 @@
 import { betterAuth } from "better-auth"
 import { authPool } from "@/lib/auth-db"
+import { SELF_ASSIGNABLE_ROLES } from "@/lib/roles"
 
 export const auth = betterAuth({
   database: authPool,
@@ -30,9 +31,8 @@ export const auth = betterAuth({
     user: {
       create: {
         before: async (user) => {
-          const allowedSelfRoles = ["compliance_officer", "risk_manager"]
           const requested = (user as { role?: string }).role
-          const role = allowedSelfRoles.includes(requested ?? "")
+          const role = (SELF_ASSIGNABLE_ROLES as string[]).includes(requested ?? "")
             ? requested
             : "compliance_officer"
           return { data: { ...user, role } }

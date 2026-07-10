@@ -1,7 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import useSWR from "swr";
+import { isCounterpartyRole } from "@/lib/roles";
 import { AppSidebar } from "@/components/app-sidebar";
 import { AppHeader } from "@/components/app-header";
 import { SidebarProvider } from "@/components/sidebar-provider";
@@ -246,9 +248,32 @@ function AlertIcon({ level }: { level: Alert["level"] }) {
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
+const fetcher = (url: string) => fetch(url).then((r) => r.json());
+
 export default function DashboardPage() {
   const [peerGroup, setPeerGroup] = useState("Banques centrales africaines");
   const router = useRouter();
+
+  // Counterparties are not allowed to see Market Oversight — send them to their
+  // own dashboard immediately, before any content is painted.
+  const { data: accessData } = useSWR<{ role: string | null; roleLabel: string | null }>(
+    "/api/access/me",
+    fetcher
+  );
+  useEffect(() => {
+    if (
+      accessData?.role &&
+      isCounterpartyRole({ key: accessData.role, label: accessData.roleLabel })
+    ) {
+      router.replace("/transactions");
+    }
+  }, [accessData, router]);
+
+  // Prevent a flash of Market Oversight while the role is being resolved.
+  if (!accessData) return null;
+  if (accessData.role && isCounterpartyRole({ key: accessData.role, label: accessData.roleLabel })) {
+    return null;
+  }
 
   return (
     <SidebarProvider>

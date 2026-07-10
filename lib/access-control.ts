@@ -31,7 +31,7 @@ const DEFAULT_ACCESS: Record<Exclude<UserRole, "admin">, string[]> = {
     "settings",
   ],
   counterparty: [
-    "dashboard",
+    "transactions",
     "counterparties",
     "purchase-orders",
     "documentation",
@@ -65,6 +65,28 @@ export async function ensureAccessTableExists() {
       `
     }
   }
+
+  // Market Oversight (dashboard) must never be accessible to counterparty
+  // roles. Remove any legacy rows that may exist from older seeds, then
+  // ensure the transactions page (their landing page) is granted instead.
+  await sql`
+    DELETE FROM role_page_access
+    WHERE page_key = 'dashboard'
+      AND role IN (
+        SELECT role FROM role_page_access
+        WHERE role ILIKE '%contrepart%' OR role ILIKE '%counterpart%'
+        UNION SELECT 'counterparty'
+      )
+  `
+  await sql`
+    INSERT INTO role_page_access (role, page_key)
+    SELECT role, 'transactions' FROM role_page_access
+    WHERE (role ILIKE '%contrepart%' OR role ILIKE '%counterpart%' OR role = 'counterparty')
+      AND role NOT IN (
+        SELECT role FROM role_page_access WHERE page_key = 'transactions'
+      )
+    ON CONFLICT (role, page_key) DO NOTHING
+  `
 
   accessInitialized = true
 }
