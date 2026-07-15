@@ -52,6 +52,7 @@ import {
   FileDown,
   FileSpreadsheet,
   Landmark,
+  Activity,
 } from "lucide-react";
 
 // Documentation content
@@ -285,6 +286,66 @@ Composite Score = Σ (objectiveWeight × normalizedObjectiveScore) / Σ weights
 
 Constraints: purchase ≤ 10% of total reserves per transaction; settlement ≥ T+2.
         `,
+      },
+      {
+        id: "impact-macro",
+        name: "Macro Impact Simulator",
+        route: "/impact-macro",
+        icon: Activity,
+        category: "Main",
+        businessDescription:
+          "Monetary Impact Simulator for the BCC artisanal gold purchase programme (since Feb 2026). Models seven macroeconomic transmission channels across a multi-year horizon: base-money creation, broad-money growth (M2/M3) via the deposit multiplier, banking-system liquidity and sterilisation needs, inflation (money-growth elasticity + FX pass-through), exchange-rate dynamics (depreciation pressure vs. reserve-confidence effect), gross international reserves and import cover, and central-bank balance-sheet risk (sterilisation quasi-fiscal cost). Features include: full scenario library with save/load/export/import stored in localStorage, sensitivity sweep (up to 37 simulations across a single input axis), banking-system liquidity breakdown chart, mark-to-market stress test on the balance sheet, dual-axis historical chart (Jan 2024 – Jul 2026 actuals), and a Methodology tab exposing all model equations. Bilingual (EN/FR) throughout. Purely client-side — no server or database writes.",
+        technicalDescription:
+          "Single `\"use client\"` file (`app/impact-macro/page.tsx`, ~1 800 lines). Simulation engine (`simulate()`) runs a per-year loop over 26 `SimInputs` fields, deriving: derived money multiplier `(1+c)/(c+r+e)`, net CDF injection after sterilisation, FX pressure model with leakage fraction dampened by reserve confidence and BCC intervention, inflation as `baseInflation + M2-growth×elasticity + netFX×passThrough`. `decisionMetrics()` compares against a zero-gold baseline and checks constraints (`inflationCeilingPct`, `importCoverFloorMonths`). Charts use Recharts (`LineChart`, `BarChart`, `ComposedChart`, stacked bars via `stackId`). Scenario persistence: `localStorage` under keys `bccgold.v1.index` and `bccgold.v1.scenario.<id>`, with save/save-as/export-JSON/import-JSON/archive/delete. Sensitivity sweep (`sweepData` useMemo) runs the full simulation N times (up to 37) across a configured input range. Balance-sheet stress applies user-defined gold-volatility, inflation cap, and import-cover floor. UI: shadcn `Tabs`, `Slider`, `Dialog`, `ScrollArea`, `Badge`, `Textarea`; `useLanguage()` from `@/lib/i18n/language-context` for FR/EN toggle; `AppHeader` with title + subtitle.",
+        userStory: "MAC-01",
+        dataFlow:
+          "Fully in-memory. Scenario state persisted to localStorage (keys: `bccgold.v1.index`, `bccgold.v1.scenario.*`). No API calls; no database reads or writes.",
+        permissions: "Risk Manager, Administrator, Central Bank Analyst",
+        algorithm: `
+Key constants:
+  TROY_OZ_PER_TONNE = 32 150.7547
+
+Derived money multiplier:
+  mm = (1 + c) / (c + r + e)
+  where c = currency-to-deposit ratio,
+        r = required-reserve ratio,
+        e = excess-reserve propensity
+
+Annual simulation loop (y = 1 … horizonYears):
+  goldValueUSD  = tonnes × fineness × TROY_OZ_PER_TONNE × priceUSD_y
+  baseInjCDF    = goldValueUSD × exchangeRate
+  sterilCDF     = baseInjCDF × sterilizationPct / 100
+  netInjCDF     = baseInjCDF − sterilCDF
+
+  domesticInj   = netInjCDF × (1 − leakagePct/100)
+  fxLeakage     = netInjCDF × leakagePct/100
+
+  deltaM2       = domesticInj × (mm − 1)
+  m2GrowthPct   = deltaM2 / prevM2 × 100
+
+  fxPressureRaw = (fxLeakage / prevM2) × fxPressureScaling × 100
+  reserveDamp   = fxPressureRaw × (goldValueUSD / reserves) × reserveConfidenceOffset
+  netFXBeforeIntv = max(0, fxPressureRaw − reserveDamp)
+  netFXchange   = netFXBeforeIntv × (1 − bccFXInterventionPct/100)
+
+  inflation     = baseInflation + m2GrowthPct × elasticity + netFXchange × passThrough
+  exchangeRate  = exchangeRate × (1 + (fxDepreciationBase + netFXchange) / 100)
+
+  reserves      = reservesInit + cumGoldHoldingsUSD
+  importCover   = reserves / importsPerMonth
+  sterilCost    = sterilCDF × sterilizationRate/100
+
+Decision constraints:
+  - inflation  > inflationCeilingPct   → constraint violated
+  - importCover < importCoverFloorMonths → constraint violated
+
+Banking-system liquidity split:
+  sterilized     = sterilCDF
+  addlReserves   = (r / denom) × netInjCDF
+  freeLiquidity  = (e / denom) × netInjCDF
+  currency       = (c / denom) × netInjCDF
+  where denom = c + r + e
+`,
       },
       {
         id: "purchase-orders",
@@ -1063,6 +1124,66 @@ Score composite = Σ (poidsObjectif × scoreNormalisé) / Σ poids
 
 Contraintes : achat ≤ 10% des réserves totales par transaction ; règlement ≥ T+2.
         `,
+      },
+      {
+        id: "impact-macro",
+        name: "Simulateur d'Impact Macro",
+        route: "/impact-macro",
+        icon: Activity,
+        category: "Principal",
+        businessDescription:
+          "Simulateur d'impact monétaire du programme d'achat d'or artisanal de la BCC (depuis fév. 2026). Modélise sept canaux de transmission macroéconomique sur un horizon pluriannuel : création de monnaie de base, croissance de la masse monétaire large (M2/M3) via le multiplicateur de dépôts, liquidité du système bancaire et besoin de stérilisation, inflation (élasticité à la croissance monétaire + pass-through de change), dynamique du taux de change (pression à la dépréciation vs. effet de confiance lié aux réserves), réserves brutes internationales et couverture des importations, risque au bilan de la banque centrale (coût quasi-fiscal de stérilisation). Fonctionnalités : bibliothèque de scénarios complète avec sauvegarde/chargement/export/import stockés en localStorage, balayage de sensibilité (jusqu'à 37 simulations sur un axe de paramètre), graphique de répartition de liquidité du système bancaire, test de résistance mark-to-market sur le bilan, graphique historique à double axe (données réelles jan. 2024 – juil. 2026), et un onglet Méthodologie exposant toutes les équations du modèle. Bilingue (FR/EN) partout. Entièrement côté client — aucune écriture serveur ni base de données.",
+        technicalDescription:
+          "Fichier unique `\"use client\"` (`app/impact-macro/page.tsx`, ~1 800 lignes). Le moteur de simulation (`simulate()`) effectue une boucle annuelle sur 26 champs `SimInputs` : multiplicateur monétaire dérivé `(1+c)/(c+r+e)`, injection nette CDF après stérilisation, modèle de pression FX avec fraction de fuite atténuée par la confiance des réserves et l'intervention BCC, inflation = `baseInflation + croissanceM2×élasticité + FXnet×passThrough`. `decisionMetrics()` compare au scénario de référence sans or et vérifie les contraintes (`inflationCeilingPct`, `importCoverFloorMonths`). Graphiques Recharts (`LineChart`, `BarChart`, `ComposedChart`, barres empilées via `stackId`). Persistance des scénarios : `localStorage` sous les clés `bccgold.v1.index` et `bccgold.v1.scenario.<id>`, avec sauvegarde/enregistrer-sous/export-JSON/import-JSON/archiver/supprimer. Le balayage de sensibilité (`sweepData` useMemo) exécute la simulation N fois (jusqu'à 37) sur une plage de paramètre configurée. Le test de résistance bilan applique une volatilité or, un plafond d'inflation et un plancher de couverture imports définis par l'utilisateur. UI : shadcn `Tabs`, `Slider`, `Dialog`, `ScrollArea`, `Badge`, `Textarea` ; `useLanguage()` depuis `@/lib/i18n/language-context` pour le basculement FR/EN ; `AppHeader` avec titre + sous-titre.",
+        userStory: "MAC-01",
+        dataFlow:
+          "Entièrement en mémoire. État des scénarios persisté en localStorage (clés : `bccgold.v1.index`, `bccgold.v1.scenario.*`). Aucun appel API ; aucune lecture ou écriture en base de données.",
+        permissions: "Gestionnaire des Risques, Administrateur, Analyste Banque Centrale",
+        algorithm: `
+Constantes :
+  TROY_OZ_PER_TONNE = 32 150,7547
+
+Multiplicateur monétaire dérivé :
+  mm = (1 + c) / (c + r + e)
+  où  c = ratio devises / dépôts
+      r = coefficient de réserves obligatoires
+      e = propension aux réserves excédentaires
+
+Boucle de simulation annuelle (y = 1 … horizonYears) :
+  valeurOrUSD   = tonnes × finesse × TROY_OZ_PER_TONNE × prixUSD_y
+  injectionCDF  = valeurOrUSD × tauxChange
+  sterilCDF     = injectionCDF × partStérilisée / 100
+  netteInj      = injectionCDF − sterilCDF
+
+  injDomestique = netteInj × (1 − fuiteLiquidité/100)
+  fuiteFX       = netteInj × fuiteLiquidité/100
+
+  deltaM2       = injDomestique × (mm − 1)
+  croissM2Pct   = deltaM2 / M2préc × 100
+
+  pressionFXbrute = (fuiteFX / M2préc) × échelonnageFX × 100
+  amortissement   = pressionFXbrute × (valeurOrUSD / réserves) × offsetConfiance
+  FXnetAvantIntv  = max(0, pressionFXbrute − amortissement)
+  FXnetChange     = FXnetAvantIntv × (1 − interventionBCC/100)
+
+  inflation     = inflationBase + croissM2Pct × élasticité + FXnetChange × passThrough
+  tauxChange    = tauxChange × (1 + (déprécBase + FXnetChange) / 100)
+
+  réserves      = réservesInit + detentionsOrCumulUSD
+  couvImports   = réserves / importsParMois
+  coûtSteril    = sterilCDF × tauxSterilisation/100
+
+Contraintes de décision :
+  - inflation    > plafondInflation      → contrainte violée
+  - couvImports  < plancher CouvImports  → contrainte violée
+
+Répartition liquidité système bancaire :
+  stérilisé      = sterilCDF
+  réservAddl     = (r / denom) × netteInj
+  liquiditéLibre = (e / denom) × netteInj
+  monnaie        = (c / denom) × netteInj
+  où denom = c + r + e
+`,
       },
       {
         id: "purchase-orders",
