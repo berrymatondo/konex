@@ -103,13 +103,13 @@ const TICKERS: MarketTicker[] = [
   { id: "brent",   name: "BRENT",           sub: "ICE",               value: 84.32,    unit: "USD/bbl", change: 0.62,   changePct: 0.74,  time: "09:30", sparkline: [83.0, 83.4, 83.2, 83.7, 83.5, 84.0, 83.8, 84.1, 84.2, 84.32] },
   { id: "ust10y",  name: "UST 10Y",         sub: "Rendement",         value: 4.28,     unit: "%",       change: 0.07,   changePct: 1.66,  time: "09:30", sparkline: [4.10, 4.12, 4.18, 4.15, 4.20, 4.22, 4.19, 4.24, 4.26, 4.28] },
   { id: "dxy",     name: "DXY",             sub: "Indice dollar",     value: 104.21,   unit: "",        change: 0.18,   changePct: 0.17,  time: "09:30", sparkline: [103.5, 103.6, 103.8, 103.7, 104.0, 103.9, 104.1, 104.0, 104.15, 104.21] },
-  { id: "cdfusd",  name: "CDF / USD",       sub: "Interbancaire",     value: 2888.50,  unit: "",        change: 12.50,  changePct: 0.43,  time: "09:30", sparkline: [2850, 2855, 2860, 2858, 2865, 2870, 2872, 2878, 2883, 2888] },
+  { id: "cdfusd",  name: "CDF / USD",       sub: "Interbancaire",     value: 2257.35,  unit: "",        change: 12.50,  changePct: 0.43,  time: "09:30", sparkline: [2220, 2225, 2230, 2228, 2235, 2240, 2242, 2248, 2253, 2257] },
   { id: "goldvol", name: "GOLD VOLATILITY", sub: "3M ATM",            value: 15.62,    unit: "",        change: -0.48,  changePct: -2.98, time: "09:30", sparkline: [17.0, 16.8, 16.5, 16.3, 16.1, 16.2, 16.0, 15.9, 15.7, 15.62] },
   { id: "move",    name: "MOVE INDEX",      sub: "Volatilité taux US",value: 105.34,   unit: "",        change: -1.25,  changePct: -1.17, time: "09:30", sparkline: [108, 107.5, 107.0, 106.8, 106.5, 106.2, 106.0, 105.8, 105.5, 105.34] },
 ];
 
 const FX_ROWS: FxRow[] = [
-  { pair: "USD / CDF", sub: "Interbancaire", rate: 2888.50, decimals: 2, d1: 12.50,  d1dec: 2, m1: 0.43,  sparkline: [2850, 2855, 2860, 2858, 2865, 2870, 2872, 2878, 2883, 2888] },
+  { pair: "USD / CDF", sub: "Interbancaire", rate: 2257.35, decimals: 2, d1: 12.50,  d1dec: 2, m1: 0.43,  sparkline: [2220, 2225, 2230, 2228, 2235, 2240, 2242, 2248, 2253, 2257] },
   { pair: "EUR / USD",                       rate: 1.0768,  decimals: 4, d1: -0.0021,d1dec: 4, m1: -0.19, sparkline: [1.090, 1.085, 1.082, 1.083, 1.080, 1.079, 1.078, 1.077, 1.077, 1.0768] },
   { pair: "GBP / USD",                       rate: 1.2553,  decimals: 4, d1: 0.0045, d1dec: 4, m1: 0.36,  sparkline: [1.247, 1.249, 1.251, 1.250, 1.252, 1.253, 1.254, 1.255, 1.255, 1.2553] },
   { pair: "USD / ZAR",                       rate: 18.74,   decimals: 2, d1: 0.21,   d1dec: 2, m1: 1.12,  sparkline: [18.3, 18.4, 18.5, 18.45, 18.55, 18.6, 18.65, 18.7, 18.72, 18.74] },
@@ -247,6 +247,57 @@ function AlertIcon({ level }: { level: Alert["level"] }) {
   return                           <Info          className="h-3.5 w-3.5 text-blue-400   shrink-0 mt-0.5" />;
 }
 
+// ─── Scrolling ticker bar ─────────────────────────────────────────────────────
+
+interface TickerItem { id: string; label: string; value: number; changePct: number; unit: string }
+
+const TICKER_STATIC: TickerItem[] = [
+  { id: "eb2029",  label: "Eurobond RDC 8,875% 2029", value: 72.50,  changePct: -0.32, unit: ""       },
+  { id: "eb2031",  label: "Eurobond RDC 9% 2031",     value: 68.25,  changePct: +0.18, unit: ""       },
+  { id: "cobalt",  label: "Cobalt LME",                value: 27450,  changePct: +1.24, unit: "USD/t" },
+]
+
+function ScrollingTicker({ items }: { items: TickerItem[] }) {
+  const doubled = [...items, ...items];
+  return (
+    <div className="relative overflow-hidden border-y border-border/40 bg-card/60">
+      <style>{`
+        @keyframes ticker-scroll {
+          0%   { transform: translateX(0); }
+          100% { transform: translateX(-50%); }
+        }
+        .ticker-track {
+          display: flex;
+          width: max-content;
+          animation: ticker-scroll 36s linear infinite;
+        }
+        .ticker-track:hover { animation-play-state: paused; }
+      `}</style>
+      <div className="ticker-track py-1.5">
+        {doubled.map((item, i) => {
+          const pos = item.changePct >= 0;
+          return (
+            <div key={`${item.id}-${i}`} className="flex items-center gap-2 px-6 whitespace-nowrap select-none border-r border-border/30 last:border-0">
+              <span className={cn("h-2 w-2 rounded-full shrink-0 mt-px", pos ? "bg-success" : "bg-destructive")} />
+              <span className="text-[11px] font-semibold text-foreground">{item.label}</span>
+              <span className="text-[11px] font-bold tabular-nums text-blue-400">
+                {item.value.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                {item.unit && <span className="text-[9px] font-normal text-muted-foreground ml-1">{item.unit}</span>}
+              </span>
+              <span className={cn(
+                "text-[10px] font-bold px-1.5 py-0.5 rounded",
+                pos ? "bg-success text-black" : "bg-destructive text-white"
+              )}>
+                {pos ? "+" : ""}{item.changePct.toFixed(2)} %
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
@@ -256,6 +307,18 @@ export default function DashboardPage() {
   const [usdcdf,  setUsdcdf]  = useState<number>(APP_SETTINGS_DEFAULTS.usdcdf);
   const [goldPx,  setGoldPx]  = useState<number>(APP_SETTINGS_DEFAULTS.gold);
   const [copperPx,setCopper]  = useState<number>(APP_SETTINGS_DEFAULTS.copper);
+
+  const [liveGold,   setLiveGold]   = useState<number>(APP_SETTINGS_DEFAULTS.gold);
+  const [liveCopper, setLiveCopper] = useState<number>(APP_SETTINGS_DEFAULTS.copper);
+  const [liveCdf,    setLiveCdf]    = useState<number>(APP_SETTINGS_DEFAULTS.usdcdf);
+
+  const init = (id: string) => TICKERS.find(t => t.id === id)!.value;
+  const [liveBrent,   setLiveBrent]   = useState<number>(init("brent"));
+  const [liveUst,     setLiveUst]     = useState<number>(init("ust10y"));
+  const [liveDxy,     setLiveDxy]     = useState<number>(init("dxy"));
+  const [liveGoldVol, setLiveGoldVol] = useState<number>(init("goldvol"));
+  const [liveMove,    setLiveMove]    = useState<number>(init("move"));
+
   const router = useRouter();
 
   useEffect(() => {
@@ -263,6 +326,31 @@ export default function DashboardPage() {
     setUsdcdf(s.usdcdf);
     setGoldPx(s.gold);
     setCopper(s.copper);
+    setLiveGold(s.gold);
+    setLiveCopper(s.copper);
+    setLiveCdf(s.usdcdf);
+  }, []);
+
+  useEffect(() => {
+    const d1 = () => parseFloat((Math.random() * 2 - 1).toFixed(2));
+    const id = setInterval(() => {
+      setLiveGold(v   => parseFloat((v + d1()).toFixed(2)));
+      setLiveCopper(v => parseFloat((v + d1()).toFixed(2)));
+      setLiveCdf(v    => parseFloat((v + d1()).toFixed(2)));
+    }, 10_000);
+    return () => clearInterval(id);
+  }, []);
+
+  useEffect(() => {
+    const d2 = () => parseFloat(((Math.random() - 0.5) * 0.2).toFixed(2));
+    const id = setInterval(() => {
+      setLiveBrent(v   => parseFloat((v + d2()).toFixed(2)));
+      setLiveUst(v     => parseFloat((v + d2()).toFixed(2)));
+      setLiveDxy(v     => parseFloat((v + d2()).toFixed(2)));
+      setLiveGoldVol(v => parseFloat((v + d2()).toFixed(2)));
+      setLiveMove(v    => parseFloat((v + d2()).toFixed(2)));
+    }, 8_000);
+    return () => clearInterval(id);
   }, []);
 
   // Counterparties are not allowed to see Market Oversight — send them to their
@@ -307,6 +395,13 @@ export default function DashboardPage() {
                 </span>
               </div>
 
+              {/* SCROLLING TICKER */}
+              <ScrollingTicker items={[
+                ...TICKER_STATIC,
+                { id: "gold-tk",   label: "Or XAU/USD",  value: liveGold,   changePct: 0.79,  unit: "USD/oz" },
+                { id: "copper-tk", label: "Cuivre LME",  value: liveCopper, changePct: -0.56, unit: "USD/t"  },
+              ]} />
+
               {/* MARKET PULSE */}
               <div>
                 <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground mb-2">
@@ -314,7 +409,12 @@ export default function DashboardPage() {
                 </p>
                 <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-8 gap-2">
                   {TICKERS.map((t) => {
-                    const v = t.id === "cdfusd" ? usdcdf : t.id === "gold" ? goldPx : t.id === "copper" ? copperPx : undefined;
+                    const LIVE: Record<string, number> = {
+                      gold: liveGold, copper: liveCopper, cdfusd: liveCdf,
+                      brent: liveBrent, ust10y: liveUst, dxy: liveDxy,
+                      goldvol: liveGoldVol, move: liveMove,
+                    };
+                    const v = LIVE[t.id];
                     return <TickerCard key={t.id} t={v !== undefined ? { ...t, value: v } : t} />;
                   })}
                 </div>
@@ -347,7 +447,7 @@ export default function DashboardPage() {
                           </thead>
                           <tbody>
                             {FX_ROWS.map((row) => {
-                              const r = row.pair === "USD / CDF" ? { ...row, rate: usdcdf } : row;
+                              const r = row.pair === "USD / CDF" ? { ...row, rate: liveCdf } : row;
                               const pos1  = r.d1 >= 0;
                               const pos1m = r.m1 >= 0;
                               return (
@@ -398,8 +498,8 @@ export default function DashboardPage() {
                         </thead>
                         <tbody>
                           {COMMODITY_ROWS.map((row) => {
-                            const lvl = row.label.startsWith("Gold")   ? goldPx
-                                      : row.label.startsWith("Copper") ? copperPx
+                            const lvl = row.label.startsWith("Gold")   ? liveGold
+                                      : row.label.startsWith("Copper") ? liveCopper
                                       : row.level;
                             const r   = lvl !== row.level ? { ...row, level: lvl } : row;
                             const pd1 = r.d1 >= 0;
