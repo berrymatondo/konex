@@ -577,17 +577,17 @@ function FlowDiagram({ lang }: { lang: "fr" | "en" }) {
   ]
   const nodes = I18N[lang].flowNodes
   return (
-    <div className="flex flex-wrap items-start justify-start gap-0 py-1">
+    <div className="flex flex-nowrap items-center justify-between gap-0 py-1 w-full">
       {nodes.map((n, i) => (
-        <div key={n.label} className="flex items-center">
-          <div className={cn("border rounded-lg px-4 py-3 text-center min-w-32", clss[i])}>
-            <p className="text-sm font-bold leading-tight">{n.label}</p>
-            <p className="text-xs text-muted-foreground mt-1 leading-tight">{n.sub}</p>
+        <div key={n.label} className="flex items-center min-w-0 flex-1">
+          <div className={cn("border rounded-lg px-3 py-2 text-center flex-1 min-w-0", clss[i])}>
+            <p className="text-xs font-bold leading-tight truncate">{n.label}</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5 leading-tight truncate">{n.sub}</p>
           </div>
           {i < nodes.length - 1 && (
-            <div className="flex items-center mx-1">
-              <div className="w-5 h-px bg-amber-500/60" />
-              <ArrowRight className="h-3.5 w-3.5 text-amber-500/60 -ml-0.5" />
+            <div className="flex items-center shrink-0 mx-1">
+              <div className="w-4 h-px bg-amber-500/60" />
+              <ArrowRight className="h-3 w-3 text-amber-500/60 -ml-0.5" />
             </div>
           )}
         </div>
