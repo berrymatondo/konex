@@ -2,9 +2,11 @@ const KEY = "app.settings";
 
 export const APP_SETTINGS_DEFAULTS = {
   usdcdf: 2888.50,
+  gold:    2345.60,
+  copper:  9742.00,
 } as const;
 
-export type AppSettings = { usdcdf: number };
+export type AppSettings = { usdcdf: number; gold: number; copper: number };
 
 export function readAppSettings(): AppSettings {
   if (typeof window === "undefined") return { ...APP_SETTINGS_DEFAULTS };

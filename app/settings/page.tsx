@@ -35,12 +35,16 @@ export default function SettingsPage() {
     dailyDigest: false,
   });
 
-  const [usdcdf, setUsdcdf] = useState<string>(APP_SETTINGS_DEFAULTS.usdcdf.toFixed(2));
+  const [usdcdf,  setUsdcdf]  = useState<string>(APP_SETTINGS_DEFAULTS.usdcdf.toFixed(2));
+  const [gold,    setGold]    = useState<string>(APP_SETTINGS_DEFAULTS.gold.toFixed(2));
+  const [copper,  setCopper]  = useState<string>(APP_SETTINGS_DEFAULTS.copper.toFixed(2));
   const [valuesSaved, setValuesSaved] = useState(false);
 
   useEffect(() => {
     const s = readAppSettings();
     setUsdcdf(s.usdcdf.toFixed(2));
+    setGold(s.gold.toFixed(2));
+    setCopper(s.copper.toFixed(2));
   }, []);
 
   const translations = {
@@ -57,8 +61,12 @@ export default function SettingsPage() {
       values: {
         title: "Application Values",
         description: "Default values used across the application",
-        usdcdfLabel: "USD / CDF exchange rate",
-        usdcdfDesc: "Reference rate displayed in Market Oversight (CDF / USD box)",
+        usdcdfLabel:  "USD / CDF exchange rate",
+        usdcdfDesc:   "Reference rate displayed in Market Oversight (CDF / USD box)",
+        goldLabel:    "Gold price (XAU / USD)",
+        goldDesc:     "Gold spot price displayed in Market Oversight (USD/oz)",
+        copperLabel:  "Copper price (LME 3M)",
+        copperDesc:   "Copper price displayed in Market Oversight (USD/ton)",
         save: "Save Values",
         reset: "Reset to defaults",
         saved: "Saved!",
@@ -122,8 +130,12 @@ export default function SettingsPage() {
       values: {
         title: "Valeurs de l'application",
         description: "Valeurs par défaut utilisées dans l'application",
-        usdcdfLabel: "Taux de change USD / CDF",
-        usdcdfDesc: "Taux de référence affiché dans Market Oversight (boîte CDF / USD)",
+        usdcdfLabel:  "Taux de change USD / CDF",
+        usdcdfDesc:   "Taux de référence affiché dans Market Oversight (boîte CDF / USD)",
+        goldLabel:    "Prix de l'or (XAU / USD)",
+        goldDesc:     "Prix spot de l'or affiché dans Market Oversight (USD/oz)",
+        copperLabel:  "Prix du cuivre (LME 3M)",
+        copperDesc:   "Prix du cuivre affiché dans Market Oversight (USD/tonne)",
         save: "Enregistrer les valeurs",
         reset: "Réinitialiser",
         saved: "Enregistré !",
@@ -427,27 +439,59 @@ export default function SettingsPage() {
                       <CardDescription>{t.values.description}</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-6">
-                      <div className="space-y-3 max-w-sm">
-                        <div className="space-y-1">
-                          <Label htmlFor="usdcdf">{t.values.usdcdfLabel}</Label>
-                          <p className="text-xs text-muted-foreground">{t.values.usdcdfDesc}</p>
+                      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                        <div className="space-y-3">
+                          <div className="space-y-1">
+                            <Label htmlFor="gold-price">{t.values.goldLabel}</Label>
+                            <p className="text-xs text-muted-foreground">{t.values.goldDesc}</p>
+                          </div>
+                          <Input
+                            id="gold-price"
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={gold}
+                            onChange={(e) => { setGold(e.target.value); setValuesSaved(false); }}
+                          />
                         </div>
-                        <Input
-                          id="usdcdf"
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          value={usdcdf}
-                          onChange={(e) => { setUsdcdf(e.target.value); setValuesSaved(false); }}
-                        />
+                        <div className="space-y-3">
+                          <div className="space-y-1">
+                            <Label htmlFor="copper-price">{t.values.copperLabel}</Label>
+                            <p className="text-xs text-muted-foreground">{t.values.copperDesc}</p>
+                          </div>
+                          <Input
+                            id="copper-price"
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={copper}
+                            onChange={(e) => { setCopper(e.target.value); setValuesSaved(false); }}
+                          />
+                        </div>
+                        <div className="space-y-3">
+                          <div className="space-y-1">
+                            <Label htmlFor="usdcdf">{t.values.usdcdfLabel}</Label>
+                            <p className="text-xs text-muted-foreground">{t.values.usdcdfDesc}</p>
+                          </div>
+                          <Input
+                            id="usdcdf"
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={usdcdf}
+                            onChange={(e) => { setUsdcdf(e.target.value); setValuesSaved(false); }}
+                          />
+                        </div>
                       </div>
                       <div className="flex items-center gap-3">
                         <Button
                           className="bg-amber-600 hover:bg-amber-700 text-black font-semibold"
                           onClick={() => {
-                            const v = parseFloat(usdcdf);
-                            if (!isNaN(v) && v > 0) {
-                              writeAppSettings({ usdcdf: v });
+                            const g = parseFloat(gold);
+                            const cu = parseFloat(copper);
+                            const fx = parseFloat(usdcdf);
+                            if (!isNaN(g) && g > 0 && !isNaN(cu) && cu > 0 && !isNaN(fx) && fx > 0) {
+                              writeAppSettings({ gold: g, copper: cu, usdcdf: fx });
                               setValuesSaved(true);
                             }
                           }}
@@ -458,6 +502,8 @@ export default function SettingsPage() {
                         <Button
                           variant="outline"
                           onClick={() => {
+                            setGold(APP_SETTINGS_DEFAULTS.gold.toFixed(2));
+                            setCopper(APP_SETTINGS_DEFAULTS.copper.toFixed(2));
                             setUsdcdf(APP_SETTINGS_DEFAULTS.usdcdf.toFixed(2));
                             setValuesSaved(false);
                           }}

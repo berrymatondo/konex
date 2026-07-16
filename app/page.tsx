@@ -253,11 +253,16 @@ const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
 export default function DashboardPage() {
   const [peerGroup, setPeerGroup] = useState("Banques centrales africaines");
-  const [usdcdf, setUsdcdf] = useState<number>(APP_SETTINGS_DEFAULTS.usdcdf);
+  const [usdcdf,  setUsdcdf]  = useState<number>(APP_SETTINGS_DEFAULTS.usdcdf);
+  const [goldPx,  setGoldPx]  = useState<number>(APP_SETTINGS_DEFAULTS.gold);
+  const [copperPx,setCopper]  = useState<number>(APP_SETTINGS_DEFAULTS.copper);
   const router = useRouter();
 
   useEffect(() => {
-    setUsdcdf(readAppSettings().usdcdf);
+    const s = readAppSettings();
+    setUsdcdf(s.usdcdf);
+    setGoldPx(s.gold);
+    setCopper(s.copper);
   }, []);
 
   // Counterparties are not allowed to see Market Oversight — send them to their
@@ -308,7 +313,10 @@ export default function DashboardPage() {
                   Market Pulse
                 </p>
                 <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-8 gap-2">
-                  {TICKERS.map((t) => <TickerCard key={t.id} t={t.id === "cdfusd" ? { ...t, value: usdcdf } : t} />)}
+                  {TICKERS.map((t) => {
+                    const v = t.id === "cdfusd" ? usdcdf : t.id === "gold" ? goldPx : t.id === "copper" ? copperPx : undefined;
+                    return <TickerCard key={t.id} t={v !== undefined ? { ...t, value: v } : t} />;
+                  })}
                 </div>
               </div>
 
@@ -390,19 +398,23 @@ export default function DashboardPage() {
                         </thead>
                         <tbody>
                           {COMMODITY_ROWS.map((row) => {
-                            const pd1 = row.d1 >= 0;
-                            const pm1 = row.m1 >= 0;
+                            const lvl = row.label.startsWith("Gold")   ? goldPx
+                                      : row.label.startsWith("Copper") ? copperPx
+                                      : row.level;
+                            const r   = lvl !== row.level ? { ...row, level: lvl } : row;
+                            const pd1 = r.d1 >= 0;
+                            const pm1 = r.m1 >= 0;
                             return (
-                              <tr key={row.label} className="border-b border-border/50 last:border-0">
-                                <td className="py-1.5 pr-2 text-[10px]">{row.label}</td>
+                              <tr key={r.label} className="border-b border-border/50 last:border-0">
+                                <td className="py-1.5 pr-2 text-[10px]">{r.label}</td>
                                 <td className="text-right py-1.5 font-mono tabular-nums">
-                                  {row.level.toLocaleString("fr-FR", { minimumFractionDigits: row.levelDec, maximumFractionDigits: row.levelDec })}
+                                  {r.level.toLocaleString("fr-FR", { minimumFractionDigits: r.levelDec, maximumFractionDigits: r.levelDec })}
                                 </td>
                                 <td className={cn("text-right py-1.5 font-medium", pd1 ? "text-success" : "text-destructive")}>
-                                  {pd1 ? "+" : ""}{row.d1.toFixed(2)} %
+                                  {pd1 ? "+" : ""}{r.d1.toFixed(2)} %
                                 </td>
                                 <td className={cn("text-right py-1.5 font-medium", pm1 ? "text-success" : "text-destructive")}>
-                                  {pm1 ? "+" : ""}{row.m1.toFixed(2)} %
+                                  {pm1 ? "+" : ""}{r.m1.toFixed(2)} %
                                 </td>
                                 <td className="py-1.5 pl-1">
                                   {pd1
