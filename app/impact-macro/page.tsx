@@ -459,20 +459,23 @@ const MILESTONES = [
 // ─── Sensitivity sweep config ─────────────────────────────────────────────────
 
 const SWEEP_INPUTS_CFG: { key: keyof SimInputs; en: string; fr: string; min: number; max: number; steps: number }[] = [
-  { key: "goldTonnesPerYear",     en: "Annual gold purchases (t/yr)",   fr: "Achats annuels d'or (t/an)",    min: 0,    max: 30,   steps: 31 },
-  { key: "goldPriceUSD",          en: "Gold price ($/oz)",              fr: "Prix de l'or ($/oz)",            min: 1000, max: 10000, steps: 37 },
-  { key: "sterilizationPct",      en: "Sterilization (%)",              fr: "Part stérilisée (%)",            min: 0,    max: 100,  steps: 21 },
-  { key: "inflationSensitivity",  en: "Money-growth elasticity",        fr: "Élasticité M2→inflation",       min: 0,    max: 1,    steps: 21 },
-  { key: "fxPassThroughCoeff",    en: "FX pass-through coeff.",         fr: "Coeff. pass-through FX",         min: 0,    max: 1,    steps: 21 },
-  { key: "liquidityLeakagePct",   en: "Liquidity leakage (%)",          fr: "Fuite de liquidités (%)",        min: 0,    max: 80,   steps: 17 },
+  { key: "goldTonnesPerYear",      en: "Annual gold purchases (t/yr)",       fr: "Achats annuels d'or (t/an)",              min: 0,    max: 30,   steps: 31 },
+  { key: "sterilizationPct",       en: "Share sterilized (%)",               fr: "Part stérilisée (%)",                     min: 0,    max: 100,  steps: 21 },
+  { key: "goldPriceUSD",           en: "Gold price ($/oz)",                  fr: "Prix de l'or ($/oz)",                     min: 1000, max: 10000, steps: 37 },
+  { key: "sterilizationRatePct",   en: "Sterilization instrument rate (%)",  fr: "Taux de l'instrument de stérilisation (%)", min: 0,  max: 30,   steps: 31 },
+  { key: "liquidityLeakagePct",    en: "Liquidity leakage into FX (%)",      fr: "Fuite de liquidités vers le FX (%)",      min: 0,    max: 80,   steps: 17 },
+  { key: "bccFXInterventionPct",   en: "BCC FX intervention offset (%)",     fr: "Offset intervention FX BCC (%)",          min: 0,    max: 100,  steps: 21 },
+  { key: "horizonYears",           en: "Simulation horizon (yr)",            fr: "Horizon de simulation (ans)",             min: 1,    max: 10,   steps: 10 },
 ]
 
 const SWEEP_OUTCOMES_CFG: { key: string; en: string; fr: string; get: (m: DecisionMetrics) => number }[] = [
-  { key: "peakInflation",  en: "Peak inflation (%)",            fr: "Inflation pic (%)",                get: m => m.peakInflationPct },
-  { key: "importCover",   en: "Import cover (months)",         fr: "Couverture imports (mois)",         get: m => m.finalImportCoverMonths },
-  { key: "reservesAdded", en: "Reserves added (US$bn)",        fr: "Réserves ajoutées (Md USD)",        get: m => m.reservesAddedUSDbn },
-  { key: "fxDeprec",      en: "FX depreciation vs. baseline (%)", fr: "Dépréciation FX vs. référence (%)", get: m => Math.max(0, m.fxDepreciationVsBaseline) },
-  { key: "sterilCost",    en: "Sterilization cost (CDF bn)",   fr: "Coût stérilisation (CDF bn)",      get: m => m.cumSterilCostCDFbn },
+  { key: "peakInflation",   en: "Peak inflation (%)",                   fr: "Inflation pic (%)",                      get: m => m.peakInflationPct },
+  { key: "inflationUplift", en: "Inflation uplift vs. baseline (pp)",   fr: "Hausse inflation vs. référence (pp)",    get: m => m.inflationUpliftPP },
+  { key: "reservesAdded",   en: "Reserves added (US$bn)",               fr: "Réserves ajoutées (Md USD)",             get: m => m.reservesAddedUSDbn },
+  { key: "importCover",     en: "Final import cover (months)",          fr: "Couverture imports finale (mois)",       get: m => m.finalImportCoverMonths },
+  { key: "fxDeprec",        en: "FX vs. baseline (%)",                  fr: "FX vs. référence (%)",                   get: m => Math.max(0, m.fxDepreciationVsBaseline) },
+  { key: "cumCostBudget",   en: "Cumulative cost (% of budget)",        fr: "Coût cumulé (% du budget)",              get: m => m.cumSterilCostPctBudgetHorizon },
+  { key: "sterilCost",      en: "Cumulative sterilization cost (CDF bn)", fr: "Coût stérilisation cumulé (CDF Md)",  get: m => m.cumSterilCostCDFbn },
 ]
 
 // ─── Small UI helpers ─────────────────────────────────────────────────────────
