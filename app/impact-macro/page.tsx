@@ -841,14 +841,14 @@ export default function ImpactMacroPage() {
         <AppSidebar />
         <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
           <AppHeader title={T.pageTitle} subtitle={T.pageSub} />
-          <main className="flex-1 overflow-auto p-4">
+          <main className="flex-1 overflow-auto p-2 sm:p-4">
             <Tabs value={tab} onValueChange={setTab} className="space-y-4">
-              <TabsList className="h-9">
-                <TabsTrigger value="overview"    className="text-xs"><BarChart2    className="h-3.5 w-3.5 mr-1" />{T.tabs.overview}</TabsTrigger>
-                <TabsTrigger value="simulator"   className="text-xs"><FlaskConical className="h-3.5 w-3.5 mr-1" />{T.tabs.simulator}</TabsTrigger>
-                <TabsTrigger value="balance"     className="text-xs"><Layers       className="h-3.5 w-3.5 mr-1" />{T.tabs.balance}</TabsTrigger>
-                <TabsTrigger value="history"     className="text-xs"><History      className="h-3.5 w-3.5 mr-1" />{T.tabs.history}</TabsTrigger>
-                <TabsTrigger value="methodology" className="text-xs"><FileText     className="h-3.5 w-3.5 mr-1" />{T.tabs.methodology}</TabsTrigger>
+              <TabsList className="h-auto flex-wrap gap-y-1">
+                <TabsTrigger value="overview"    className="text-xs"><BarChart2    className="h-3.5 w-3.5 mr-1 shrink-0" /><span className="hidden xs:inline sm:inline">{T.tabs.overview}</span></TabsTrigger>
+                <TabsTrigger value="simulator"   className="text-xs"><FlaskConical className="h-3.5 w-3.5 mr-1 shrink-0" /><span>{T.tabs.simulator}</span></TabsTrigger>
+                <TabsTrigger value="balance"     className="text-xs"><Layers       className="h-3.5 w-3.5 mr-1 shrink-0" /><span className="hidden sm:inline">{T.tabs.balance}</span><span className="sm:hidden">{lang === "fr" ? "Bilan" : "Balance"}</span></TabsTrigger>
+                <TabsTrigger value="history"     className="text-xs"><History      className="h-3.5 w-3.5 mr-1 shrink-0" /><span className="hidden sm:inline">{T.tabs.history}</span><span className="sm:hidden">{lang === "fr" ? "Historique" : "History"}</span></TabsTrigger>
+                <TabsTrigger value="methodology" className="text-xs"><FileText     className="h-3.5 w-3.5 mr-1 shrink-0" /><span className="hidden sm:inline">{T.tabs.methodology}</span><span className="sm:hidden">{lang === "fr" ? "Méthodo." : "Method."}</span></TabsTrigger>
               </TabsList>
 
               {/* ── OVERVIEW ─────────────────────────────────────────────── */}
@@ -887,7 +887,7 @@ export default function ImpactMacroPage() {
                   {/* Right column */}
                   <div className="space-y-6">
                     {/* 6 market mini-cards */}
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       {[
                         { cat: T.officialRate, val: `${inputs.exchangeRateInit.toLocaleString()} CDF`, sub: T.rateDate, amber: true },
                         { cat: T.intlReserves, val: `US$${MARKET_REF.reservesUSDbn.toFixed(2)} bn`, sub: T.importCover(MARKET_REF.importCoverMonths) },
@@ -968,9 +968,9 @@ export default function ImpactMacroPage() {
                 </div>
 
                 {/* Main 2-column layout */}
-                <div className="flex gap-4 items-start">
+                <div className="flex flex-col lg:flex-row gap-4 items-start">
                   {/* ── Left: Inputs panel ── */}
-                  <div className="w-64 shrink-0 border border-zinc-700/60 rounded-xl overflow-hidden">
+                  <div className="w-full lg:w-64 shrink-0 border border-zinc-700/60 rounded-xl overflow-hidden">
                     <div className="px-4 py-3 border-b border-zinc-700/60 bg-zinc-900/60">
                       <p className="text-[10px] font-bold uppercase tracking-widest text-amber-500/80">
                         {lang === "fr" ? "PARAMÈTRES" : "INPUTS"}
@@ -979,7 +979,7 @@ export default function ImpactMacroPage() {
                         {lang === "fr" ? "Paramètres du scénario" : "Scenario parameters"}
                       </p>
                     </div>
-                    <ScrollArea className="h-[calc(100vh-320px)]">
+                    <ScrollArea className="h-72 lg:h-[calc(100vh-320px)]">
                       <div className="px-4 pb-4">
                         {/* Section 1 */}
                         <p className="text-[10px] font-bold uppercase tracking-widest text-amber-500 mt-4 mb-1">
@@ -1034,7 +1034,7 @@ export default function ImpactMacroPage() {
                             ? `outlay ${budgetOutlayCostPct.toFixed(1)}% > 25.0% of budget`
                             : (lang === "fr" ? "Toutes les contraintes sont respectées" : "All constraints met")
                       return (
-                        <div className="grid grid-cols-3 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                           <SimMetricCard
                             label={`Peak inflation · ${metrics.peakInflationPct <= inputs.inflationCeilingPct ? (lang === "fr" ? "dans la cible" : "within target") : (lang === "fr" ? "hors cible" : "above target")}`}
                             value={`${metrics.peakInflationPct.toFixed(1)} %`}
@@ -1234,25 +1234,25 @@ export default function ImpactMacroPage() {
                             </span>
                             <h3 className="text-base font-bold">{lang === "fr" ? "Balayage mono-paramètre" : "Single-input sweep"}</h3>
                           </div>
-                          <div className="px-5 pb-2 flex items-end gap-6 flex-wrap">
-                            <div>
+                          <div className="px-5 pb-2 flex flex-col sm:flex-row items-start sm:items-end gap-3 sm:gap-6">
+                            <div className="w-full sm:w-auto">
                               <p className="text-[10px] uppercase tracking-widest text-zinc-500 mb-1.5">{lang === "fr" ? "PARAMÈTRE À BALAYER" : "SWEEP THIS INPUT"}</p>
                               <select
                                 value={sweepInputKey}
                                 onChange={e => setSweepInputKey(e.target.value as keyof SimInputs)}
-                                className="text-xs bg-zinc-800 border border-zinc-700 rounded-md px-3 py-1.5 text-zinc-200 focus:outline-none focus:border-amber-500 min-w-48"
+                                className="w-full sm:min-w-48 text-xs bg-zinc-800 border border-zinc-700 rounded-md px-3 py-1.5 text-zinc-200 focus:outline-none focus:border-amber-500"
                               >
                                 {SWEEP_INPUTS_CFG.map(opt => (
                                   <option key={opt.key} value={opt.key}>{lang === "fr" ? opt.fr : opt.en}</option>
                                 ))}
                               </select>
                             </div>
-                            <div>
+                            <div className="w-full sm:w-auto">
                               <p className="text-[10px] uppercase tracking-widest text-zinc-500 mb-1.5">{lang === "fr" ? "RÉSULTAT CIBLE" : "AGAINST THIS OUTCOME"}</p>
                               <select
                                 value={sweepOutcomeKey}
                                 onChange={e => setSweepOutcomeKey(e.target.value)}
-                                className="text-xs bg-zinc-800 border border-zinc-700 rounded-md px-3 py-1.5 text-zinc-200 focus:outline-none focus:border-amber-500 min-w-40"
+                                className="w-full sm:min-w-40 text-xs bg-zinc-800 border border-zinc-700 rounded-md px-3 py-1.5 text-zinc-200 focus:outline-none focus:border-amber-500"
                               >
                                 {SWEEP_OUTCOMES_CFG.map(opt => (
                                   <option key={opt.key} value={opt.key}>{lang === "fr" ? opt.fr : opt.en}</option>
@@ -1322,9 +1322,9 @@ export default function ImpactMacroPage() {
                   }))
 
                   return (
-                    <div className="flex gap-4 items-start">
+                    <div className="flex flex-col lg:flex-row gap-4 items-start">
                       {/* ── Left: Stress Parameters panel ── */}
-                      <div className="w-64 shrink-0 border border-zinc-700/60 rounded-xl overflow-hidden">
+                      <div className="w-full lg:w-64 shrink-0 border border-zinc-700/60 rounded-xl overflow-hidden">
                         <div className="px-4 py-3 border-b border-zinc-700/60 bg-zinc-900/60">
                           <p className="text-[10px] font-bold uppercase tracking-widest text-amber-500/80">
                             {lang === "fr" ? "PARAMÈTRES DE STRESS" : "STRESS PARAMETERS"}
@@ -1385,7 +1385,7 @@ export default function ImpactMacroPage() {
                       {/* ── Right: Metrics + Stress test + Charts ── */}
                       <div className="flex-1 min-w-0 space-y-4">
                         {/* 6 metric cards */}
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                           <SimMetricCard
                             label={lang === "fr" ? `Avoirs en or cumulés, an ${inputs.horizonYears}` : `Cumulative gold holdings, year ${inputs.horizonYears}`}
                             value={`US$${goldHoldUSD.toFixed(2)}bn`}
@@ -1429,7 +1429,7 @@ export default function ImpactMacroPage() {
                           <h3 className="text-sm font-semibold mb-3">
                             {lang === "fr" ? "Test de résistance mark-to-market sur les avoirs en or cumulés" : "Mark-to-market stress test on cumulative gold holdings"}
                           </h3>
-                          <div className="grid grid-cols-3 gap-3">
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                             {stressMtm.map(s => (
                               <Card key={s.shock} className="border-zinc-700/60">
                                 <CardContent className="pt-4 pb-4 px-4">
@@ -1565,7 +1565,7 @@ export default function ImpactMacroPage() {
 
                     {/* Data table */}
                     <div className="px-4 pb-4">
-                      <div className="rounded-lg overflow-hidden border border-zinc-800/60">
+                      <div className="rounded-lg overflow-x-auto border border-zinc-800/60">
                         <table className="w-full text-xs font-mono">
                           <thead>
                             <tr className="border-b border-zinc-700/60 bg-zinc-900/60">

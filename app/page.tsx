@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { readAppSettings, APP_SETTINGS_DEFAULTS } from "@/lib/app-settings";
 import useSWR from "swr";
 import { isCounterpartyRole } from "@/lib/roles";
 import { AppSidebar } from "@/components/app-sidebar";
@@ -252,7 +253,12 @@ const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
 export default function DashboardPage() {
   const [peerGroup, setPeerGroup] = useState("Banques centrales africaines");
+  const [usdcdf, setUsdcdf] = useState<number>(APP_SETTINGS_DEFAULTS.usdcdf);
   const router = useRouter();
+
+  useEffect(() => {
+    setUsdcdf(readAppSettings().usdcdf);
+  }, []);
 
   // Counterparties are not allowed to see Market Oversight — send them to their
   // own dashboard immediately, before any content is painted.
@@ -302,7 +308,7 @@ export default function DashboardPage() {
                   Market Pulse
                 </p>
                 <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-8 gap-2">
-                  {TICKERS.map((t) => <TickerCard key={t.id} t={t} />)}
+                  {TICKERS.map((t) => <TickerCard key={t.id} t={t.id === "cdfusd" ? { ...t, value: usdcdf } : t} />)}
                 </div>
               </div>
 
@@ -333,26 +339,27 @@ export default function DashboardPage() {
                           </thead>
                           <tbody>
                             {FX_ROWS.map((row) => {
-                              const pos1  = row.d1 >= 0;
-                              const pos1m = row.m1 >= 0;
+                              const r = row.pair === "USD / CDF" ? { ...row, rate: usdcdf } : row;
+                              const pos1  = r.d1 >= 0;
+                              const pos1m = r.m1 >= 0;
                               return (
-                                <tr key={row.pair} className="border-b border-border/50 last:border-0">
+                                <tr key={r.pair} className="border-b border-border/50 last:border-0">
                                   <td className="py-1.5">
-                                    <p className="font-medium">{row.pair}</p>
-                                    {row.sub && <p className="text-[9px] text-muted-foreground">{row.sub}</p>}
+                                    <p className="font-medium">{r.pair}</p>
+                                    {r.sub && <p className="text-[9px] text-muted-foreground">{r.sub}</p>}
                                   </td>
                                   <td className="text-right py-1.5 font-mono tabular-nums">
-                                    {row.rate.toLocaleString("fr-FR", { minimumFractionDigits: row.decimals, maximumFractionDigits: row.decimals })}
+                                    {r.rate.toLocaleString("fr-FR", { minimumFractionDigits: r.decimals, maximumFractionDigits: r.decimals })}
                                   </td>
                                   <td className={cn("text-right py-1.5 font-medium", pos1 ? "text-success" : "text-destructive")}>
                                     {pos1 ? "+" : ""}
-                                    {row.d1.toLocaleString("fr-FR", { minimumFractionDigits: row.d1dec, maximumFractionDigits: row.d1dec })}
+                                    {r.d1.toLocaleString("fr-FR", { minimumFractionDigits: r.d1dec, maximumFractionDigits: r.d1dec })}
                                   </td>
                                   <td className={cn("text-right py-1.5 font-medium", pos1m ? "text-success" : "text-destructive")}>
-                                    {pos1m ? "+" : ""}{row.m1.toFixed(2)} %
+                                    {pos1m ? "+" : ""}{r.m1.toFixed(2)} %
                                   </td>
                                   <td className="py-1.5 pl-2">
-                                    <Sparkline data={row.sparkline} color={pos1 ? "#22c55e" : "#ef4444"} />
+                                    <Sparkline data={r.sparkline} color={pos1 ? "#22c55e" : "#ef4444"} />
                                   </td>
                                 </tr>
                               );

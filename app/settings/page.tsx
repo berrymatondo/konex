@@ -12,16 +12,19 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { 
+import {
   User,
   Bell,
   Shield,
   Globe,
   Building2,
   Mail,
-  Save
+  Save,
+  SlidersHorizontal,
+  RotateCcw,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { readAppSettings, writeAppSettings, APP_SETTINGS_DEFAULTS } from "@/lib/app-settings";
 
 export default function SettingsPage() {
   const { language, setLanguage } = useLanguage();
@@ -32,6 +35,14 @@ export default function SettingsPage() {
     dailyDigest: false,
   });
 
+  const [usdcdf, setUsdcdf] = useState<string>(APP_SETTINGS_DEFAULTS.usdcdf.toFixed(2));
+  const [valuesSaved, setValuesSaved] = useState(false);
+
+  useEffect(() => {
+    const s = readAppSettings();
+    setUsdcdf(s.usdcdf.toFixed(2));
+  }, []);
+
   const translations = {
     en: {
       title: "Settings",
@@ -41,6 +52,16 @@ export default function SettingsPage() {
         notifications: "Notifications",
         security: "Security",
         organization: "Organization",
+        values: "Values",
+      },
+      values: {
+        title: "Application Values",
+        description: "Default values used across the application",
+        usdcdfLabel: "USD / CDF exchange rate",
+        usdcdfDesc: "Reference rate displayed in Market Oversight (CDF / USD box)",
+        save: "Save Values",
+        reset: "Reset to defaults",
+        saved: "Saved!",
       },
       profile: {
         title: "Profile Information",
@@ -96,6 +117,16 @@ export default function SettingsPage() {
         notifications: "Notifications",
         security: "Sécurité",
         organization: "Organisation",
+        values: "Valeurs",
+      },
+      values: {
+        title: "Valeurs de l'application",
+        description: "Valeurs par défaut utilisées dans l'application",
+        usdcdfLabel: "Taux de change USD / CDF",
+        usdcdfDesc: "Taux de référence affiché dans Market Oversight (boîte CDF / USD)",
+        save: "Enregistrer les valeurs",
+        reset: "Réinitialiser",
+        saved: "Enregistré !",
       },
       profile: {
         title: "Informations du profil",
@@ -159,7 +190,7 @@ export default function SettingsPage() {
           <main className="flex-1 overflow-y-auto p-4 md:p-6">
             <div className="mx-auto max-w-4xl">
               <Tabs defaultValue="profile" className="space-y-6">
-                <TabsList className="grid w-full grid-cols-4">
+                <TabsList className="grid w-full grid-cols-5">
                   <TabsTrigger value="profile" className="flex items-center gap-2">
                     <User className="h-4 w-4" />
                     <span className="hidden sm:inline">{t.tabs.profile}</span>
@@ -175,6 +206,10 @@ export default function SettingsPage() {
                   <TabsTrigger value="organization" className="flex items-center gap-2">
                     <Building2 className="h-4 w-4" />
                     <span className="hidden sm:inline">{t.tabs.organization}</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="values" className="flex items-center gap-2">
+                    <SlidersHorizontal className="h-4 w-4" />
+                    <span className="hidden sm:inline">{t.tabs.values}</span>
                   </TabsTrigger>
                 </TabsList>
 
@@ -384,6 +419,57 @@ export default function SettingsPage() {
                     </CardContent>
                   </Card>
                 </TabsContent>
+                {/* Values Tab */}
+                <TabsContent value="values">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>{t.values.title}</CardTitle>
+                      <CardDescription>{t.values.description}</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                      <div className="space-y-3 max-w-sm">
+                        <div className="space-y-1">
+                          <Label htmlFor="usdcdf">{t.values.usdcdfLabel}</Label>
+                          <p className="text-xs text-muted-foreground">{t.values.usdcdfDesc}</p>
+                        </div>
+                        <Input
+                          id="usdcdf"
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={usdcdf}
+                          onChange={(e) => { setUsdcdf(e.target.value); setValuesSaved(false); }}
+                        />
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <Button
+                          className="bg-amber-600 hover:bg-amber-700 text-black font-semibold"
+                          onClick={() => {
+                            const v = parseFloat(usdcdf);
+                            if (!isNaN(v) && v > 0) {
+                              writeAppSettings({ usdcdf: v });
+                              setValuesSaved(true);
+                            }
+                          }}
+                        >
+                          <Save className="mr-2 h-4 w-4" />
+                          {valuesSaved ? t.values.saved : t.values.save}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          onClick={() => {
+                            setUsdcdf(APP_SETTINGS_DEFAULTS.usdcdf.toFixed(2));
+                            setValuesSaved(false);
+                          }}
+                        >
+                          <RotateCcw className="mr-2 h-4 w-4" />
+                          {t.values.reset}
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
               </Tabs>
             </div>
           </main>
