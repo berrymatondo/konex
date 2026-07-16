@@ -1524,7 +1524,7 @@ export default function ImpactMacroPage() {
                           <YAxis yAxisId="r" orientation="right" tick={{ fontSize: 9, fill: "#94a3b8" }} width={32} tickFormatter={v => `${v}`} />
                           <Tooltip />
                           <Legend iconSize={10} wrapperStyle={{ fontSize: 11 }} />
-                          <Line yAxisId="l" type="monotone" dataKey="cdfUsd" name={lang === "fr" ? "CDF par USD" : "CDF per USD"} stroke={C.amber} strokeWidth={2} dot={{ r: 4, fill: C.amber }} />
+                          <Line yAxisId="l" type="monotone" dataKey="cdfUsd" name={lang === "fr" ? "CDF par USD" : "CDF per USD"} stroke={C.blue} strokeWidth={2} dot={{ r: 4, fill: C.blue }} />
                           <Line yAxisId="r" type="monotone" dataKey="inflYoY" name={lang === "fr" ? "Inflation a/a %" : "Inflation y/y %"} stroke="#f97316" strokeWidth={2} dot={{ r: 4, fill: "#f97316" }} />
                         </ComposedChart>
                       </ResponsiveContainer>
