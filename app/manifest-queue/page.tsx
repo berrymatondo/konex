@@ -12,8 +12,7 @@ import { Progress } from "@/components/ui/progress";
 import {
   CheckCircle2, Clock, AlertTriangle, RefreshCw, FileText,
   Download, ChevronRight, Eye, CornerUpLeft, TrendingUp,
-  ShieldCheck, BarChart2, Bell, Inbox, ArrowUpLeft,
-  Users, X, PencilLine,
+  ShieldCheck, BarChart2, Bell, X, PencilLine,
 } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -465,52 +464,6 @@ export default function ManifestQueuePage() {
           <AppHeader title="File d'attente — manifestes" subtitle="Bureau de conformité commerciale" />
           <div className="flex flex-1 overflow-hidden">
 
-            {/* ── Workqueue sidebar ──────────────────────────────────── */}
-            <div className="w-48 border-r flex-shrink-0 bg-muted/20 flex flex-col py-3 overflow-y-auto">
-
-              <NavSection label="File de travail" />
-              <NavItem
-                icon={Inbox} label="Examen manifest." active={activeTab === "submitted"}
-                count={counts.pending} countColor={counts.pending > 0 ? "red" : "gray"}
-                onClick={() => setActiveTab("submitted")}
-              />
-              <NavItem
-                icon={RefreshCw} label="Resoumissions" active={activeTab === "resubmissions"}
-                count={counts.resubmissions} countColor={counts.resubmissions > 0 ? "purple" : "gray"}
-                onClick={() => setActiveTab("resubmissions")}
-              />
-              <NavItem
-                icon={Clock} label="SLA watch"
-                count={counts.slaWatch + counts.slaOverdue} countColor={counts.slaOverdue > 0 ? "red" : counts.slaWatch > 0 ? "amber" : "gray"}
-                onClick={() => {}}
-              />
-              <NavItem
-                icon={ArrowUpLeft} label="Retournés"
-                count={counts.returned} countColor={counts.returned > 0 ? "amber" : "gray"}
-                active={activeTab === "returned"}
-                onClick={() => setActiveTab("returned")}
-              />
-              <NavItem
-                icon={PencilLine} label="Brouillons"
-                count={counts.draft} countColor="gray"
-                active={activeTab === "draft"}
-                onClick={() => setActiveTab("draft")}
-              />
-
-              <NavSection label="Historique" />
-              <NavItem
-                icon={CheckCircle2} label="Autorisés"
-                count={counts.accepted} countColor="gray"
-                active={activeTab === "accepted"}
-                onClick={() => setActiveTab("accepted")}
-              />
-              <NavItem icon={BarChart2} label="Journal d'activité" onClick={() => {}} />
-
-              <NavSection label="Référence" />
-              <NavItem icon={Users} label="Registre" onClick={() => {}} />
-              <NavItem icon={FileText} label="Tous les manifestes" active={activeTab === "all"} onClick={() => setActiveTab("all")} />
-            </div>
-
             {/* ── Main content ─────────────────────────────────────── */}
             <div className="flex-1 flex flex-col overflow-hidden">
 
@@ -688,50 +641,6 @@ function StatusBadge({ item }: { item: ManifestQueueItem }) {
   return <Badge className="bg-blue-100 text-blue-700 border-0 text-[10px]">En attente</Badge>;
 }
 
-function NavSection({ label }: { label: string }) {
-  return (
-    <p className="text-[10px] font-medium text-muted-foreground/70 uppercase tracking-widest px-4 pt-3 pb-1.5">{label}</p>
-  );
-}
-
-function NavItem({
-  icon: Icon, label, count, countColor, active, onClick,
-}: {
-  icon: React.ElementType;
-  label: string;
-  count?: number;
-  countColor?: "red" | "amber" | "gray" | "purple";
-  active?: boolean;
-  onClick: () => void;
-}) {
-  const countColors = {
-    red: "bg-red-100 text-red-700",
-    amber: "bg-amber-100 text-amber-700",
-    purple: "bg-violet-100 text-violet-700",
-    gray: "bg-muted text-muted-foreground",
-  };
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`w-full flex items-center justify-between px-4 py-2 text-xs transition-colors ${
-        active
-          ? "text-primary bg-primary/10 border-l-2 border-primary font-medium"
-          : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
-      }`}
-    >
-      <span className="flex items-center gap-2">
-        <Icon className="h-3.5 w-3.5 shrink-0" />
-        {label}
-      </span>
-      {count !== undefined && count > 0 && (
-        <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${countColors[countColor ?? "gray"]}`}>
-          {count}
-        </span>
-      )}
-    </button>
-  );
-}
 
 function Layers({ className }: { className?: string }) {
   return (

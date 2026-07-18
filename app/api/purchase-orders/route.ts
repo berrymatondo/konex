@@ -46,11 +46,11 @@ export async function GET() {
       return NextResponse.json([]);
     }
 
-    // Counterparties only see POs that have been approved (or further).
-    // Statuses below 'approved' (draft, submitted) are internal BCC workflow.
-    // Counterparty sees POs from "approved" onwards — never draft/submitted (internal BCC states).
+    // Counterparties only see POs that have been explicitly sent to them.
+    // 'approved' is an internal BCC state; the PO becomes visible only once
+    // the BCC submits it to the counterparty (→ sent_to_counterparty).
     const COUNTERPARTY_VISIBLE_STATUSES = [
-      'approved', 'sent_to_counterparty', 'accepted', 'manifest_validated',
+      'sent_to_counterparty', 'accepted', 'manifest_validated',
       'in_transit', 'delivered', 'negotiating', 'pending_settlement',
       'declined', 'cancelled',
     ];

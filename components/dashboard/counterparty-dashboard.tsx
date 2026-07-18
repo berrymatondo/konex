@@ -68,12 +68,10 @@ function formatDateTime(value: string | null) {
 }
 
 // ─── Status mapping (real statuses only) ──────────────────────────────────────
-type StatusTone = "toHandle" | "inProgress" | "negotiating" | "settlement" | "closed" | "declined" | "approved";
+type StatusTone = "toHandle" | "inProgress" | "negotiating" | "settlement" | "closed" | "declined";
 
 function counterpartyStatus(status: string): { label: string; tone: StatusTone } {
   switch (status) {
-    case "approved":
-      return { label: "En attente d'envoi", tone: "approved" };
     case "sent_to_counterparty":
       return { label: "À traiter", tone: "toHandle" };
     case "accepted":
@@ -104,7 +102,6 @@ function StatusBadge({ status }: { status: string }) {
     inProgress:  "border-info/30 bg-info/10 text-info",
     negotiating: "border-orange-400/30 bg-orange-400/10 text-orange-400",
     settlement:  "border-amber-400/30 bg-amber-400/10 text-amber-400",
-    approved:    "border-muted-foreground/30 bg-muted text-muted-foreground",
     closed:      "border-muted-foreground/30 bg-muted text-muted-foreground",
     declined:    "border-destructive/30 bg-destructive/10 text-destructive",
   };
