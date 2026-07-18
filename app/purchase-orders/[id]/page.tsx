@@ -1508,7 +1508,7 @@ export default function PurchaseOrderDetailPage() {
                               </CardTitle>
                             </CardHeader>
                             <CardContent>
-                              <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
+                              <div className="grid grid-cols-2 gap-4 sm:grid-cols-[repeat(4,auto)_1fr]">
                                 <RefField
                                   label={
                                     language === "fr"
@@ -1541,15 +1541,15 @@ export default function PurchaseOrderDetailPage() {
                                   value={po.tracking_id || "—"}
                                   mono
                                 />
-                                <div className="space-y-1">
+                                <div className="space-y-1 min-w-0">
                                   <p className="text-xs text-muted-foreground">
                                     {language === "fr" ? "Statut" : "Status"}
                                   </p>
                                   <Badge
                                     variant="outline"
-                                    className={currentStatus.className}
+                                    className={`${currentStatus.className} whitespace-normal h-auto inline-flex gap-1`}
                                   >
-                                    <currentStatus.icon className="mr-1 h-3 w-3" />
+                                    <currentStatus.icon className="h-3 w-3 shrink-0 mt-0.5" />
                                     {currentStatus.label}
                                   </Badge>
                                 </div>

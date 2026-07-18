@@ -259,64 +259,62 @@ export function CounterpartyDashboard() {
                 Aucune commande active pour le moment.
               </p>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b text-left text-xs uppercase tracking-wide text-muted-foreground">
-                      <th className="px-6 py-3 font-medium">Demande</th>
-                      <th className="px-4 py-3 font-medium">Quantité</th>
-                      <th className="px-4 py-3 font-medium">Type / pureté</th>
-                      <th className="px-4 py-3 font-medium">Livraison</th>
-                      <th className="px-4 py-3 font-medium">Montant indicatif</th>
-                      <th className="px-4 py-3 font-medium">Statut</th>
-                      <th className="px-4 py-3" />
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {activeOrders.map((po) => {
-                      const isSelected = selectedId === po.id;
-                      return (
-                        <tr
-                          key={po.id}
-                          onClick={() => setSelectedId(isSelected ? null : po.id)}
-                          className={cn(
-                            "border-b last:border-0 cursor-pointer transition-colors",
-                            isSelected
-                              ? "bg-primary/10 border-l-2 border-l-primary hover:bg-primary/15"
-                              : "hover:bg-muted/40"
-                          )}
-                        >
-                          <td className={cn("py-4 font-medium text-foreground", isSelected ? "pl-5 pr-6" : "px-6")}>
-                            <p className="font-medium text-foreground">{reference(po)}</p>
-                            <p className="text-xs text-muted-foreground">Reçue le {formatDate(po.createdAt)}</p>
-                          </td>
-                          <td className="px-4 py-4 font-medium text-foreground">
-                            {formatWeight(po.estimatedWeightKg)}
-                          </td>
-                          <td className="px-4 py-4">
-                            <p className="text-foreground">{goldTypeLabel(po.goldType)}</p>
-                            <p className="text-xs text-muted-foreground">{purityRange(po)}</p>
-                          </td>
-                          <td className="px-4 py-4 text-foreground">{formatDate(po.expectedDispatchDate)}</td>
-                          <td className="px-4 py-4 font-medium text-foreground">
-                            {formatCurrency(po.totalEstimatedValue, po.currency)}
-                          </td>
-                          <td className="px-4 py-4">
-                            <StatusBadge status={po.status} />
-                          </td>
-                          <td className="px-4 py-4 text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
-                            <Link href={`/purchase-orders/${po.id}`}>
-                              <Button variant="secondary" size="sm">
-                                Examiner <ChevronRight className="ml-1 h-4 w-4" />
-                              </Button>
-                            </Link>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b text-left text-xs uppercase tracking-wide text-muted-foreground">
+                    <th className="px-4 py-3 font-medium">Demande</th>
+                    <th className="px-3 py-3 font-medium">Qté</th>
+                    <th className="px-3 py-3 font-medium">Type / pureté</th>
+                    <th className="px-3 py-3 font-medium">Livraison</th>
+                    <th className="px-3 py-3 font-medium">Montant</th>
+                    <th className="px-3 py-3 font-medium">Statut</th>
+                    <th className="px-3 py-3" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {activeOrders.map((po) => {
+                    const isSelected = selectedId === po.id;
+                    return (
+                      <tr
+                        key={po.id}
+                        onClick={() => setSelectedId(isSelected ? null : po.id)}
+                        className={cn(
+                          "border-b last:border-0 cursor-pointer transition-colors",
+                          isSelected
+                            ? "bg-primary/10 border-l-2 border-l-primary hover:bg-primary/15"
+                            : "hover:bg-muted/40"
+                        )}
+                      >
+                        <td className={cn("py-3 text-foreground", isSelected ? "pl-3 pr-4" : "px-4")}>
+                          <p className="font-medium leading-tight">{reference(po)}</p>
+                          <p className="text-xs text-muted-foreground">Reçue le {formatDate(po.createdAt)}</p>
+                        </td>
+                        <td className="px-3 py-3 font-medium text-foreground whitespace-nowrap">
+                          {formatWeight(po.estimatedWeightKg)}
+                        </td>
+                        <td className="px-3 py-3">
+                          <p className="text-foreground">{goldTypeLabel(po.goldType)}</p>
+                          <p className="text-xs text-muted-foreground">{purityRange(po)}</p>
+                        </td>
+                        <td className="px-3 py-3 text-foreground whitespace-nowrap">{formatDate(po.expectedDispatchDate)}</td>
+                        <td className="px-3 py-3 font-medium text-foreground whitespace-nowrap">
+                          {formatCurrency(po.totalEstimatedValue, po.currency)}
+                        </td>
+                        <td className="px-3 py-3">
+                          <StatusBadge status={po.status} />
+                        </td>
+                        <td className="px-3 py-3 text-right" onClick={(e) => e.stopPropagation()}>
+                          <Link href={`/purchase-orders/${po.id}`}>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
+                              <ChevronRight className="h-4 w-4" />
+                            </Button>
+                          </Link>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             )}
           </CardContent>
         </Card>
