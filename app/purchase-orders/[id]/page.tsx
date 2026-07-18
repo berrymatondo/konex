@@ -1734,13 +1734,14 @@ export default function PurchaseOrderDetailPage() {
                               </CardTitle>
                             </CardHeader>
                             <CardContent>
-                              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+                              <div className={`grid gap-4 ${po.currency === "Mixte" ? "grid-cols-3" : "grid-cols-2"}`}>
                                 <RefField
                                   label={
                                     language === "fr" ? "Devise" : "Currency"
                                   }
                                   value={po.currency || "—"}
                                 />
+                                {po.currency === "Mixte" && (
                                 <RefField
                                   label={
                                     language === "fr"
@@ -1749,6 +1750,7 @@ export default function PurchaseOrderDetailPage() {
                                   }
                                   value={po.payment_usd_cdf_split || "—"}
                                 />
+                                )}
                                 <RefField
                                   label={
                                     language === "fr"
@@ -1772,6 +1774,8 @@ export default function PurchaseOrderDetailPage() {
                                           : po.payment_timing || "—"
                                   }
                                 />
+                              </div>
+                              <div className={`grid gap-4 ${(po.currency === "Mixte" || po.currency === "CDF") ? "grid-cols-3" : "grid-cols-2"}`}>
                                 <RefField
                                   label={
                                     language === "fr"
@@ -1792,6 +1796,7 @@ export default function PurchaseOrderDetailPage() {
                                       : "—"
                                   }
                                 />
+                                {(po.currency === "Mixte" || po.currency === "CDF") && (
                                 <RefField
                                   label={
                                     language === "fr"
@@ -1806,6 +1811,7 @@ export default function PurchaseOrderDetailPage() {
                                       : po.cdf_fx_basis || "—"
                                   }
                                 />
+                                )}
                               </div>
                             </CardContent>
                           </Card>

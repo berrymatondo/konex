@@ -544,7 +544,7 @@ export default function NewPurchaseOrderPage() {
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                      <div className="grid gap-4 sm:grid-cols-3">
+                      <div className={`grid gap-4 ${isMixed ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
                         <div className="space-y-2">
                           <Label>
                             {language === "fr" ? "Devise" : "Currency"} <span className="text-destructive">*</span>
@@ -564,14 +564,14 @@ export default function NewPurchaseOrderPage() {
                             </SelectContent>
                           </Select>
                         </div>
+                        {isMixed && (
                         <div className="space-y-2">
-                          <Label className={isMixed ? "" : "text-muted-foreground"}>
+                          <Label>
                             {language === "fr" ? "Répartition USD / CDF" : "USD / CDF Split"}
                           </Label>
                           <Select
                             value={formData.usdCdfSplit}
                             onValueChange={(value) => setFormData({ ...formData, usdCdfSplit: value })}
-                            disabled={!isMixed}
                           >
                             <SelectTrigger>
                               <SelectValue />
@@ -583,6 +583,7 @@ export default function NewPurchaseOrderPage() {
                             </SelectContent>
                           </Select>
                         </div>
+                        )}
                         <div className="space-y-2">
                           <Label>
                             {language === "fr" ? "Moment du paiement" : "Payment Timing"}{" "}
@@ -604,7 +605,7 @@ export default function NewPurchaseOrderPage() {
                         </div>
                       </div>
 
-                      <div className="grid gap-4 sm:grid-cols-3">
+                      <div className={`grid gap-4 ${involvesCdf ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
                         <div className="space-y-2">
                           <Label>{language === "fr" ? "Délai de paiement" : "Payment Term"}</Label>
                           <Select
@@ -639,14 +640,14 @@ export default function NewPurchaseOrderPage() {
                             </SelectContent>
                           </Select>
                         </div>
+                        {involvesCdf && (
                         <div className="space-y-2">
-                          <Label className={involvesCdf ? "" : "text-muted-foreground"}>
+                          <Label>
                             {language === "fr" ? "Taux de change pour la part CDF" : "FX Basis for CDF Portion"}
                           </Label>
                           <Select
                             value={formData.cdfFxBasis}
                             onValueChange={(value) => setFormData({ ...formData, cdfFxBasis: value })}
-                            disabled={!involvesCdf}
                           >
                             <SelectTrigger>
                               <SelectValue />
@@ -662,6 +663,7 @@ export default function NewPurchaseOrderPage() {
                             </SelectContent>
                           </Select>
                         </div>
+                        )}
                       </div>
 
                       <p className="text-xs text-muted-foreground">

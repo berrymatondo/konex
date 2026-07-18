@@ -151,6 +151,7 @@ export function CounterpartyDashboard() {
 
   const [historyFilter, setHistoryFilter] = useState<HistoryFilter>("all");
   const [historyPage, setHistoryPage]     = useState(1);
+  const [selectedId, setSelectedId]       = useState<string | null>(null);
   const pageSize = 5;
 
   // KPIs
@@ -172,7 +173,10 @@ export function CounterpartyDashboard() {
 
   const activeOrders = orders.filter((o) => ACTIVE_STATUSES.includes(o.status));
   // Priority: action-needed first, then in-progress
-  const priorityOrder = toHandle[0] || inProgress[0];
+  const priorityOrder  = toHandle[0] || inProgress[0];
+  const selectedOrder  = activeOrders.find((o) => o.id === selectedId) ?? null;
+  // Panel shows the selected row, or falls back to the priority order
+  const displayOrder   = selectedOrder ?? priorityOrder;
 
   const recentActivity = [...orders]
     .sort(
@@ -269,35 +273,47 @@ export function CounterpartyDashboard() {
                     </tr>
                   </thead>
                   <tbody>
-                    {activeOrders.map((po) => (
-                      <tr key={po.id} className="border-b last:border-0 hover:bg-muted/40">
-                        <td className="px-6 py-4">
-                          <p className="font-medium text-foreground">{reference(po)}</p>
-                          <p className="text-xs text-muted-foreground">Reçue le {formatDate(po.createdAt)}</p>
-                        </td>
-                        <td className="px-4 py-4 font-medium text-foreground">
-                          {formatWeight(po.estimatedWeightKg)}
-                        </td>
-                        <td className="px-4 py-4">
-                          <p className="text-foreground">{goldTypeLabel(po.goldType)}</p>
-                          <p className="text-xs text-muted-foreground">{purityRange(po)}</p>
-                        </td>
-                        <td className="px-4 py-4 text-foreground">{formatDate(po.expectedDispatchDate)}</td>
-                        <td className="px-4 py-4 font-medium text-foreground">
-                          {formatCurrency(po.totalEstimatedValue, po.currency)}
-                        </td>
-                        <td className="px-4 py-4">
-                          <StatusBadge status={po.status} />
-                        </td>
-                        <td className="px-4 py-4 text-right">
-                          <Link href={`/purchase-orders/${po.id}`}>
-                            <Button variant="secondary" size="sm">
-                              Examiner <ChevronRight className="ml-1 h-4 w-4" />
-                            </Button>
-                          </Link>
-                        </td>
-                      </tr>
-                    ))}
+                    {activeOrders.map((po) => {
+                      const isSelected = selectedId === po.id;
+                      return (
+                        <tr
+                          key={po.id}
+                          onClick={() => setSelectedId(isSelected ? null : po.id)}
+                          className={cn(
+                            "border-b last:border-0 cursor-pointer transition-colors",
+                            isSelected
+                              ? "bg-primary/10 border-l-2 border-l-primary hover:bg-primary/15"
+                              : "hover:bg-muted/40"
+                          )}
+                        >
+                          <td className={cn("py-4 font-medium text-foreground", isSelected ? "pl-5 pr-6" : "px-6")}>
+                            <p className="font-medium text-foreground">{reference(po)}</p>
+                            <p className="text-xs text-muted-foreground">Reçue le {formatDate(po.createdAt)}</p>
+                          </td>
+                          <td className="px-4 py-4 font-medium text-foreground">
+                            {formatWeight(po.estimatedWeightKg)}
+                          </td>
+                          <td className="px-4 py-4">
+                            <p className="text-foreground">{goldTypeLabel(po.goldType)}</p>
+                            <p className="text-xs text-muted-foreground">{purityRange(po)}</p>
+                          </td>
+                          <td className="px-4 py-4 text-foreground">{formatDate(po.expectedDispatchDate)}</td>
+                          <td className="px-4 py-4 font-medium text-foreground">
+                            {formatCurrency(po.totalEstimatedValue, po.currency)}
+                          </td>
+                          <td className="px-4 py-4">
+                            <StatusBadge status={po.status} />
+                          </td>
+                          <td className="px-4 py-4 text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                            <Link href={`/purchase-orders/${po.id}`}>
+                              <Button variant="secondary" size="sm">
+                                Examiner <ChevronRight className="ml-1 h-4 w-4" />
+                              </Button>
+                            </Link>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -307,32 +323,51 @@ export function CounterpartyDashboard() {
 
         {/* Right column */}
         <div className="space-y-6">
-          {/* Priority */}
-          <Card>
+          {/* Priority / selected order panel */}
+          <Card className={cn(selectedOrder && "ring-2 ring-primary/40")}>
             <CardHeader className="flex flex-row items-center justify-between border-b">
               <div className="flex items-center gap-2">
-                <AlertCircle className="h-5 w-5 text-warning" />
-                <h2 className="text-base font-semibold text-foreground">À traiter en priorité</h2>
+                <AlertCircle className={cn("h-5 w-5", selectedOrder ? "text-primary" : "text-warning")} />
+                <h2 className="text-base font-semibold text-foreground">
+                  {selectedOrder ? "Commande sélectionnée" : "À traiter en priorité"}
+                </h2>
               </div>
-              {priorityOrder && (
-                <Badge variant="outline" className="border-warning/30 bg-warning/10 text-warning">
-                  {ACTION_STATUSES.includes(priorityOrder.status) ? "À traiter" : "En cours"}
+              {displayOrder && (
+                <Badge
+                  variant="outline"
+                  className={cn(
+                    selectedOrder
+                      ? "border-primary/30 bg-primary/10 text-primary"
+                      : "border-warning/30 bg-warning/10 text-warning"
+                  )}
+                >
+                  {selectedOrder
+                    ? counterpartyStatus(displayOrder.status).label
+                    : ACTION_STATUSES.includes(displayOrder.status) ? "À traiter" : "En cours"}
                 </Badge>
               )}
             </CardHeader>
             <CardContent className="space-y-4 p-6">
-              {priorityOrder ? (
+              {displayOrder ? (
                 <>
-                  <p className="text-lg font-semibold text-foreground">{reference(priorityOrder)}</p>
+                  <p className="text-lg font-semibold text-foreground">{reference(displayOrder)}</p>
                   <div className="grid grid-cols-2 gap-3">
-                    <PriorityField label="Quantité demandée" value={formatWeight(priorityOrder.estimatedWeightKg)} />
-                    <PriorityField label="Type d'or" value={`${goldTypeLabel(priorityOrder.goldType)} · ${purityRange(priorityOrder)}`} />
-                    <PriorityField label="Livraison" value={`${priorityOrder.incoterms} · ${priorityOrder.deliveryVaultId}`} />
-                    <PriorityField label="Montant indicatif" value={formatCurrency(priorityOrder.totalEstimatedValue, priorityOrder.currency)} />
+                    <PriorityField label="Quantité demandée" value={formatWeight(displayOrder.estimatedWeightKg)} />
+                    <PriorityField label="Type d'or" value={`${goldTypeLabel(displayOrder.goldType)} · ${purityRange(displayOrder)}`} />
+                    <PriorityField label="Livraison" value={`${displayOrder.incoterms} · ${displayOrder.deliveryVaultId}`} />
+                    <PriorityField label="Montant indicatif" value={formatCurrency(displayOrder.totalEstimatedValue, displayOrder.currency)} />
                   </div>
-                  <Link href={`/purchase-orders/${priorityOrder.id}`} className="block">
+                  <Link href={`/purchase-orders/${displayOrder.id}`} className="block">
                     <Button className="w-full">Examiner la demande</Button>
                   </Link>
+                  {selectedOrder && (
+                    <button
+                      onClick={() => setSelectedId(null)}
+                      className="w-full text-center text-xs text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      Retour à la priorité →
+                    </button>
+                  )}
                 </>
               ) : (
                 <p className="text-sm text-muted-foreground">Aucune demande prioritaire.</p>
