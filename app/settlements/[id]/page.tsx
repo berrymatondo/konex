@@ -71,6 +71,7 @@ const LBMA_RATES = {
 // Mock settlement data
 const mockSettlements: Record<string, {
   id: string;
+  purchaseOrderId?: string | null;
   poReference: string;
   counterparty: { name: string; iban: string; swift: string; jurisdiction: string };
   netWeightKg: number;
@@ -83,7 +84,7 @@ const mockSettlements: Record<string, {
   assayFees: number;
   withholdingTax: number;
   currency: string;
-  status: "pending_valuation" | "pending_review" | "pending_approval" | "executed" | "allocated";
+  status: "pending" | "pending_valuation" | "pending_review" | "pending_approval" | "executed" | "allocated";
   approver1: { name: string; role: string; approved: boolean; timestamp?: string };
   approver2: { name: string; role: string; approved: boolean; timestamp?: string };
   settlementId?: string;
@@ -174,7 +175,63 @@ export default function SettlementDetailPage({ params }: { params: Promise<{ id:
 
   const [activeTab, setActiveTab] = useState("valuation");
   const [settlement, setSettlement] = useState(mockSettlements[resolvedParams.id] || mockSettlements.sett_001);
-  
+  const [isLoadingSettlement, setIsLoadingSettlement] = useState(true);
+
+  // Load real settlement from DB (overrides mock defaults)
+  useEffect(() => {
+    const fetchReal = async () => {
+      try {
+        const res = await fetch(`/api/settlements/${resolvedParams.id}`);
+        if (!res.ok) return;
+        const d = await res.json();
+        const lbmaRate = LBMA_RATES["PM"].rate;
+        const pricePerOz = parseFloat(d.settlement_price_per_oz) || lbmaRate;
+        const premiumPerOz = Math.max(0, pricePerOz - lbmaRate);
+        const fineGoldKg = parseFloat(d.fine_gold_weight_kg) || 0;
+        const statusToTab: Record<string, "valuation" | "review" | "approval" | "allocation"> = {
+          pending: "valuation",
+          pending_review: "review",
+          pending_approval: "approval",
+          allocated: "allocation",
+        };
+        const tab = statusToTab[d.status] || "valuation";
+        setActiveTab(tab);
+        setSettlement((prev) => ({
+          ...prev,
+          id: d.id,
+          purchaseOrderId: d.purchase_order_id,
+          poReference: d.po_reference || d.settlement_reference || d.id,
+          counterparty: {
+            name: d.counterparty_name || "—",
+            iban: "—",
+            swift: "—",
+            jurisdiction: d.counterparty_jurisdiction || "—",
+          },
+          netWeightKg: fineGoldKg,
+          purity: 99.99,
+          pureAuWeightKg: fineGoldKg,
+          fixingType: "PM",
+          premiumPerOz,
+          logisticsCost: 0,
+          insuranceCost: 0,
+          assayFees: 0,
+          withholdingTax: 0,
+          currency: d.currency || "USD",
+          status: d.status || "pending",
+          settlementId: d.settlement_reference,
+          reserveAccountId: d.reserve_account_id || undefined,
+          auditHash: d.audit_hash || undefined,
+          valuationDate: d.initiated_at ? d.initiated_at.split("T")[0] : undefined,
+        }));
+      } catch (e) {
+        console.error("Error fetching settlement:", e);
+      } finally {
+        setIsLoadingSettlement(false);
+      }
+    };
+    fetchReal();
+  }, [resolvedParams.id]);
+
   // Valuation state
   const [selectedFixing, setSelectedFixing] = useState<"AM" | "PM">(settlement.fixingType);
   const [selectedCurrency, setSelectedCurrency] = useState(settlement.currency);
@@ -256,13 +313,23 @@ export default function SettlementDetailPage({ params }: { params: Promise<{ id:
     return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
   };
 
-  const handleApplyPricing = () => {
+  const persistStatus = async (status: string, extra?: Record<string, unknown>) => {
+    await fetch(`/api/settlements/${resolvedParams.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status, ...extra }),
+    });
+  };
+
+  const handleApplyPricing = async () => {
     setIsPriceLocked(true);
+    await persistStatus("pending_review");
     setActiveTab("review");
   };
 
-  const handleProceedToApproval = () => {
+  const handleProceedToApproval = async () => {
     if (reviewChecks.feesMatchPO && reviewChecks.deductionsAuthorized && reviewChecks.bankingVerified) {
+      await persistStatus("pending_approval");
       setActiveTab("approval");
     }
   };
@@ -270,66 +337,55 @@ export default function SettlementDetailPage({ params }: { params: Promise<{ id:
   const handleApproveExecute = async () => {
     if (otp1.length === 6 && otp2.length === 6) {
       setApprovalStatus("processing");
-      
-      const newSettlementId = `SETT-2026-${Math.floor(1000 + Math.random() * 9000)}`;
+
       const newAuditHash = `a3b2c0d4e5f6...${Math.random().toString(36).substring(7)}`;
-      
+      const paymentReference = `PAY-${Date.now()}`;
+
       try {
-        // Update PO status to "settled" to prevent double settlements
-        const poId = settlement.purchaseOrderId || resolvedParams.id;
-        await fetch(`/api/purchase-orders/${poId}`, {
+        // Persist final status to DB — this is the critical step
+        const res = await fetch(`/api/settlements/${resolvedParams.id}`, {
           method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ status: "settled" }),
-        });
-
-        // Update settlement status to "allocated" in the database
-        await fetch(`/api/settlements/${resolvedParams.id}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ 
-            status: "allocated",
-            paymentReference: `PAY-${Date.now()}`,
-            notes: `Settlement executed. Audit hash: ${newAuditHash}`,
-          }),
-        });
-
-        // Create audit log for settlement execution
-        await fetch("/api/audit-log", {
-          method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            entityType: "settlement",
-            entityId: newSettlementId,
-            action: "settlement_executed",
-            previousStatus: "pending_approval",
-            newStatus: "allocated",
-            details: {
-              poReference: settlement.poReference,
-              netPayable,
-              currency: settlement.currency,
-              auditHash: newAuditHash,
-            },
-            performedBy: settlement.approver1.name,
+            status: "allocated",
+            paymentReference,
+            notes: `Règlement exécuté. Hash d'audit: ${newAuditHash}`,
           }),
         });
+
+        if (!res.ok) {
+          throw new Error(`API error: ${res.status}`);
+        }
+
+        // Update PO status if linked
+        if (settlement.purchaseOrderId) {
+          await fetch(`/api/purchase-orders/${settlement.purchaseOrderId}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ status: "settled" }),
+          });
+        }
       } catch (error) {
         console.error("Error updating settlement status:", error);
+        setApprovalStatus("pending");
+        alert(language === "fr"
+          ? "Erreur lors de l'exécution du règlement. Veuillez réessayer."
+          : "Error executing settlement. Please try again.");
+        return;
       }
-      
-      // Simulate execution delay
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+
+      await new Promise((resolve) => setTimeout(resolve, 1500));
       setApprovalStatus("executed");
-      setSettlement({
-        ...settlement,
+      setSettlement((prev) => ({
+        ...prev,
         status: "allocated",
-        settlementId: newSettlementId,
+        settlementId: prev.settlementId || resolvedParams.id,
         reserveAccountId: "CB-RESERVE-001",
         auditHash: newAuditHash,
         valuationDate: new Date().toISOString().split("T")[0],
-        approver1: { ...settlement.approver1, approved: true, timestamp: new Date().toISOString() },
-        approver2: { ...settlement.approver2, approved: true, timestamp: new Date().toISOString() },
-      });
+        approver1: { ...prev.approver1, approved: true, timestamp: new Date().toISOString() },
+        approver2: { ...prev.approver2, approved: true, timestamp: new Date().toISOString() },
+      }));
       setActiveTab("allocation");
     }
   };
@@ -389,6 +445,12 @@ export default function SettlementDetailPage({ params }: { params: Promise<{ id:
             subtitle={language === "fr" ? "Valorisation, règlement et allocation US-06" : "Valuation, Settlement & Allocation US-06"}
           />
           <main className="flex-1 overflow-y-auto p-4 md:p-6">
+            {isLoadingSettlement ? (
+              <div className="flex items-center justify-center h-64 text-muted-foreground">
+                <div className="animate-spin h-6 w-6 border-2 border-primary border-t-transparent rounded-full mr-3" />
+                {language === "fr" ? "Chargement du règlement..." : "Loading settlement..."}
+              </div>
+            ) : (
             <div className="mx-auto max-w-6xl space-y-6">
               {/* Back button and status */}
               <div className="flex items-center justify-between">
@@ -1101,6 +1163,7 @@ export default function SettlementDetailPage({ params }: { params: Promise<{ id:
                 </TabsContent>
               </Tabs>
             </div>
+            )}
           </main>
         </div>
       </div>

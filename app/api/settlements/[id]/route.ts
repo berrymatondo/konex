@@ -58,15 +58,17 @@ export async function PUT(
     }
 
     const previousStatus = current[0].status;
+    const now = new Date().toISOString();
 
-    // Update settlement
+    // Update settlement using actual column names: bank_reference, approved_at, completed_at
     const result = await sql`
       UPDATE settlements
-      SET 
-        status = COALESCE(${status}, status),
-        payment_reference = COALESCE(${paymentReference}, payment_reference),
-        notes = COALESCE(${notes}, notes),
-        paid_at = ${status === 'paid' || status === 'allocated' ? new Date().toISOString() : null}
+      SET
+        status        = COALESCE(${status ?? null}, status),
+        bank_reference = COALESCE(${paymentReference ?? null}, bank_reference),
+        notes         = COALESCE(${notes ?? null}, notes),
+        approved_at   = CASE WHEN ${status ?? null} = 'pending_approval' THEN ${now}::timestamptz ELSE approved_at END,
+        completed_at  = CASE WHEN ${status ?? null} IN ('allocated','completed') THEN ${now}::timestamptz ELSE completed_at END
       WHERE id = ${id}
       RETURNING *
     `;
@@ -78,7 +80,7 @@ export async function PUT(
       action: `settlement_${status || 'updated'}`,
       previousStatus,
       newStatus: status || previousStatus,
-      details: { paymentReference, notes },
+      details: { bankReference: paymentReference, notes },
       performedBy: 'finance_officer',
     });
 

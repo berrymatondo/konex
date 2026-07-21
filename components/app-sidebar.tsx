@@ -9,7 +9,6 @@ import {
   FileCheck,
   ClipboardList,
   Package,
-  FlaskConical,
   Wallet,
   FileText,
   Shield,
@@ -184,8 +183,7 @@ function SidebarContent({ isCollapsed, onNavClick }: { isCollapsed: boolean; onN
     { title: language === "fr" ? "File Manifestes" : "Manifest Queue", href: "/manifest-queue", icon: Inbox },
     { title: language === "fr" ? "Cycle de vie PO" : "PO Lifecycle", href: "/po-lifecycle", icon: GitMerge },
 { title: language === "fr" ? "Réception Coffre" : "Vault Intake", href: "/vault-intake", icon: Warehouse },
-    { title: t.nav.assays, href: "/assays", icon: FlaskConical },
-    { title: t.nav.settlements, href: "/settlements", icon: Wallet },
+{ title: t.nav.settlements, href: "/settlements", icon: Wallet },
   ].filter((item) => canSee(item.href));
 
   const systemNavItems = [

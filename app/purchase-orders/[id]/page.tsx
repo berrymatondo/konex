@@ -57,6 +57,11 @@ import {
   Download,
   RotateCcw,
   Package,
+  GitMerge,
+  Warehouse,
+  Wallet,
+  ExternalLink,
+  Circle,
 } from "lucide-react";
 import { useLanguage } from "@/lib/i18n/language-context";
 import { generatePurchaseOrderPDF } from "@/lib/pdf-generator";
@@ -217,6 +222,38 @@ export default function PurchaseOrderDetailPage() {
   // own draft/submitted manifest; for agents/admins it returns the submitted one.
   const { data: manifest, mutate: mutateManifest } = useSWR<Manifest | null>(
     id ? `/api/purchase-orders/${id}/manifest` : null,
+    fetcher,
+  );
+
+  // Traceability data — PO → Manifest → Vault Reception → Settlement
+  const { data: traceData } = useSWR<{
+    manifests: Array<{
+      id: string; status: string; attempt_number: number;
+      submitted_at: string | null; reviewed_at: string | null;
+      shipment_date: string | null; carrier: string | null;
+      waybill_number: string | null; total_gross_weight_kg: number | null;
+      total_fine_oz: number | null; variance_percent: number | null;
+      destination_vault: string | null;
+    }>;
+    reception: {
+      id: string; po_reference: string | null; tracking_id: string | null;
+      gross_weight_kg: number | null; net_weight_kg: number | null;
+      au_purity: number | null; pure_gold_weight: number | null;
+      vault_location: string | null; validation_status: string | null;
+      created_at: string; sample_id: string | null; assay_method: string | null;
+    } | null;
+    settlement: {
+      id: string; settlement_reference: string; status: string;
+      fine_gold_weight_kg: number; total_amount: number; currency: string;
+      payment_method: string | null; initiated_at: string;
+      approved_at: string | null; completed_at: string | null;
+    } | null;
+    auditLog: Array<{
+      action: string; previous_status: string | null; new_status: string | null;
+      performed_by: string; performed_at: string;
+    }>;
+  }>(
+    id ? `/api/purchase-orders/${id}/trace` : null,
     fetcher,
   );
   const hasSubmittedManifest =
@@ -1731,6 +1768,12 @@ export default function PurchaseOrderDetailPage() {
                     >
                       <Package className="mr-1 sm:mr-2 h-4 w-4" />
                       {language === "fr" ? "Manifeste" : "Manifest"}
+                    </TabsTrigger>
+                  )}
+                  {!isCounterparty && (
+                    <TabsTrigger value="trace" className="text-xs sm:text-sm">
+                      <GitMerge className="mr-1 sm:mr-2 h-4 w-4" />
+                      {language === "fr" ? "Traçabilité" : "Traceability"}
                     </TabsTrigger>
                   )}
                 </TabsList>
@@ -3465,6 +3508,294 @@ export default function PurchaseOrderDetailPage() {
                     </div>
                   </TabsContent>
                 )}
+
+                {/* Traceability Tab */}
+                {!isCounterparty && (
+                  <TabsContent value="trace" className="space-y-6">
+                    {(() => {
+                      const isFr = language === "fr";
+                      const fmt = (d: string | null | undefined) =>
+                        d ? new Date(d).toLocaleDateString(isFr ? "fr-FR" : "en-US", { day: "2-digit", month: "short", year: "numeric" }) : "—";
+                      const fmtDt = (d: string | null | undefined) =>
+                        d ? new Date(d).toLocaleString(isFr ? "fr-FR" : "en-US", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "—";
+
+                      const manifestData = traceData?.manifests ?? [];
+                      const latestManifest = manifestData[manifestData.length - 1] ?? null;
+                      const reception = traceData?.reception ?? null;
+                      const settlement = traceData?.settlement ?? null;
+
+                      const manifestStatusLabel: Record<string, { fr: string; en: string; color: string }> = {
+                        draft:     { fr: "Brouillon", en: "Draft", color: "text-slate-400" },
+                        submitted: { fr: "Soumis", en: "Submitted", color: "text-blue-500" },
+                        accepted:  { fr: "Accepté — en révision BCC", en: "Accepted — BCC review", color: "text-amber-500" },
+                        returned:  { fr: "Retourné", en: "Returned", color: "text-orange-500" },
+                        validated: { fr: "Validé par la BCC", en: "Validated by BCC", color: "text-emerald-500" },
+                      };
+                      const settlementStatusLabel: Record<string, { fr: string; en: string; color: string }> = {
+                        pending:          { fr: "En attente", en: "Pending", color: "text-amber-500" },
+                        pending_review:   { fr: "En révision", en: "In Review", color: "text-blue-400" },
+                        pending_approval: { fr: "En approbation", en: "Pending Approval", color: "text-purple-500" },
+                        allocated:        { fr: "Alloué aux réserves", en: "Allocated to reserves", color: "text-emerald-500" },
+                        completed:        { fr: "Terminé", en: "Completed", color: "text-emerald-500" },
+                      };
+
+                      type NodeStatus = "done" | "active" | "pending" | "error";
+                      const poNodeStatus: NodeStatus =
+                        po?.status === "approved" || po?.status === "sent_to_counterparty" || po?.status === "accepted" || po?.status === "manifest_validated" || po?.status === "in_transit" || po?.status === "delivered" || po?.status === "settled"
+                          ? "done"
+                          : po?.status === "rejected" || po?.status === "declined"
+                          ? "error"
+                          : "active";
+                      const manifestNodeStatus: NodeStatus =
+                        po?.status === "manifest_validated" || po?.status === "in_transit" || po?.status === "delivered" || po?.status === "settled"
+                          ? "done"
+                          : latestManifest
+                          ? "active"
+                          : "pending";
+                      const receptionNodeStatus: NodeStatus =
+                        reception
+                          ? po?.status === "delivered" || po?.status === "settled" ? "done" : "active"
+                          : "pending";
+                      const settlementNodeStatus: NodeStatus =
+                        settlement?.status === "allocated" || settlement?.status === "completed"
+                          ? "done"
+                          : settlement
+                          ? "active"
+                          : "pending";
+
+                      const nodeColors: Record<NodeStatus, { ring: string; dot: string; badge: string }> = {
+                        done:    { ring: "border-emerald-500", dot: "bg-emerald-500", badge: "bg-emerald-500/10 text-emerald-600 border-emerald-500/30" },
+                        active:  { ring: "border-blue-500",   dot: "bg-blue-500",   badge: "bg-blue-500/10 text-blue-600 border-blue-500/30" },
+                        pending: { ring: "border-slate-300 dark:border-slate-600", dot: "bg-slate-300 dark:bg-slate-600", badge: "bg-slate-100 text-slate-500 border-slate-200 dark:bg-slate-800 dark:border-slate-700" },
+                        error:   { ring: "border-red-500",    dot: "bg-red-500",    badge: "bg-red-500/10 text-red-600 border-red-500/30" },
+                      };
+
+                      const TraceNode = ({
+                        icon: Icon, title, subtitle, status, children, href,
+                      }: {
+                        icon: React.ElementType; title: string; subtitle: string;
+                        status: NodeStatus; children?: React.ReactNode; href?: string;
+                      }) => {
+                        const c = nodeColors[status];
+                        return (
+                          <div className="flex gap-4">
+                            {/* Left column: dot + connector */}
+                            <div className="flex flex-col items-center">
+                              <div className={`w-10 h-10 rounded-full border-2 flex items-center justify-center shrink-0 ${c.ring} bg-background`}>
+                                <Icon className={`h-5 w-5 ${status === "pending" ? "text-muted-foreground" : status === "done" ? "text-emerald-500" : status === "error" ? "text-red-500" : "text-blue-500"}`} />
+                              </div>
+                              <div className="w-0.5 flex-1 bg-border mt-2 mb-0 min-h-6" />
+                            </div>
+                            {/* Right column: card */}
+                            <div className={`flex-1 border rounded-lg p-4 mb-6 transition-colors ${status === "pending" ? "opacity-60 bg-muted/30" : "bg-card"}`}>
+                              <div className="flex items-start justify-between gap-2 mb-2">
+                                <div>
+                                  <div className="font-semibold text-sm">{title}</div>
+                                  <div className="text-xs text-muted-foreground">{subtitle}</div>
+                                </div>
+                                {href && status !== "pending" && (
+                                  <Link href={href} className="shrink-0">
+                                    <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs">
+                                      <ExternalLink className="h-3 w-3" />
+                                      {isFr ? "Voir" : "View"}
+                                    </Button>
+                                  </Link>
+                                )}
+                              </div>
+                              {children}
+                            </div>
+                          </div>
+                        );
+                      };
+
+                      const InfoRow = ({ label, value }: { label: string; value: string }) => (
+                        <div className="flex justify-between text-xs py-0.5">
+                          <span className="text-muted-foreground">{label}</span>
+                          <span className="font-medium font-mono">{value}</span>
+                        </div>
+                      );
+
+                      const StatusPill = ({ label, color }: { label: string; color: string }) => (
+                        <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border ${color.includes("emerald") ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/30" : color.includes("blue") ? "bg-blue-500/10 text-blue-600 border-blue-500/30" : color.includes("amber") ? "bg-amber-500/10 text-amber-600 border-amber-500/30" : color.includes("purple") ? "bg-purple-500/10 text-purple-600 border-purple-500/30" : color.includes("orange") ? "bg-orange-500/10 text-orange-600 border-orange-500/30" : "bg-slate-100 text-slate-500 border-slate-200 dark:bg-slate-800 dark:border-slate-700"}`}>
+                          <Circle className="h-1.5 w-1.5 fill-current" />
+                          {label}
+                        </span>
+                      );
+
+                      return (
+                        <div className="max-w-2xl mx-auto">
+                          {/* Header */}
+                          <div className="mb-6 p-4 rounded-lg border bg-muted/30">
+                            <div className="text-xs text-muted-foreground mb-1">{isFr ? "Bon de commande" : "Purchase Order"}</div>
+                            <div className="font-mono font-bold text-lg">{po?.tracking_id ?? po?.id}</div>
+                            <div className="text-sm text-muted-foreground mt-1">
+                              {po?.counterparty_name} · {isFr ? "Créé le" : "Created"} {fmt(po?.created_at)}
+                            </div>
+                          </div>
+
+                          {/* Timeline */}
+                          <div className="relative">
+                            {/* 1. Bon de commande */}
+                            <TraceNode
+                              icon={ShoppingCart}
+                              title={isFr ? "Bon de commande" : "Purchase Order"}
+                              subtitle={po?.tracking_id ?? ""}
+                              status={poNodeStatus}
+                              href={`/purchase-orders/${po?.id}`}
+                            >
+                              <div className="space-y-1 mt-2">
+                                <InfoRow label={isFr ? "Statut" : "Status"} value={po?.status?.replace(/_/g, " ") ?? "—"} />
+                                <InfoRow label={isFr ? "Poids estimé" : "Est. weight"} value={po?.estimated_weight_kg ? `${Number(po.estimated_weight_kg).toFixed(3)} kg` : "—"} />
+                                <InfoRow label={isFr ? "Valeur estimée" : "Est. value"} value={po?.total_estimated_value ? `${Number(po.total_estimated_value).toLocaleString(isFr ? "fr-FR" : "en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${po.currency}` : "—"} />
+                                <InfoRow label={isFr ? "Approuvé le" : "Approved"} value={fmt(po?.approved_at)} />
+                                <InfoRow label={isFr ? "Envoyé à la CP le" : "Sent to CP"} value={fmt(po?.sent_to_counterparty_at)} />
+                              </div>
+                            </TraceNode>
+
+                            {/* 2. Manifeste */}
+                            <TraceNode
+                              icon={Package}
+                              title={isFr ? "Manifeste d'expédition" : "Shipping Manifest"}
+                              subtitle={latestManifest ? `${isFr ? "Tentative" : "Attempt"} #${latestManifest.attempt_number}` : isFr ? "Aucun manifeste soumis" : "No manifest submitted"}
+                              status={manifestNodeStatus}
+                              href={latestManifest ? `/purchase-orders/${po?.id}` : undefined}
+                            >
+                              {latestManifest ? (
+                                <div className="space-y-1 mt-2">
+                                  <div className="flex items-center gap-2 mb-2">
+                                    {(() => {
+                                      const s = manifestStatusLabel[latestManifest.status];
+                                      return s ? <StatusPill label={isFr ? s.fr : s.en} color={s.color} /> : <span className="text-xs text-muted-foreground">{latestManifest.status}</span>;
+                                    })()}
+                                    {manifestData.length > 1 && (
+                                      <span className="text-xs text-muted-foreground">({manifestData.length} {isFr ? "tentatives" : "attempts"})</span>
+                                    )}
+                                  </div>
+                                  <InfoRow label={isFr ? "Soumis le" : "Submitted"} value={fmtDt(latestManifest.submitted_at)} />
+                                  <InfoRow label={isFr ? "Révisé le" : "Reviewed"} value={fmtDt(latestManifest.reviewed_at)} />
+                                  {latestManifest.carrier && <InfoRow label={isFr ? "Transporteur" : "Carrier"} value={latestManifest.carrier} />}
+                                  {latestManifest.waybill_number && <InfoRow label={isFr ? "Lettre de voiture" : "Waybill"} value={latestManifest.waybill_number} />}
+                                  {latestManifest.total_gross_weight_kg && <InfoRow label={isFr ? "Poids brut" : "Gross weight"} value={`${Number(latestManifest.total_gross_weight_kg).toFixed(3)} kg`} />}
+                                  {latestManifest.total_fine_oz && <InfoRow label={isFr ? "Or fin déclaré" : "Declared fine oz"} value={`${Number(latestManifest.total_fine_oz).toFixed(3)} oz`} />}
+                                </div>
+                              ) : (
+                                <p className="text-xs text-muted-foreground mt-2 italic">
+                                  {isFr ? "En attente de soumission par la contrepartie." : "Awaiting submission by counterparty."}
+                                </p>
+                              )}
+                            </TraceNode>
+
+                            {/* 3. Réception Coffre */}
+                            <TraceNode
+                              icon={Warehouse}
+                              title={isFr ? "Réception Coffre" : "Vault Reception"}
+                              subtitle={reception ? (reception.po_reference as string | null ?? reception.tracking_id as string ?? "—") : isFr ? "Pas encore reçu" : "Not yet received"}
+                              status={receptionNodeStatus}
+                              href={reception ? `/vault-intake/${reception.id}` : undefined}
+                            >
+                              {reception ? (
+                                <div className="space-y-1 mt-2">
+                                  {reception.validation_status && (
+                                    <div className="mb-2">
+                                      <StatusPill
+                                        label={reception.validation_status === "passed" ? (isFr ? "Analyse validée" : "Assay passed") : reception.validation_status === "failed" ? (isFr ? "Analyse échouée" : "Assay failed") : String(reception.validation_status)}
+                                        color={reception.validation_status === "passed" ? "text-emerald-500" : "text-red-500"}
+                                      />
+                                    </div>
+                                  )}
+                                  <InfoRow label={isFr ? "Reçu le" : "Received"} value={fmtDt(reception.created_at)} />
+                                  {reception.gross_weight_kg && <InfoRow label={isFr ? "Poids brut" : "Gross weight"} value={`${Number(reception.gross_weight_kg).toFixed(3)} kg`} />}
+                                  {reception.net_weight_kg && <InfoRow label={isFr ? "Poids net" : "Net weight"} value={`${Number(reception.net_weight_kg).toFixed(3)} kg`} />}
+                                  {reception.au_purity && <InfoRow label={isFr ? "Pureté Au" : "Au purity"} value={`${Number(reception.au_purity).toFixed(2)}%`} />}
+                                  {reception.pure_gold_weight && <InfoRow label={isFr ? "Or pur" : "Pure gold"} value={`${Number(reception.pure_gold_weight).toFixed(2)} g`} />}
+                                  {reception.vault_location && <InfoRow label={isFr ? "Emplacement" : "Location"} value={String(reception.vault_location)} />}
+                                  {reception.assay_method && <InfoRow label={isFr ? "Méthode" : "Method"} value={String(reception.assay_method)} />}
+                                </div>
+                              ) : (
+                                <p className="text-xs text-muted-foreground mt-2 italic">
+                                  {isFr ? "En attente de réception physique à la BCC." : "Awaiting physical receipt at BCC vault."}
+                                </p>
+                              )}
+                            </TraceNode>
+
+                            {/* 4. Règlement */}
+                            <div className="flex gap-4">
+                              <div className="flex flex-col items-center">
+                                <div className={`w-10 h-10 rounded-full border-2 flex items-center justify-center shrink-0 ${nodeColors[settlementNodeStatus].ring} bg-background`}>
+                                  <Wallet className={`h-5 w-5 ${settlementNodeStatus === "pending" ? "text-muted-foreground" : settlementNodeStatus === "done" ? "text-emerald-500" : "text-blue-500"}`} />
+                                </div>
+                              </div>
+                              <div className={`flex-1 border rounded-lg p-4 mb-2 transition-colors ${settlementNodeStatus === "pending" ? "opacity-60 bg-muted/30" : "bg-card"}`}>
+                                <div className="flex items-start justify-between gap-2 mb-2">
+                                  <div>
+                                    <div className="font-semibold text-sm">{isFr ? "Règlement" : "Settlement"}</div>
+                                    <div className="text-xs text-muted-foreground">
+                                      {settlement ? (settlement.settlement_reference as string) : isFr ? "Aucun règlement initié" : "No settlement initiated"}
+                                    </div>
+                                  </div>
+                                  {settlement && (
+                                    <Link href={`/settlements/${settlement.id}`}>
+                                      <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs">
+                                        <ExternalLink className="h-3 w-3" />
+                                        {isFr ? "Voir" : "View"}
+                                      </Button>
+                                    </Link>
+                                  )}
+                                </div>
+                                {settlement ? (
+                                  <div className="space-y-1">
+                                    {(() => {
+                                      const s = settlementStatusLabel[settlement.status as string];
+                                      return s ? <div className="mb-2"><StatusPill label={isFr ? s.fr : s.en} color={s.color} /></div> : null;
+                                    })()}
+                                    <InfoRow label={isFr ? "Initié le" : "Initiated"} value={fmtDt(settlement.initiated_at)} />
+                                    <InfoRow label={isFr ? "Or fin" : "Fine gold"} value={`${Number(settlement.fine_gold_weight_kg).toFixed(3)} kg`} />
+                                    <InfoRow label={isFr ? "Montant total" : "Total amount"} value={`${Number(settlement.total_amount).toLocaleString(isFr ? "fr-FR" : "en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${settlement.currency}`} />
+                                    {settlement.approved_at && <InfoRow label={isFr ? "Approuvé le" : "Approved"} value={fmtDt(settlement.approved_at)} />}
+                                    {settlement.completed_at && <InfoRow label={isFr ? "Complété le" : "Completed"} value={fmtDt(settlement.completed_at)} />}
+                                  </div>
+                                ) : (
+                                  <p className="text-xs text-muted-foreground mt-2 italic">
+                                    {isFr
+                                      ? "Le règlement sera initié après validation de la réception coffre."
+                                      : "Settlement will be initiated after vault reception is validated."}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Audit log */}
+                          {traceData?.auditLog && traceData.auditLog.length > 0 && (
+                            <div className="mt-6">
+                              <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                                <FileText className="h-4 w-4 text-muted-foreground" />
+                                {isFr ? "Journal d'activité" : "Activity Log"}
+                              </h3>
+                              <div className="space-y-1 border rounded-lg overflow-hidden">
+                                {traceData.auditLog.map((entry, i) => (
+                                  <div key={i} className={`flex items-start gap-3 px-3 py-2 text-xs ${i % 2 === 0 ? "bg-muted/30" : ""}`}>
+                                    <span className="text-muted-foreground shrink-0 w-28 font-mono">
+                                      {new Date(entry.performed_at).toLocaleString(isFr ? "fr-FR" : "en-US", { month: "short", day: "2-digit", hour: "2-digit", minute: "2-digit" })}
+                                    </span>
+                                    <span className="flex-1 text-foreground">
+                                      {entry.action.replace(/_/g, " ")}
+                                      {entry.new_status && (
+                                        <span className="ml-1 text-muted-foreground">→ <span className="font-mono">{entry.new_status}</span></span>
+                                      )}
+                                    </span>
+                                    <span className="text-muted-foreground shrink-0">{entry.performed_by}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
+                  </TabsContent>
+                )}
+
               </Tabs>
             </div>
           </main>

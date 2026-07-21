@@ -114,9 +114,9 @@ export default function SettlementsPage() {
 
   const stats = {
     total: settlements.length,
-    pending: settlements.filter((s) => s.status === "pending").length,
+    pending: settlements.filter((s) => ["pending", "pending_review", "pending_approval"].includes(s.status)).length,
     approved: settlements.filter((s) => s.status === "approved").length,
-    completed: settlements.filter((s) => s.status === "completed").length,
+    completed: settlements.filter((s) => ["completed", "allocated"].includes(s.status)).length,
     totalValue: settlements.reduce((sum, s) => sum + (s.totalAmount || 0), 0),
   };
 
@@ -124,10 +124,15 @@ export default function SettlementsPage() {
     switch (status) {
       case "pending":
         return <Badge variant="outline" className="border-amber-500 text-amber-500"><Clock className="mr-1 h-3 w-3" />{language === "fr" ? "En attente" : "Pending"}</Badge>;
+      case "pending_review":
+        return <Badge variant="outline" className="border-blue-400 text-blue-400"><Clock className="mr-1 h-3 w-3" />{language === "fr" ? "En révision" : "In Review"}</Badge>;
+      case "pending_approval":
+        return <Badge variant="outline" className="border-purple-500 text-purple-500"><Clock className="mr-1 h-3 w-3" />{language === "fr" ? "En approbation" : "Pending Approval"}</Badge>;
       case "approved":
         return <Badge variant="outline" className="border-blue-500 text-blue-500"><CheckCircle2 className="mr-1 h-3 w-3" />{language === "fr" ? "Approuvé" : "Approved"}</Badge>;
+      case "allocated":
       case "completed":
-        return <Badge variant="outline" className="border-emerald-500 text-emerald-500"><CheckCircle2 className="mr-1 h-3 w-3" />{language === "fr" ? "Complété" : "Completed"}</Badge>;
+        return <Badge className="bg-emerald-500 text-white"><CheckCircle2 className="mr-1 h-3 w-3" />{language === "fr" ? "Complété" : "Completed"}</Badge>;
       case "rejected":
         return <Badge variant="destructive"><XCircle className="mr-1 h-3 w-3" />{language === "fr" ? "Rejeté" : "Rejected"}</Badge>;
       default:
@@ -412,7 +417,7 @@ export default function SettlementsPage() {
                             <TableRow 
                               key={settlement.id} 
                               className="cursor-pointer hover:bg-muted/50"
-                              onClick={() => window.location.href = `/settlements/sett_001`}
+                              onClick={() => window.location.href = `/settlements/${settlement.id}`}
                             >
                               <TableCell className="font-mono text-sm">{settlement.settlementReference}</TableCell>
                               <TableCell>
