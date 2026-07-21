@@ -2,8 +2,8 @@ const KEY = "app.settings";
 
 export const APP_SETTINGS_DEFAULTS = {
   usdcdf: 2257.35,
-  gold:    2345.60,
-  copper:  9742.00,
+  gold:    4072.03,
+  copper:  13824.42,
 } as const;
 
 export type AppSettings = { usdcdf: number; gold: number; copper: number };

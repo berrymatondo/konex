@@ -362,8 +362,8 @@ const LIQUIDITY_KPIS: LiquidityKpi[] = [
 ];
 
 const COMMODITY_ROWS: CommodityRow[] = [
-  { label: "Gold (XAU/USD)", level: 2345.6, levelDec: 2, d1: 0.79, m1: 4.12 },
-  { label: "Copper (LME 3M)", level: 9742.0, levelDec: 0, d1: -0.56, m1: 2.35 },
+  { label: "Gold (XAU/USD)", level: 4072.03, levelDec: 2, d1: 0.79, m1: 4.12 },
+  { label: "Copper (LME 3M)", level: 13824.42, levelDec: 2, d1: -0.56, m1: 2.35 },
   { label: "Brent (ICE)", level: 84.32, levelDec: 2, d1: 0.74, m1: -1.22 },
   {
     label: "Bloomberg Commodity Index",
@@ -632,7 +632,7 @@ const TICKER_STATIC: TickerItem[] = [
   {
     id: "cobalt",
     label: "Cobalt LME",
-    value: 27450,
+    value: 56290,
     changePct: +1.24,
     unit: "USD/t",
   },
