@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import { sql, createAuditLog, ensurePurchaseOrderTermsColumns, ensurePurchaseOrderResponseColumns } from "@/lib/db";
 import { notifyCounterparty } from "@/lib/notifications";
 import { getSessionUser, getCounterpartyScope } from "@/lib/session-user";
+import { sendCounterpartyOrderEmail } from "@/lib/email";
+import { buildPurchaseOrderPDFArrayBuffer } from "@/lib/pdf-generator";
+import { getBaseUrl } from "@/lib/base-url";
 
 const COUNTERPARTY_VISIBLE_STATUSES = [
   'approved', 'sent_to_counterparty', 'accepted', 'manifest_validated',
@@ -62,6 +65,7 @@ export async function PUT(
   try {
     const { id } = await params;
     const body = await request.json();
+    let submitMeta: { email: string; emailError?: string } | undefined;
     const { 
       status, 
       approvedAt, 
@@ -320,13 +324,141 @@ export async function PUT(
         details: { notes: cancellationNote },
         performedBy: approval?.name || 'system',
       });
+    } else if (status === "sent_to_counterparty") {
+      await ensurePurchaseOrderResponseColumns();
+
+      const poRows = await sql`
+        SELECT po.*, c.legal_name AS counterparty_name, c.primary_email AS counterparty_email,
+               c.primary_contact AS counterparty_contact
+        FROM purchase_orders po
+        LEFT JOIN counterparties c ON po.counterparty_id = c.id
+        WHERE po.id = ${id}
+      `;
+      if (poRows.length === 0) {
+        return NextResponse.json({ error: "Purchase order not found" }, { status: 404 });
+      }
+      const poData = poRows[0];
+
+      if (!["approved", "sent_to_counterparty"].includes(poData.status as string)) {
+        return NextResponse.json(
+          { error: "Le bon de commande doit être approuvé par la BCC avant d'être transmis à la contrepartie." },
+          { status: 400 },
+        );
+      }
+      if (!poData.counterparty_id) {
+        return NextResponse.json({ error: "Aucune contrepartie associée à ce bon de commande." }, { status: 400 });
+      }
+
+      const defaultName =
+        (poData.counterparty_contact as string | null) ||
+        (poData.counterparty_name as string | null) || "Contrepartie";
+      const recipients: { email: string; name: string }[] = [];
+
+      const cpUsers = await sql`
+        SELECT email, name FROM "user"
+        WHERE counterparty_id = ${poData.counterparty_id as string} AND role = 'counterparty'
+        LIMIT 1
+      `;
+      if (cpUsers.length > 0 && cpUsers[0].email) {
+        recipients.push({ email: cpUsers[0].email as string, name: (cpUsers[0].name as string | null) || defaultName });
+      }
+      const cpEmail = (poData.counterparty_email as string | null) || null;
+      if (cpEmail && !recipients.some((r) => r.email.toLowerCase() === cpEmail.toLowerCase())) {
+        recipients.push({ email: cpEmail, name: defaultName });
+      }
+
+      if (recipients.length === 0) {
+        return NextResponse.json({ error: "Aucune adresse email trouvée pour cette contrepartie." }, { status: 400 });
+      }
+
+      const reference = (poData.tracking_id as string | null) || `PO-${id.slice(0, 8).toUpperCase()}`;
+      const respondUrl = `${getBaseUrl()}/purchase-orders/${id}/respond`;
+      const now = new Date().toISOString();
+
+      let pdf: Buffer | undefined;
+      try {
+        const ab = buildPurchaseOrderPDFArrayBuffer(
+          {
+            reference,
+            counterpartyName: (poData.counterparty_name as string | null) || "Unknown",
+            status: poData.status as string,
+            estimatedWeight: Number.parseFloat(poData.estimated_weight_kg) || 0,
+            purityFactor: Number.parseFloat(poData.purity_factor) || 0.88,
+            totalValue: Number.parseFloat(poData.total_estimated_value) || 0,
+            currency: (poData.currency as string) || "USD",
+            incoterms: poData.incoterms as string | undefined,
+            deliveryVault: poData.delivery_vault_id as string | undefined,
+            createdAt: poData.created_at as string,
+          },
+          { title: "Demande d'Achat / Purchase Order", filename: `${reference}.pdf` },
+        );
+        pdf = Buffer.from(ab);
+      } catch (pdfErr) {
+        console.error("PDF build failed (non-blocking):", pdfErr);
+      }
+
+      let emailError: string | undefined;
+      for (const recipient of recipients) {
+        try {
+          const emailResult = await sendCounterpartyOrderEmail({
+            to: recipient.email,
+            name: recipient.name,
+            reference,
+            respondUrl,
+            goldType: (poData.gold_type as string | null) || undefined,
+            estimatedWeight: Number.parseFloat(poData.estimated_weight_kg) || undefined,
+            assayRange: (poData.assay_range as string | null) || undefined,
+            incoterms: (poData.incoterms as string | null) || undefined,
+            totalValue: Number.parseFloat(poData.total_estimated_value) || undefined,
+            currency: (poData.currency as string) || "USD",
+            pdf,
+            filename: `${reference}.pdf`,
+          });
+          if (!emailResult.ok) emailError = emailResult.error;
+        } catch (e) {
+          emailError = String(e);
+        }
+      }
+
+      const recipientEmail = recipients.map((r) => r.email).join(", ");
+
+      await sql`
+        UPDATE purchase_orders
+        SET status = 'sent_to_counterparty', sent_to_counterparty_at = ${now}
+        WHERE id = ${id}
+      `;
+
+      try {
+        await notifyCounterparty({
+          counterpartyId: poData.counterparty_id as string,
+          title: `Nouvelle demande d'achat ${reference}`,
+          message: `La Banque Centrale vous a transmis la demande d'achat ${reference}. Vous pouvez l'accepter, la négocier ou la décliner.`,
+          type: "info",
+          link: `/purchase-orders/${id}/respond`,
+        });
+      } catch (notifyErr) {
+        console.error("Notification failed (non-blocking):", notifyErr);
+      }
+
+      await createAuditLog({
+        entityType: "purchase_order",
+        entityId: id,
+        action: "submitted_to_counterparty",
+        previousStatus: poData.status as string,
+        newStatus: "sent_to_counterparty",
+        details: { recipientEmail },
+        performedBy: sessionUser?.id ?? "system",
+      });
+
+      submitMeta = { email: recipientEmail, emailError };
+
     } else if (status) {
       // Get previous status for audit log
       const prevResult = await sql`SELECT status FROM purchase_orders WHERE id = ${id}`;
       const previousStatus = prevResult[0]?.status;
 
       await sql`
-        UPDATE purchase_orders 
+        UPDATE purchase_orders
         SET status = ${status}
         WHERE id = ${id}
       `;
@@ -362,6 +494,7 @@ export async function PUT(
         comments: a.comments,
         decidedAt: a.decided_at,
       })),
+      ...(submitMeta ? { _submitMeta: submitMeta } : {}),
     });
   } catch (error) {
     console.error("Error updating purchase order:", error);

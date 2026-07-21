@@ -51,7 +51,10 @@ import {
   Calculator,
   ShieldCheck,
   Trash2,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { useLanguage } from "@/lib/i18n/language-context";
 import { authClient } from "@/lib/auth-client";
 import Link from "next/link";
@@ -95,6 +98,21 @@ interface PurchaseOrder {
   payment_term: string | null;
   prepayment_percent: number | null;
   cdf_fx_basis: string | null;
+  cp_response?: string | null;
+  cp_responded_at?: string | null;
+  cp_lot_reference?: string | null;
+  cp_proposed_weight_kg?: number | null;
+  cp_proposed_purity?: number | null;
+  cp_gold_form?: string | null;
+  cp_lot_availability?: string | null;
+  cp_lot_available_date?: string | null;
+  cp_lot_location?: string | null;
+  cp_assay_certificate_url?: string | null;
+  cp_assay_certificate_file_name?: string | null;
+  cp_proposed_dispatch_date?: string | null;
+  cp_estimated_delivery_date?: string | null;
+  cp_proposed_premium?: number | null;
+  cp_comment?: string | null;
 }
 
 const INCOTERMS = ["EXW", "FCA", "CPT", "CIP", "DAP", "DPU", "DDP"];
@@ -126,9 +144,11 @@ export default function EditPurchaseOrderPage() {
   const params = useParams();
   const id = params.id as string;
   const { language } = useLanguage();
+  const isFr = language === "fr";
   const { data: session } = authClient.useSession();
 
   const agentName = session?.user?.name ?? session?.user?.email ?? "—";
+  const [cpPanelOpen, setCpPanelOpen] = useState(true);
 
   const { data: po, isLoading: poLoading } = useSWR<PurchaseOrder>(`/api/purchase-orders/${id}`, fetcher);
   const { data: counterparties = [] } = useSWR<Counterparty[]>("/api/counterparties", fetcher);
@@ -465,6 +485,146 @@ export default function EditPurchaseOrderPage() {
               <div className="grid gap-4 sm:gap-6 lg:grid-cols-3">
                 {/* Main Form */}
                 <div className="lg:col-span-2 space-y-4 sm:space-y-6">
+
+                  {/* Counter-proposal banner — visible when CP has negotiated */}
+                  {po?.status === "negotiating" && (
+                    <Alert className="border-warning bg-warning/10">
+                      <RefreshCw className="h-5 w-5 text-warning" />
+                      <AlertTitle className="text-warning flex items-center justify-between">
+                        <span>{isFr ? "Contre-proposition de la contrepartie" : "Counter-proposal from counterparty"}</span>
+                        <button
+                          type="button"
+                          onClick={() => setCpPanelOpen((v) => !v)}
+                          className="ml-4 inline-flex items-center gap-1 text-xs font-normal text-warning/80 hover:text-warning"
+                        >
+                          {cpPanelOpen
+                            ? (isFr ? "Réduire" : "Collapse")
+                            : (isFr ? "Afficher" : "Expand")}
+                          {cpPanelOpen ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                        </button>
+                      </AlertTitle>
+                      {cpPanelOpen && (
+                        <AlertDescription className="mt-3 space-y-3">
+                          {po.cp_responded_at && (
+                            <p className="text-xs text-muted-foreground">
+                              {isFr ? "Répondu le" : "Responded on"}{" "}
+                              {new Date(po.cp_responded_at).toLocaleString()}
+                            </p>
+                          )}
+
+                          {/* Lot proposé */}
+                          {(po.cp_lot_reference || po.cp_proposed_weight_kg != null || po.cp_proposed_purity != null || po.cp_gold_form || po.cp_lot_availability || po.cp_lot_available_date || po.cp_lot_location) && (
+                            <div className="rounded-md border border-warning/30 bg-background/60 px-3 py-2.5">
+                              <p className="text-[10px] font-semibold uppercase tracking-widest text-warning mb-2">
+                                {isFr ? "Lot proposé" : "Proposed lot"}
+                              </p>
+                              <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-sm sm:grid-cols-3">
+                                {po.cp_lot_reference && (
+                                  <>
+                                    <span className="text-muted-foreground">{isFr ? "Référence" : "Reference"}</span>
+                                    <span className="font-medium sm:col-span-2">{po.cp_lot_reference}</span>
+                                  </>
+                                )}
+                                {po.cp_proposed_weight_kg != null && (
+                                  <>
+                                    <span className="text-muted-foreground">{isFr ? "Quantité" : "Weight"}</span>
+                                    <span className="font-medium sm:col-span-2">
+                                      {Number(po.cp_proposed_weight_kg).toLocaleString(isFr ? "fr-FR" : "en-US", { maximumFractionDigits: 3 })} kg
+                                    </span>
+                                  </>
+                                )}
+                                {po.cp_proposed_purity != null && (
+                                  <>
+                                    <span className="text-muted-foreground">{isFr ? "Pureté" : "Purity"}</span>
+                                    <span className="font-medium sm:col-span-2">
+                                      {Number(po.cp_proposed_purity).toLocaleString(isFr ? "fr-FR" : "en-US", { maximumFractionDigits: 2 })} %
+                                    </span>
+                                  </>
+                                )}
+                                {po.cp_gold_form && (
+                                  <>
+                                    <span className="text-muted-foreground">{isFr ? "Forme" : "Form"}</span>
+                                    <span className="font-medium sm:col-span-2">
+                                      {({ dore_bars: isFr ? "Doré" : "Doré Bars", refined_bars: isFr ? "Lingots Raffinés" : "Refined Bars", gold_dust: isFr ? "Poudre d'Or" : "Gold Dust", scrap_gold: isFr ? "Or de Récupération" : "Scrap Gold" } as Record<string, string>)[po.cp_gold_form] ?? po.cp_gold_form}
+                                    </span>
+                                  </>
+                                )}
+                                {po.cp_lot_availability && (
+                                  <>
+                                    <span className="text-muted-foreground">{isFr ? "Disponibilité" : "Availability"}</span>
+                                    <span className="font-medium sm:col-span-2">
+                                      {({ confirmed: isFr ? "Confirmée" : "Confirmed", partial: isFr ? "Partielle" : "Partial", pending: isFr ? "En attente" : "Pending", on_request: isFr ? "Sur demande" : "On request" } as Record<string, string>)[po.cp_lot_availability] ?? po.cp_lot_availability}
+                                    </span>
+                                  </>
+                                )}
+                                {po.cp_lot_available_date && (
+                                  <>
+                                    <span className="text-muted-foreground">{isFr ? "Dispo. le" : "Available"}</span>
+                                    <span className="font-medium sm:col-span-2">
+                                      {new Date(po.cp_lot_available_date).toLocaleDateString(isFr ? "fr-FR" : "en-US")}
+                                    </span>
+                                  </>
+                                )}
+                                {po.cp_lot_location && (
+                                  <>
+                                    <span className="text-muted-foreground">{isFr ? "Localisation" : "Location"}</span>
+                                    <span className="font-medium sm:col-span-2">{po.cp_lot_location}</span>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Livraison et conditions */}
+                          {(po.cp_proposed_dispatch_date || po.cp_estimated_delivery_date || po.cp_proposed_premium != null) && (
+                            <div className="rounded-md border border-warning/30 bg-background/60 px-3 py-2.5">
+                              <p className="text-[10px] font-semibold uppercase tracking-widest text-warning mb-2">
+                                {isFr ? "Livraison et conditions" : "Delivery & terms"}
+                              </p>
+                              <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-sm sm:grid-cols-3">
+                                {po.cp_proposed_dispatch_date && (
+                                  <>
+                                    <span className="text-muted-foreground">{isFr ? "Expédition" : "Dispatch"}</span>
+                                    <span className="font-medium sm:col-span-2">
+                                      {new Date(po.cp_proposed_dispatch_date).toLocaleDateString(isFr ? "fr-FR" : "en-US")}
+                                    </span>
+                                  </>
+                                )}
+                                {po.cp_estimated_delivery_date && (
+                                  <>
+                                    <span className="text-muted-foreground">{isFr ? "Livraison estimée" : "Est. delivery"}</span>
+                                    <span className="font-medium sm:col-span-2">
+                                      {new Date(po.cp_estimated_delivery_date).toLocaleDateString(isFr ? "fr-FR" : "en-US")}
+                                    </span>
+                                  </>
+                                )}
+                                {po.cp_proposed_premium != null && (
+                                  <>
+                                    <span className="text-muted-foreground">{isFr ? "Prime" : "Premium"}</span>
+                                    <span className="font-medium sm:col-span-2">
+                                      {Number(po.cp_proposed_premium) > 0 ? "+" : ""}
+                                      {Number(po.cp_proposed_premium).toLocaleString(isFr ? "fr-FR" : "en-US", { maximumFractionDigits: 2 })} %
+                                    </span>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Commentaire */}
+                          {po.cp_comment && (
+                            <div className="rounded-md border border-warning/30 bg-background/60 px-3 py-2.5">
+                              <p className="text-[10px] font-semibold uppercase tracking-widest text-warning mb-1.5">
+                                {isFr ? "Commentaire" : "Comment"}
+                              </p>
+                              <p className="text-sm">{po.cp_comment}</p>
+                            </div>
+                          )}
+                        </AlertDescription>
+                      )}
+                    </Alert>
+                  )}
+
                   {/* Internal reference */}
                   <Card>
                     <CardHeader className="pb-3">

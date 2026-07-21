@@ -112,6 +112,18 @@ interface PurchaseOrder {
   cp_response?: string | null;
   cp_responded_at?: string | null;
   cp_comment?: string | null;
+  cp_lot_reference?: string | null;
+  cp_proposed_weight_kg?: number | null;
+  cp_proposed_purity?: number | null;
+  cp_gold_form?: string | null;
+  cp_lot_availability?: string | null;
+  cp_lot_available_date?: string | null;
+  cp_lot_location?: string | null;
+  cp_assay_certificate_url?: string | null;
+  cp_assay_certificate_file_name?: string | null;
+  cp_proposed_dispatch_date?: string | null;
+  cp_estimated_delivery_date?: string | null;
+  cp_proposed_premium?: number | null;
   tolerance_percent?: number | null;
   delivery_window_end?: string | null;
   payment_usd_cdf_split?: string | null;
@@ -328,6 +340,7 @@ export default function PurchaseOrderDetailPage() {
   // Counterparty submission state
   const [submittingToCp, setSubmittingToCp] = useState(false);
   const [cancellingPo, setCancellingPo] = useState(false);
+  const [markingShipped, setMarkingShipped] = useState(false);
 
   const requiresDualApproval =
     (po?.total_estimated_value || 0) > DUAL_APPROVAL_THRESHOLD;
@@ -607,21 +620,23 @@ export default function PurchaseOrderDetailPage() {
     setSubmittingToCp(true);
     setSendResult(null);
     try {
-      const res = await fetch(
-        `/api/purchase-orders/${id}/submit-to-counterparty`,
-        { method: "POST" },
-      );
+      const res = await fetch(`/api/purchase-orders/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "sent_to_counterparty" }),
+      });
       const data = await res.json().catch(() => ({}));
       if (res.ok) {
+        const meta = data._submitMeta as { email?: string; emailError?: string } | undefined;
         setSendResult({
-          type: data.emailError ? "error" : "success",
-          text: data.emailError
+          type: meta?.emailError ? "error" : "success",
+          text: meta?.emailError
             ? language === "fr"
-              ? `BC transmis. L'email n'a pas pu être envoyé (${data.email}).`
-              : `PO submitted. Email could not be delivered to ${data.email}.`
+              ? `BC transmis. L'email n'a pas pu être envoyé (${meta.email}).`
+              : `PO submitted. Email could not be delivered to ${meta.email}.`
             : language === "fr"
-              ? `Bon de commande transmis à la contrepartie (${data.email}).`
-              : `Purchase order submitted to the counterparty (${data.email}).`,
+              ? `Bon de commande transmis à la contrepartie${meta?.email ? ` (${meta.email})` : ""}.`
+              : `Purchase order submitted to the counterparty${meta?.email ? ` (${meta.email})` : ""}.`,
         });
         mutate();
       } else {
@@ -644,6 +659,25 @@ export default function PurchaseOrderDetailPage() {
     } finally {
       setSubmittingToCp(false);
       setTimeout(() => setSendResult(null), 6000);
+    }
+  };
+
+  const handleMarkAsShipped = async () => {
+    setMarkingShipped(true);
+    try {
+      const res = await fetch(`/api/purchase-orders/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "in_transit" }),
+      });
+      if (res.ok) {
+        mutate();
+      } else {
+        const data = await res.json().catch(() => ({}));
+        alert(data.error || (isFr ? "Erreur lors de la mise à jour." : "Update failed."));
+      }
+    } finally {
+      setMarkingShipped(false);
     }
   };
 
@@ -811,16 +845,53 @@ export default function PurchaseOrderDetailPage() {
   };
   const isFr = language === "fr";
   const ms =
-    po.status === "manifest_validated"
-      ? manifest?.status || "accepted"
-      : po.status === "accepted"
-        ? (manifest?.status ?? (manifest === null ? "none" : "loading"))
-        : null;
+    po.status === "in_transit"
+      ? "in_transit_stage"
+      : po.status === "manifest_validated"
+        ? manifest?.status || "accepted"
+        : po.status === "accepted"
+          ? (manifest?.status ?? (manifest === null ? "none" : "loading"))
+          : null;
 
   const manifestStages: ManifestStage[] | null =
     ms === null || ms === "loading"
       ? null
-      : ms === "accepted"
+      : ms === "in_transit_stage"
+        ? [
+            {
+              label: isFr ? "Manifeste soumis" : "Manifest submitted",
+              Icon: CheckCircle2,
+              cardStyle: "border-emerald-300/60 bg-emerald-50/40 dark:bg-emerald-950/20",
+              iconColor: "text-emerald-600",
+              labelColor: "text-emerald-700",
+            },
+            {
+              label: isFr ? "Révision BCC" : "BCC review",
+              Icon: CheckCircle2,
+              cardStyle: "border-emerald-300/60 bg-emerald-50/40 dark:bg-emerald-950/20",
+              iconColor: "text-emerald-600",
+              labelColor: "text-emerald-700",
+            },
+            {
+              label: isFr ? "Entrée coffre autorisée" : "Vault entry authorized",
+              sub: manifest?.reviewed_at
+                ? new Date(manifest.reviewed_at).toLocaleDateString(isFr ? "fr-FR" : "en-US")
+                : undefined,
+              Icon: CheckCircle2,
+              cardStyle: "border-emerald-300/60 bg-emerald-50/40 dark:bg-emerald-950/20",
+              iconColor: "text-emerald-600",
+              labelColor: "text-emerald-700",
+            },
+            {
+              label: isFr ? "Or en transit" : "Gold in transit",
+              sub: isFr ? "Expédié par la contrepartie" : "Shipped by counterparty",
+              Icon: Truck,
+              cardStyle: "border-blue-500 bg-blue-500/10 dark:bg-blue-950/30 shadow-sm",
+              iconColor: "text-blue-600",
+              labelColor: "text-blue-700 font-semibold",
+            },
+          ]
+        : ms === "accepted"
         ? [
             {
               label: isFr ? "Manifeste soumis" : "Manifest submitted",
@@ -1110,20 +1181,181 @@ export default function PurchaseOrderDetailPage() {
                           ? "Contre-proposition de la contrepartie"
                           : "Counter-proposal from counterparty"}
                   </AlertTitle>
-                  <AlertDescription>
-                    {po.cp_comment ? (
+                  <AlertDescription className="space-y-3">
+                    {po.cp_responded_at && (
+                      <span className="block text-xs text-muted-foreground">
+                        {language === "fr" ? "Répondu le" : "Responded on"}{" "}
+                        {new Date(po.cp_responded_at).toLocaleString()}
+                      </span>
+                    )}
+
+                    {/* Negotiation detail cards — only for "negotiating" status */}
+                    {po.status === "negotiating" && (
+                      <div className="mt-3 space-y-3">
+                        {/* Lot proposé */}
+                        {(po.cp_lot_reference ||
+                          po.cp_proposed_weight_kg != null ||
+                          po.cp_proposed_purity != null ||
+                          po.cp_gold_form ||
+                          po.cp_lot_availability ||
+                          po.cp_lot_available_date ||
+                          po.cp_lot_location ||
+                          po.cp_assay_certificate_url) && (
+                          <div className="rounded-md border border-warning/30 bg-background/60 px-3 py-2.5">
+                            <p className="text-[10px] font-semibold uppercase tracking-widest text-warning mb-2">
+                              {language === "fr" ? "Lot proposé" : "Proposed lot"}
+                            </p>
+                            <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm">
+                              {po.cp_lot_reference && (
+                                <>
+                                  <span className="text-muted-foreground">
+                                    {isFr ? "Référence du lot" : "Lot reference"}
+                                  </span>
+                                  <span className="font-medium">{po.cp_lot_reference}</span>
+                                </>
+                              )}
+                              {po.cp_proposed_weight_kg != null && (
+                                <>
+                                  <span className="text-muted-foreground">
+                                    {isFr ? "Quantité proposée" : "Proposed weight"}
+                                  </span>
+                                  <span className="font-medium">
+                                    {Number(po.cp_proposed_weight_kg).toLocaleString(isFr ? "fr-FR" : "en-US", { maximumFractionDigits: 3 })} kg
+                                  </span>
+                                </>
+                              )}
+                              {po.cp_proposed_purity != null && (
+                                <>
+                                  <span className="text-muted-foreground">
+                                    {isFr ? "Pureté estimée" : "Estimated purity"}
+                                  </span>
+                                  <span className="font-medium">
+                                    {Number(po.cp_proposed_purity).toLocaleString(isFr ? "fr-FR" : "en-US", { minimumFractionDigits: 0, maximumFractionDigits: 2 })} %
+                                  </span>
+                                </>
+                              )}
+                              {po.cp_gold_form && (
+                                <>
+                                  <span className="text-muted-foreground">
+                                    {isFr ? "Forme de l'or" : "Gold form"}
+                                  </span>
+                                  <span className="font-medium">
+                                    {({ dore_bars: isFr ? "Doré" : "Doré Bars", refined_bars: isFr ? "Lingots Raffinés" : "Refined Bars", gold_dust: isFr ? "Poudre d'Or" : "Gold Dust", scrap_gold: isFr ? "Or de Récupération" : "Scrap Gold" } as Record<string, string>)[po.cp_gold_form] ?? po.cp_gold_form}
+                                  </span>
+                                </>
+                              )}
+                              {po.cp_lot_availability && (
+                                <>
+                                  <span className="text-muted-foreground">
+                                    {isFr ? "Disponibilité" : "Availability"}
+                                  </span>
+                                  <span className="font-medium">
+                                    {({ confirmed: isFr ? "Confirmée" : "Confirmed", partial: isFr ? "Partielle" : "Partial", pending: isFr ? "En attente" : "Pending", on_request: isFr ? "Sur demande" : "On request" } as Record<string, string>)[po.cp_lot_availability] ?? po.cp_lot_availability}
+                                  </span>
+                                </>
+                              )}
+                              {po.cp_lot_available_date && (
+                                <>
+                                  <span className="text-muted-foreground">
+                                    {isFr ? "Date de disponibilité" : "Available date"}
+                                  </span>
+                                  <span className="font-medium">
+                                    {new Date(po.cp_lot_available_date).toLocaleDateString(isFr ? "fr-FR" : "en-US")}
+                                  </span>
+                                </>
+                              )}
+                              {po.cp_lot_location && (
+                                <>
+                                  <span className="text-muted-foreground">
+                                    {isFr ? "Localisation" : "Location"}
+                                  </span>
+                                  <span className="font-medium">{po.cp_lot_location}</span>
+                                </>
+                              )}
+                              {po.cp_assay_certificate_url && (
+                                <>
+                                  <span className="text-muted-foreground">
+                                    {isFr ? "Certificat d'assay" : "Assay certificate"}
+                                  </span>
+                                  <a
+                                    href={po.cp_assay_certificate_url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="font-medium text-primary underline underline-offset-2"
+                                  >
+                                    {po.cp_assay_certificate_file_name ?? (isFr ? "Voir le fichier" : "View file")}
+                                  </a>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Livraison et conditions */}
+                        {(po.cp_proposed_dispatch_date ||
+                          po.cp_estimated_delivery_date ||
+                          po.cp_proposed_premium != null) && (
+                          <div className="rounded-md border border-warning/30 bg-background/60 px-3 py-2.5">
+                            <p className="text-[10px] font-semibold uppercase tracking-widest text-warning mb-2">
+                              {isFr ? "Livraison et conditions" : "Delivery & terms"}
+                            </p>
+                            <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm">
+                              {po.cp_proposed_dispatch_date && (
+                                <>
+                                  <span className="text-muted-foreground">
+                                    {isFr ? "Date d'expédition proposée" : "Proposed dispatch date"}
+                                  </span>
+                                  <span className="font-medium">
+                                    {new Date(po.cp_proposed_dispatch_date).toLocaleDateString(isFr ? "fr-FR" : "en-US")}
+                                  </span>
+                                </>
+                              )}
+                              {po.cp_estimated_delivery_date && (
+                                <>
+                                  <span className="text-muted-foreground">
+                                    {isFr ? "Date de livraison estimée" : "Estimated delivery date"}
+                                  </span>
+                                  <span className="font-medium">
+                                    {new Date(po.cp_estimated_delivery_date).toLocaleDateString(isFr ? "fr-FR" : "en-US")}
+                                  </span>
+                                </>
+                              )}
+                              {po.cp_proposed_premium != null && (
+                                <>
+                                  <span className="text-muted-foreground">
+                                    {isFr ? "Prime proposée" : "Proposed premium"}
+                                  </span>
+                                  <span className="font-medium">
+                                    {Number(po.cp_proposed_premium) > 0 ? "+" : ""}
+                                    {Number(po.cp_proposed_premium).toLocaleString(isFr ? "fr-FR" : "en-US", { maximumFractionDigits: 2 })} %
+                                  </span>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Commentaire */}
+                        {po.cp_comment && (
+                          <div className="rounded-md border border-warning/30 bg-background/60 px-3 py-2.5">
+                            <p className="text-[10px] font-semibold uppercase tracking-widest text-warning mb-1.5">
+                              {language === "fr" ? "Commentaire" : "Comment"}
+                            </p>
+                            <p className="text-sm">{po.cp_comment}</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* For accepted/declined: just show the comment */}
+                    {po.status !== "negotiating" && po.cp_comment && (
                       <span className="block">{po.cp_comment}</span>
-                    ) : (
+                    )}
+                    {po.status !== "negotiating" && !po.cp_comment && (
                       <span className="block">
                         {language === "fr"
                           ? "La contrepartie a soumis sa réponse."
                           : "The counterparty submitted their response."}
-                      </span>
-                    )}
-                    {po.cp_responded_at && (
-                      <span className="block text-xs text-muted-foreground mt-1">
-                        {language === "fr" ? "Répondu le" : "Responded on"}{" "}
-                        {new Date(po.cp_responded_at).toLocaleString()}
                       </span>
                     )}
                   </AlertDescription>
@@ -1224,12 +1456,17 @@ export default function PurchaseOrderDetailPage() {
                   )}
                   {!isCounterparty &&
                     po.status !== "draft" &&
+                    po.status !== "manifest_validated" &&
+                    po.status !== "in_transit" &&
                     (() => {
                       const noUser =
                         counterparty !== undefined &&
                         counterparty?.hasLinkedUser === false;
-                      const isDisabled =
-                        submittingToCp || po.status !== "approved" || noUser;
+                      const canSubmitToCp =
+                        po.status === "approved" ||
+                        po.status === "negotiating" ||
+                        po.status === "sent_to_counterparty";
+                      const isDisabled = submittingToCp || !canSubmitToCp || noUser;
                       return (
                         <Button
                           size="sm"
@@ -1330,20 +1567,49 @@ export default function PurchaseOrderDetailPage() {
                       </Button>
                     ))}
                   {isCounterparty &&
-                    ["accepted", "manifest_validated"].includes(po.status) &&
+                    ["accepted", "manifest_validated", "in_transit"].includes(po.status) &&
                     (counterpartyManifestSubmitted ? (
-                      <Button
-                        size="sm"
-                        className="flex-1 sm:flex-none"
-                        disabled
-                      >
-                        <CheckCircle2 className="mr-2 h-4 w-4 text-emerald-500" />
-                        <span>
-                          {language === "fr"
-                            ? "Manifeste soumis — en révision"
-                            : "Manifest submitted — under review"}
-                        </span>
-                      </Button>
+                      <>
+                        {/* Manifest status pill */}
+                        <Button
+                          size="sm"
+                          className={`flex-1 sm:flex-none ${
+                            po.status === "manifest_validated" || po.status === "in_transit"
+                              ? "border-emerald-500/50 text-emerald-500"
+                              : ""
+                          }`}
+                          variant="outline"
+                          disabled
+                        >
+                          <CheckCircle2 className="mr-2 h-4 w-4 text-emerald-500" />
+                          <span>
+                            {po.status === "in_transit"
+                              ? (isFr ? "Or expédié" : "Gold shipped")
+                              : po.status === "manifest_validated"
+                                ? (isFr ? "Manifeste validé par la BCC" : "Manifest validated by BCC")
+                                : (isFr ? "Manifeste soumis — en révision" : "Manifest submitted — under review")}
+                          </span>
+                        </Button>
+
+                        {/* Ship button — only when manifest validated and not yet shipped */}
+                        {po.status === "manifest_validated" && (
+                          <Button
+                            size="sm"
+                            className="flex-1 sm:flex-none bg-blue-600 hover:bg-blue-700 text-white"
+                            onClick={handleMarkAsShipped}
+                            disabled={markingShipped}
+                          >
+                            {markingShipped
+                              ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                              : <Truck className="mr-2 h-4 w-4" />}
+                            <span>
+                              {markingShipped
+                                ? (isFr ? "Enregistrement..." : "Saving...")
+                                : (isFr ? "Marquer l'or comme expédié" : "Mark gold as shipped")}
+                            </span>
+                          </Button>
+                        )}
+                      </>
                     ) : (
                       <Link
                         href={`/purchase-orders/${id}/manifest`}
@@ -1355,9 +1621,7 @@ export default function PurchaseOrderDetailPage() {
                         >
                           <FileText className="mr-2 h-4 w-4" />
                           <span>
-                            {language === "fr"
-                              ? "Soumettre le manifeste"
-                              : "Submit Manifest"}
+                            {isFr ? "Soumettre le manifeste" : "Submit Manifest"}
                           </span>
                         </Button>
                       </Link>
@@ -1460,7 +1724,7 @@ export default function PurchaseOrderDetailPage() {
                         {language === "fr" ? "Suivi" : "Tracking"}
                       </TabsTrigger>
                     )}
-                  {hasSubmittedManifest && !isCounterparty && (
+                  {hasSubmittedManifest && (!isCounterparty || counterpartyManifestSubmitted) && (
                     <TabsTrigger
                       value="manifest"
                       className="text-xs sm:text-sm"
@@ -2556,7 +2820,7 @@ export default function PurchaseOrderDetailPage() {
                     </TabsContent>
                   )}
                 {/* Manifest Tab — visible to agents/admins when a manifest has been submitted */}
-                {hasSubmittedManifest && !isCounterparty && manifest && (
+                {hasSubmittedManifest && (!isCounterparty || counterpartyManifestSubmitted) && manifest && (
                   <TabsContent value="manifest" className="space-y-6">
                     {/* Status banner */}
                     {manifest.status === "accepted" && (

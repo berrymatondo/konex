@@ -37,6 +37,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { useLanguage } from "@/lib/i18n/language-context";
+import QRCode from "qrcode";
 import {
   Warehouse,
   Package,
@@ -59,7 +60,6 @@ import {
   Truck,
   MapPin,
   Timer,
-  QrCode,
   Save,
 } from "lucide-react";
 
@@ -224,6 +224,13 @@ export default function VaultIntakeDetailPage() {
     selectedLab: "",
     assayMethod: "fire_assay",
   });
+  const [sampleQrUrl, setSampleQrUrl] = useState<string>("");
+  useEffect(() => {
+    if (!assayForm.sampleId) return;
+    QRCode.toDataURL(assayForm.sampleId, { width: 200, margin: 1, color: { dark: "#000000", light: "#ffffff" } })
+      .then(setSampleQrUrl)
+      .catch(() => {});
+  }, [assayForm.sampleId]);
 
   // Screen 3: Assay results state
   const [assayResults, setAssayResults] = useState({
@@ -1213,38 +1220,24 @@ export default function VaultIntakeDetailPage() {
                         {/* Sample ID */}
                         <div className="space-y-4">
                           <div className="space-y-2">
-                            <Label>Sample ID</Label>
-                            <div className="flex gap-2">
-                              <Input
-                                value={assayForm.sampleId}
-                                readOnly
-                                className="font-mono bg-muted"
-                              />
-                              <Button variant="outline" size="icon">
-                                <QrCode className="h-4 w-4" />
-                              </Button>
-                            </div>
+                            <Label>{language === "fr" ? "Identifiant d'échantillon" : "Sample ID"}</Label>
+                            <Input
+                              value={assayForm.sampleId}
+                              readOnly
+                              className="font-mono bg-muted"
+                            />
                           </div>
-                          {/* Barcode */}
-                          <div className="flex justify-center py-2 border rounded-lg bg-white">
-                            <div className="flex gap-[2px]">
-                              {Array.from({ length: 50 }).map((_, i) => (
-                                <div 
-                                  key={i} 
-                                  className="bg-foreground" 
-                                  style={{ 
-                                    width: Math.random() > 0.5 ? '2px' : '1px',
-                                    height: '50px'
-                                  }} 
-                                />
-                              ))}
+                          {/* QR Code */}
+                          {sampleQrUrl && (
+                            <div className="flex justify-center p-3 border rounded-lg bg-white">
+                              <img src={sampleQrUrl} alt={assayForm.sampleId} className="w-40 h-40" />
                             </div>
-                          </div>
+                          )}
                         </div>
 
                         {/* SLA Countdown Timer */}
                         <div className="space-y-4">
-                          <Label>SLA Countdown Timer</Label>
+                          <Label>{language === "fr" ? "Minuterie SLA" : "SLA Countdown Timer"}</Label>
                           <Card className="bg-muted/50">
                             <CardContent className="p-4 flex flex-col items-center">
                               <div className="text-4xl font-mono font-bold text-primary">
@@ -1253,7 +1246,7 @@ export default function VaultIntakeDetailPage() {
                                 {String(slaCountdown.seconds).padStart(2, '0')}
                               </div>
                               <div className="text-sm text-muted-foreground mt-2">
-                                {language === "fr" ? "H:Min:Sod" : "H:Min:Sod"}
+                                {language === "fr" ? "H:Min:Sec" : "H:Min:Sec"}
                               </div>
                             </CardContent>
                           </Card>
@@ -1276,7 +1269,7 @@ export default function VaultIntakeDetailPage() {
                           <SelectContent>
                             {LABS.map((lab) => (
                               <SelectItem key={lab.id} value={lab.id}>
-                                {lab.name} (Expires: {lab.expiry})
+                                {lab.name} ({language === "fr" ? "Expire le" : "Expires"}: {lab.expiry})
                               </SelectItem>
                             ))}
                           </SelectContent>
@@ -1351,13 +1344,31 @@ export default function VaultIntakeDetailPage() {
                         </Table>
                       </div>
 
-                      <div className="flex gap-4 pt-4">
+                      <div className="flex flex-wrap items-center gap-4 pt-4">
                         <Button variant="outline" onClick={() => setActiveTab("intake")}>
                           <ArrowLeft className="mr-2 h-4 w-4" />
                           {language === "fr" ? "Retour" : "Back"}
                         </Button>
-                        <Button 
-                          onClick={handleSubmitAssayRequest} 
+                        <Button
+                          variant="outline"
+                          onClick={handleSaveReception}
+                          disabled={isSaving || isSubmitting}
+                        >
+                          {isSaving ? (
+                            <div className="animate-spin h-4 w-4 border-2 border-primary border-t-transparent rounded-full mr-2" />
+                          ) : (
+                            <Save className="mr-2 h-4 w-4" />
+                          )}
+                          {language === "fr" ? "Sauvegarder" : "Save"}
+                        </Button>
+                        {saveSuccess && (
+                          <span className="text-sm text-emerald-500 flex items-center gap-1">
+                            <CheckCircle2 className="h-4 w-4" />
+                            {language === "fr" ? "Sauvegardé" : "Saved"}
+                          </span>
+                        )}
+                        <Button
+                          onClick={handleSubmitAssayRequest}
                           disabled={isSubmitting || !assayForm.selectedLab}
                           className="flex-1"
                         >
@@ -1554,13 +1565,31 @@ export default function VaultIntakeDetailPage() {
                         <PurityVarianceBar variance={purityVariance} />
                       </div>
 
-                      <div className="flex gap-4 pt-4">
+                      <div className="flex flex-wrap items-center gap-4 pt-4">
                         <Button variant="outline" onClick={() => setActiveTab("scheduling")}>
                           <ArrowLeft className="mr-2 h-4 w-4" />
                           {language === "fr" ? "Retour" : "Back"}
                         </Button>
-                        <Button 
-                          onClick={handleValidateResults} 
+                        <Button
+                          variant="outline"
+                          onClick={handleSaveReception}
+                          disabled={isSaving || isSubmitting}
+                        >
+                          {isSaving ? (
+                            <div className="animate-spin h-4 w-4 border-2 border-primary border-t-transparent rounded-full mr-2" />
+                          ) : (
+                            <Save className="mr-2 h-4 w-4" />
+                          )}
+                          {language === "fr" ? "Sauvegarder" : "Save"}
+                        </Button>
+                        {saveSuccess && (
+                          <span className="text-sm text-emerald-500 flex items-center gap-1">
+                            <CheckCircle2 className="h-4 w-4" />
+                            {language === "fr" ? "Sauvegardé" : "Saved"}
+                          </span>
+                        )}
+                        <Button
+                          onClick={handleValidateResults}
                           disabled={isSubmitting}
                           className="flex-1"
                         >
@@ -1588,8 +1617,8 @@ export default function VaultIntakeDetailPage() {
                       </CardTitle>
                       <CardDescription>
                         {language === "fr"
-                          ? "Confirmation finale et transition vers US-06 (Valorisation & Règlement)"
-                          : "Final confirmation and transition to US-06 (Valuation & Settlement)"}
+                          ? "Confirmation finale"
+                          : "Final confirmation"}
                       </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-6">
@@ -1643,7 +1672,7 @@ export default function VaultIntakeDetailPage() {
                             <ArrowRight className="h-4 w-4 text-muted-foreground" />
                             <Badge variant="outline" className="bg-purple-500/10 text-purple-500">ASSAYED</Badge>
                             <ArrowRight className="h-4 w-4 text-muted-foreground" />
-                            <Badge className="bg-primary text-primary-foreground">PENDING_SETTLEMENT</Badge>
+                            <Badge className="bg-primary text-primary-foreground">{language === "fr" ? "En attente de règlement" : "Pending Settlement"}</Badge>
                           </div>
 
                           {/* Compliance Badge */}
@@ -1658,7 +1687,7 @@ export default function VaultIntakeDetailPage() {
                                     {language === "fr" ? "Conforme LBMA RGG" : "LBMA RGG Compliant"}
                                   </div>
                                   <div className="text-sm text-emerald-600">
-                                    Step 3.2 Verified
+                                    {language === "fr" ? "Étape 3.2 vérifiée" : "Step 3.2 Verified"}
                                   </div>
                                 </div>
                               </div>
@@ -1690,9 +1719,31 @@ export default function VaultIntakeDetailPage() {
                         </CardContent>
                       </Card>
 
-                      <div className="flex gap-4 pt-4">
-                        <Button 
-                          onClick={handleLockAndProceed} 
+                      <div className="flex flex-wrap items-center gap-4 pt-4">
+                        <Button variant="outline" onClick={() => setActiveTab("results")}>
+                          <ArrowLeft className="mr-2 h-4 w-4" />
+                          {language === "fr" ? "Retour" : "Back"}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          onClick={handleSaveReception}
+                          disabled={isSaving || isSubmitting}
+                        >
+                          {isSaving ? (
+                            <div className="animate-spin h-4 w-4 border-2 border-primary border-t-transparent rounded-full mr-2" />
+                          ) : (
+                            <Save className="mr-2 h-4 w-4" />
+                          )}
+                          {language === "fr" ? "Sauvegarder" : "Save"}
+                        </Button>
+                        {saveSuccess && (
+                          <span className="text-sm text-emerald-500 flex items-center gap-1">
+                            <CheckCircle2 className="h-4 w-4" />
+                            {language === "fr" ? "Sauvegardé" : "Saved"}
+                          </span>
+                        )}
+                        <Button
+                          onClick={handleLockAndProceed}
                           disabled={isSubmitting}
                           className="flex-1"
                         >
@@ -1733,23 +1784,23 @@ export default function VaultIntakeDetailPage() {
               {language === "fr" ? "Allocation Verrouillée avec Succès!" : "Allocation Locked Successfully!"}
             </DialogTitle>
             <DialogDescription className="text-center">
-              {language === "fr" 
-                ? "L'enregistrement a été verrouillé cryptographiquement et transféré vers US-06 (Règlement)"
-                : "Record has been cryptographically locked and handed off to US-06 (Settlement)"}
+              {language === "fr"
+                ? "L'enregistrement a été verrouillé cryptographiquement et archivé dans le système de règlement"
+                : "Record has been cryptographically locked and archived in the settlement system"}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Allocation ID:</span>
+              <span className="text-muted-foreground">{language === "fr" ? "ID Allocation:" : "Allocation ID:"}</span>
               <span className="font-mono font-medium">{handoffData.allocationId}</span>
             </div>
             <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Pure Au Weight:</span>
+              <span className="text-muted-foreground">{language === "fr" ? "Poids Or Pur:" : "Pure Au Weight:"}</span>
               <span className="font-mono font-medium">{assayResults.pureGoldWeight.toFixed(2)} g</span>
             </div>
             <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Status:</span>
-              <Badge className="bg-emerald-500">PENDING_SETTLEMENT</Badge>
+              <span className="text-muted-foreground">{language === "fr" ? "Statut:" : "Status:"}</span>
+              <Badge className="bg-emerald-500">{language === "fr" ? "En attente de règlement" : "Pending Settlement"}</Badge>
             </div>
           </div>
           <DialogFooter className="flex-col gap-2 sm:flex-row">

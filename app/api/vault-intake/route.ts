@@ -59,7 +59,7 @@ export async function GET() {
         c.legal_name as counterparty_name
       FROM purchase_orders po
       LEFT JOIN counterparties c ON po.counterparty_id = c.id
-      WHERE po.status IN ('in_transit', 'delivered')
+      WHERE po.status IN ('manifest_validated', 'in_transit', 'delivered')
       ORDER BY po.created_at DESC
     `;
 
@@ -71,7 +71,7 @@ export async function GET() {
       grossWeightKg: parseFloat(String(po.estimated_weight_kg || 0)),
       netWeightKg: null,
       weightVariance: null,
-      status: po.status === "in_transit" ? "pending_reception" : "received",
+      status: po.status === "delivered" ? "received" : "pending_intake",
       sealVerified: false,
       manifestMatch: false,
       receivedAt: po.created_at,
@@ -140,7 +140,7 @@ export async function POST(request: Request) {
         entityType: 'purchase_order',
         entityId: selectedPoId,
         action: 'vault_received',
-        previousStatus: 'in_transit',
+        previousStatus: 'manifest_validated',
         newStatus: 'delivered',
         details: {
           grossWeightKg: body.grossWeightKg,

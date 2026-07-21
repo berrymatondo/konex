@@ -59,6 +59,7 @@ import {
   AlertTriangle,
   XCircle,
   Banknote,
+  Save,
 } from "lucide-react";
 
 // Mock LBMA rates
@@ -206,6 +207,27 @@ export default function SettlementDetailPage({ params }: { params: Promise<{ id:
     performed_at: string;
   }>>([]);
   const [loadingAudit, setLoadingAudit] = useState(false);
+
+  // Temporary save state
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+
+  const handleSaveDraft = async () => {
+    setIsSaving(true);
+    try {
+      await fetch(`/api/settlements/${resolvedParams.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: settlement.status }),
+      });
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 3000);
+    } catch (error) {
+      console.error("Error saving draft:", error);
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   // Price lock countdown
   useEffect(() => {
@@ -509,7 +531,25 @@ export default function SettlementDetailPage({ params }: { params: Promise<{ id:
                       </div>
 
                       {/* Actions */}
-                      <div className="flex justify-center gap-4">
+                      <div className="flex flex-wrap items-center justify-center gap-4">
+                        <Button
+                          variant="outline"
+                          onClick={handleSaveDraft}
+                          disabled={isSaving}
+                        >
+                          {isSaving ? (
+                            <div className="animate-spin h-4 w-4 border-2 border-primary border-t-transparent rounded-full mr-2" />
+                          ) : (
+                            <Save className="mr-2 h-4 w-4" />
+                          )}
+                          {language === "fr" ? "Sauvegarder" : "Save"}
+                        </Button>
+                        {saveSuccess && (
+                          <span className="text-sm text-emerald-500 flex items-center gap-1">
+                            <CheckCircle2 className="h-4 w-4" />
+                            {language === "fr" ? "Sauvegardé" : "Saved"}
+                          </span>
+                        )}
                         <Button onClick={handleApplyPricing} className="min-w-[200px]">
                           <Lock className="mr-2 h-4 w-4" />
                           {language === "fr" ? "Appliquer Tarification" : "Apply Pricing"}
@@ -666,8 +706,26 @@ export default function SettlementDetailPage({ params }: { params: Promise<{ id:
                       </Card>
 
                       {/* Actions */}
-                      <div className="flex justify-center gap-4">
-                        <Button 
+                      <div className="flex flex-wrap items-center justify-center gap-4">
+                        <Button
+                          variant="outline"
+                          onClick={handleSaveDraft}
+                          disabled={isSaving}
+                        >
+                          {isSaving ? (
+                            <div className="animate-spin h-4 w-4 border-2 border-primary border-t-transparent rounded-full mr-2" />
+                          ) : (
+                            <Save className="mr-2 h-4 w-4" />
+                          )}
+                          {language === "fr" ? "Sauvegarder" : "Save"}
+                        </Button>
+                        {saveSuccess && (
+                          <span className="text-sm text-emerald-500 flex items-center gap-1">
+                            <CheckCircle2 className="h-4 w-4" />
+                            {language === "fr" ? "Sauvegardé" : "Saved"}
+                          </span>
+                        )}
+                        <Button
                           onClick={handleProceedToApproval}
                           disabled={!reviewChecks.feesMatchPO || !reviewChecks.deductionsAuthorized || !reviewChecks.bankingVerified}
                           className="min-w-[200px]"
@@ -826,8 +884,26 @@ export default function SettlementDetailPage({ params }: { params: Promise<{ id:
                       </div>
 
                       {/* Actions */}
-                      <div className="flex flex-wrap justify-center gap-4">
-                        <Button 
+                      <div className="flex flex-wrap items-center justify-center gap-4">
+                        <Button
+                          variant="outline"
+                          onClick={handleSaveDraft}
+                          disabled={isSaving}
+                        >
+                          {isSaving ? (
+                            <div className="animate-spin h-4 w-4 border-2 border-primary border-t-transparent rounded-full mr-2" />
+                          ) : (
+                            <Save className="mr-2 h-4 w-4" />
+                          )}
+                          {language === "fr" ? "Sauvegarder" : "Save"}
+                        </Button>
+                        {saveSuccess && (
+                          <span className="text-sm text-emerald-500 flex items-center gap-1">
+                            <CheckCircle2 className="h-4 w-4" />
+                            {language === "fr" ? "Sauvegardé" : "Saved"}
+                          </span>
+                        )}
+                        <Button
                           onClick={handleApproveExecute}
                           disabled={otp1.length !== 6 || otp2.length !== 6 || approvalStatus !== "pending"}
                           className="min-w-[180px] bg-emerald-500 hover:bg-emerald-600"
@@ -953,8 +1029,26 @@ export default function SettlementDetailPage({ params }: { params: Promise<{ id:
                   </div>
 
                   {/* Actions */}
-                  <div className="flex flex-wrap justify-center gap-4">
-                    <Button 
+                  <div className="flex flex-wrap items-center justify-center gap-4">
+                    <Button
+                      variant="outline"
+                      onClick={handleSaveDraft}
+                      disabled={isSaving}
+                    >
+                      {isSaving ? (
+                        <div className="animate-spin h-4 w-4 border-2 border-primary border-t-transparent rounded-full mr-2" />
+                      ) : (
+                        <Save className="mr-2 h-4 w-4" />
+                      )}
+                      {language === "fr" ? "Sauvegarder" : "Save"}
+                    </Button>
+                    {saveSuccess && (
+                      <span className="text-sm text-emerald-500 flex items-center gap-1">
+                        <CheckCircle2 className="h-4 w-4" />
+                        {language === "fr" ? "Sauvegardé" : "Saved"}
+                      </span>
+                    )}
+                    <Button
                       className="min-w-[220px]"
                       onClick={() => {
                         const troyOunces = settlement.pureAuWeightKg * 32.1507;

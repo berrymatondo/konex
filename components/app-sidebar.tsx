@@ -19,7 +19,6 @@ import {
   ChevronLeft,
   ChevronRight,
   X,
-  ShoppingCart,
   BookOpen,
   Warehouse,
   UserCog,
@@ -184,8 +183,7 @@ function SidebarContent({ isCollapsed, onNavClick }: { isCollapsed: boolean; onN
     { title: t.nav.purchaseOrders, href: "/purchase-orders", icon: Package },
     { title: language === "fr" ? "File Manifestes" : "Manifest Queue", href: "/manifest-queue", icon: Inbox },
     { title: language === "fr" ? "Cycle de vie PO" : "PO Lifecycle", href: "/po-lifecycle", icon: GitMerge },
-    { title: language === "fr" ? "Expédition" : "Dispatch", href: "/dispatch", icon: ShoppingCart },
-    { title: language === "fr" ? "Réception Coffre" : "Vault Intake", href: "/vault-intake", icon: Warehouse },
+{ title: language === "fr" ? "Réception Coffre" : "Vault Intake", href: "/vault-intake", icon: Warehouse },
     { title: t.nav.assays, href: "/assays", icon: FlaskConical },
     { title: t.nav.settlements, href: "/settlements", icon: Wallet },
   ].filter((item) => canSee(item.href));

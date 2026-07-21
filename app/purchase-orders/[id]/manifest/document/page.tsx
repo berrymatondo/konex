@@ -66,10 +66,10 @@ const DOC_LABELS: Record<string, string> = {
 };
 
 const STATUS_LABELS: Record<string, { label: string; color: string }> = {
-  draft: { label: "BROUILLON", color: "text-muted-foreground border-muted-foreground/40" },
-  submitted: { label: "SOUMIS — EN COURS D'EXAMEN", color: "text-blue-700 border-blue-400" },
-  accepted: { label: "MANIFESTE AUTORISÉ", color: "text-emerald-700 border-emerald-500" },
-  returned: { label: "RETOURNÉ À LA CONTREPARTIE", color: "text-red-700 border-red-400" },
+  draft: { label: "BROUILLON", color: "text-slate-600 border-slate-400" },
+  submitted: { label: "SOUMIS — EN COURS D'EXAMEN", color: "text-blue-800 border-blue-500" },
+  accepted: { label: "MANIFESTE AUTORISÉ", color: "text-emerald-800 border-emerald-600" },
+  returned: { label: "RETOURNÉ À LA CONTREPARTIE", color: "text-red-800 border-red-500" },
 };
 
 const OZ_TO_GRAM = 31.1035;
@@ -133,11 +133,10 @@ export default function ManifestDocumentPage() {
   const inTolerance = Math.abs(variancePct) <= TOLERANCE_PCT;
   const statusInfo = STATUS_LABELS[manifest.status] || STATUS_LABELS.draft;
 
-  // Indicative value: rough estimate at $2,000/oz
   const indicativeValue = (totalFineOz * 2000).toLocaleString("fr-FR", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
 
   return (
-    <div className="min-h-screen bg-gray-100 print:bg-white">
+    <div className="min-h-screen bg-gray-200 print:bg-white">
       {/* Toolbar — hidden on print */}
       <div className="print:hidden sticky top-0 z-10 bg-white border-b px-6 py-2.5 flex items-center gap-3 shadow-sm">
         <Button variant="ghost" size="sm" onClick={() => router.back()}>
@@ -168,27 +167,27 @@ export default function ManifestDocumentPage() {
               <div className="flex items-center gap-3 mb-3">
                 <div className="h-10 w-10 rounded-lg bg-amber-400 flex items-center justify-center font-black text-slate-900 text-lg">G</div>
                 <div>
-                  <p className="font-bold text-base leading-none">Banque Centrale du Congo</p>
-                  <p className="text-xs text-slate-300 mt-0.5">Direction de l&apos;Or et des Métaux Précieux</p>
+                  <p className="font-bold text-base leading-none text-white">Banque Centrale du Congo</p>
+                  <p className="text-xs text-slate-200 mt-0.5">Direction de l&apos;Or et des Métaux Précieux</p>
                 </div>
               </div>
               <h1 className="text-sm font-bold uppercase tracking-widest text-amber-400 mt-4">
                 Gold Bullion Shipment Manifest
               </h1>
-              <p className="text-xs text-slate-300 mt-0.5">Pre-Dispatch Declaration — LBMA Annex C</p>
+              <p className="text-xs text-slate-200 mt-0.5">Pre-Dispatch Declaration — LBMA Annex C</p>
             </div>
             <div className="text-right shrink-0">
-              <p className="text-[10px] text-slate-400 uppercase tracking-wider">Référence manifeste</p>
-              <p className="font-mono font-bold text-lg tracking-wider mt-0.5">{manifestRef}</p>
-              <p className="text-[10px] text-slate-400 uppercase tracking-wider mt-2">Bon de commande</p>
-              <p className="font-mono text-sm tracking-wide mt-0.5">{reference}</p>
-              <p className="text-[10px] text-slate-400 uppercase tracking-wider mt-2">Date d&apos;émission</p>
-              <p className="text-sm mt-0.5">{fmtDate(manifest.submitted_at || new Date().toISOString())}</p>
+              <p className="text-[10px] text-slate-300 uppercase tracking-wider">Référence manifeste</p>
+              <p className="font-mono font-bold text-lg tracking-wider mt-0.5 text-white">{manifestRef}</p>
+              <p className="text-[10px] text-slate-300 uppercase tracking-wider mt-2">Bon de commande</p>
+              <p className="font-mono text-sm tracking-wide mt-0.5 text-white">{reference}</p>
+              <p className="text-[10px] text-slate-300 uppercase tracking-wider mt-2">Date d&apos;émission</p>
+              <p className="text-sm mt-0.5 text-slate-100">{fmtDate(manifest.submitted_at || new Date().toISOString())}</p>
             </div>
           </div>
 
           {/* Status strip */}
-          <div className={`mt-5 border rounded px-3 py-1.5 text-center text-[10px] font-bold uppercase tracking-widest ${statusInfo.color} bg-white/5`}>
+          <div className={`mt-5 border-2 rounded px-3 py-1.5 text-center text-[10px] font-bold uppercase tracking-widest ${statusInfo.color} bg-white`}>
             {statusInfo.label}
           </div>
         </div>
@@ -222,11 +221,11 @@ export default function ManifestDocumentPage() {
 
         {/* Bar weight table — LBMA Annex C */}
         <div className="px-10 py-6 print:px-8 print:py-5 border-b">
-          <h2 className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-4">
+          <h2 className="text-xs font-bold uppercase tracking-widest text-slate-700 mb-4">
             Fiche de poids des lingots — LBMA Annex C
           </h2>
           {bars.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Aucun lingot enregistré.</p>
+            <p className="text-sm text-slate-600">Aucun lingot enregistré.</p>
           ) : (
             <table className="w-full text-xs">
               <thead>
@@ -240,17 +239,17 @@ export default function ManifestDocumentPage() {
                 {bars.map((bar, i) => {
                   const grossOz = bar.grossWeightKg * 1000 / OZ_TO_GRAM;
                   return (
-                    <tr key={bar.barNumber || i} className={`border-b ${i % 2 === 0 ? "bg-white" : "bg-slate-50"}`}>
-                      <td className="py-2 px-2 pl-3 text-slate-500">{i + 1}</td>
-                      <td className="py-2 px-2 font-mono font-medium">{bar.barNumber || "—"}</td>
-                      <td className="py-2 px-2 text-slate-500">—</td>
-                      <td className="py-2 px-2 font-mono text-slate-500">{fmtMmYy(manifest.shipment_date)}</td>
-                      <td className="py-2 px-2 font-mono">{grossOz.toFixed(3)}</td>
-                      <td className="py-2 px-2 font-mono">{Number(bar.fineness).toFixed(1)}</td>
-                      <td className="py-2 px-2 font-mono font-bold">{bar.fineOz > 0 ? bar.fineOz.toFixed(3) : "—"}</td>
-                      <td className="py-2 px-2 font-mono">{Number(bar.grossWeightKg).toFixed(3)}</td>
+                    <tr key={bar.barNumber || i} className={`border-b ${i % 2 === 0 ? "bg-white" : "bg-slate-100"}`}>
+                      <td className="py-2 px-2 pl-3 text-slate-600">{i + 1}</td>
+                      <td className="py-2 px-2 font-mono font-medium text-slate-800">{bar.barNumber || "—"}</td>
+                      <td className="py-2 px-2 text-slate-600">—</td>
+                      <td className="py-2 px-2 font-mono text-slate-600">{fmtMmYy(manifest.shipment_date)}</td>
+                      <td className="py-2 px-2 font-mono text-slate-800">{grossOz.toFixed(3)}</td>
+                      <td className="py-2 px-2 font-mono text-slate-800">{Number(bar.fineness).toFixed(1)}</td>
+                      <td className="py-2 px-2 font-mono font-bold text-slate-900">{bar.fineOz > 0 ? bar.fineOz.toFixed(3) : "—"}</td>
+                      <td className="py-2 px-2 font-mono text-slate-800">{Number(bar.grossWeightKg).toFixed(3)}</td>
                       <td className="py-2 px-2 pr-3">
-                        <span className="rounded-full bg-emerald-100 text-emerald-700 px-2 py-0.5 text-[10px] font-medium">OK</span>
+                        <span className="rounded-full bg-emerald-100 text-emerald-800 px-2 py-0.5 text-[10px] font-semibold border border-emerald-300">OK</span>
                       </td>
                     </tr>
                   );
@@ -260,7 +259,7 @@ export default function ManifestDocumentPage() {
                 <tr className="bg-slate-800 text-white font-bold">
                   <td className="py-2.5 px-2 pl-3 text-[10px]" colSpan={4}>TOTAL ({bars.length} lingot{bars.length !== 1 ? "s" : ""})</td>
                   <td className="py-2.5 px-2 font-mono text-xs">{totalGrossOz.toFixed(3)}</td>
-                  <td className="py-2.5 px-2 text-slate-400 text-[10px]">— avg</td>
+                  <td className="py-2.5 px-2 text-slate-300 text-[10px]">— avg</td>
                   <td className="py-2.5 px-2 font-mono text-sm">{totalFineOz > 0 ? totalFineOz.toFixed(3) : "—"}</td>
                   <td className="py-2.5 px-2 font-mono text-xs">{totalGrossKg.toFixed(3)}</td>
                   <td className="py-2.5 px-2 pr-3" />
@@ -274,7 +273,7 @@ export default function ManifestDocumentPage() {
         <div className="px-10 py-6 print:px-8 print:py-5 border-b grid grid-cols-2 gap-8">
           {/* Commercial summary */}
           <div>
-            <h2 className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-4">Récapitulatif commercial</h2>
+            <h2 className="text-xs font-bold uppercase tracking-widest text-slate-700 mb-4">Récapitulatif commercial</h2>
             <div className="space-y-2 text-xs">
               {[
                 { label: "Référence BCC", value: reference },
@@ -283,9 +282,9 @@ export default function ManifestDocumentPage() {
                 { label: "Variance", value: `${variancePct >= 0 ? "+" : ""}${variancePct.toFixed(3)}%`, mono: true, highlight: inTolerance ? "ok" : "warn" },
                 { label: "Valeur indicative (USD)", value: indicativeValue },
               ].map(({ label, value, mono, highlight }) => (
-                <div key={label} className="flex justify-between items-start border-b pb-1.5">
-                  <span className="text-slate-500">{label}</span>
-                  <span className={`font-medium text-right ${mono ? "font-mono" : ""} ${highlight === "ok" ? "text-emerald-700" : highlight === "warn" ? "text-amber-700" : ""}`}>
+                <div key={label} className="flex justify-between items-start border-b border-slate-200 pb-1.5">
+                  <span className="text-slate-600 font-medium">{label}</span>
+                  <span className={`font-medium text-right ${mono ? "font-mono" : ""} ${highlight === "ok" ? "text-emerald-700" : highlight === "warn" ? "text-amber-700" : "text-slate-900"}`}>
                     {value}
                     {highlight === "ok" && " ✓"}
                     {highlight === "warn" && " ⚠"}
@@ -294,7 +293,7 @@ export default function ManifestDocumentPage() {
               ))}
             </div>
             {!inTolerance && totalFineOz > 0 && (
-              <div className="mt-3 rounded bg-amber-50 border border-amber-200 px-3 py-2 text-[11px] text-amber-700 flex gap-2">
+              <div className="mt-3 rounded bg-amber-50 border border-amber-300 px-3 py-2 text-[11px] text-amber-800 flex gap-2 font-medium">
                 <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
                 Variance hors tolérance ±{TOLERANCE_PCT}%. Justification requise.
               </div>
@@ -303,17 +302,17 @@ export default function ManifestDocumentPage() {
 
           {/* Documents */}
           <div>
-            <h2 className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-4">Documents joints ({Array.isArray(manifest.documents) ? manifest.documents.length : 0}/6)</h2>
+            <h2 className="text-xs font-bold uppercase tracking-widest text-slate-700 mb-4">Documents joints ({Array.isArray(manifest.documents) ? manifest.documents.length : 0}/6)</h2>
             <div className="space-y-1.5">
               {Object.keys(DOC_LABELS).map((dt) => {
                 const doc = Array.isArray(manifest.documents) ? manifest.documents.find((d) => d.doc_type === dt) : null;
                 return (
-                  <div key={dt} className={`flex items-center justify-between rounded border px-2.5 py-1.5 text-xs ${doc ? "border-emerald-200 bg-emerald-50" : "border-dashed border-slate-200 bg-slate-50"}`}>
+                  <div key={dt} className={`flex items-center justify-between rounded border px-2.5 py-1.5 text-xs ${doc ? "border-emerald-300 bg-emerald-50" : "border-slate-300 bg-slate-50"}`}>
                     <div className="flex items-center gap-1.5">
-                      {doc ? <CheckCircle2 className="h-3 w-3 text-emerald-600 shrink-0" /> : <Clock className="h-3 w-3 text-slate-400 shrink-0" />}
-                      <span className={doc ? "text-slate-700" : "text-slate-400"}>{DOC_LABELS[dt]}</span>
+                      {doc ? <CheckCircle2 className="h-3 w-3 text-emerald-700 shrink-0" /> : <Clock className="h-3 w-3 text-slate-500 shrink-0" />}
+                      <span className={doc ? "text-slate-800 font-medium" : "text-slate-600"}>{DOC_LABELS[dt]}</span>
                     </div>
-                    {doc && <span className="text-[10px] text-emerald-600 font-medium">Inclus</span>}
+                    {doc && <span className="text-[10px] text-emerald-700 font-semibold">Inclus</span>}
                   </div>
                 );
               })}
@@ -323,7 +322,7 @@ export default function ManifestDocumentPage() {
 
         {/* Compliance certifications */}
         <div className="px-10 py-6 print:px-8 print:py-5 border-b">
-          <h2 className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-4">Certifications de conformité & Chaîne de garde</h2>
+          <h2 className="text-xs font-bold uppercase tracking-widest text-slate-700 mb-4">Certifications de conformité & Chaîne de garde</h2>
           <div className="grid grid-cols-2 gap-8 text-xs">
             <div className="space-y-2">
               <CertRow title="LBMA Responsible Gold Guidance" desc="L'or contenu dans cet envoi répond aux exigences de l'OCDE en matière de devoir de diligence pour les chaînes d'approvisionnement responsables." ok />
@@ -340,7 +339,7 @@ export default function ManifestDocumentPage() {
 
         {/* Signatories */}
         <div className="px-10 py-6 print:px-8 print:py-5 border-b">
-          <h2 className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-6">Signataires</h2>
+          <h2 className="text-xs font-bold uppercase tracking-widest text-slate-700 mb-6">Signataires</h2>
           <div className="grid grid-cols-3 gap-6">
             {[
               {
@@ -365,28 +364,28 @@ export default function ManifestDocumentPage() {
                 signed: !!manifest.documents?.find?.((d) => d.doc_type === "carrier_waybill"),
               },
             ].map(({ role, name, title, date, signed }) => (
-              <div key={role} className="border rounded-lg p-4">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-3">{role}</p>
-                <div className={`h-12 border-b-2 border-dashed mb-3 flex items-end pb-1 ${signed ? "border-emerald-400" : "border-slate-200"}`}>
-                  {signed && <span className="text-[10px] italic text-emerald-600">Déclaration électronique acceptée</span>}
+              <div key={role} className="border border-slate-300 rounded-lg p-4">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-600 mb-3">{role}</p>
+                <div className={`h-12 border-b-2 border-dashed mb-3 flex items-end pb-1 ${signed ? "border-emerald-500" : "border-slate-300"}`}>
+                  {signed && <span className="text-[10px] italic text-emerald-700 font-medium">Déclaration électronique acceptée</span>}
                 </div>
-                <p className="text-xs font-bold">{name}</p>
-                <p className="text-[11px] text-slate-500">{title}</p>
-                <p className="text-[10px] text-slate-400 mt-1">{date}</p>
+                <p className="text-xs font-bold text-slate-900">{name}</p>
+                <p className="text-[11px] text-slate-600">{title}</p>
+                <p className="text-[10px] text-slate-500 mt-1">{date}</p>
               </div>
             ))}
           </div>
         </div>
 
         {/* Footer */}
-        <div className="bg-slate-50 px-10 py-4 print:px-8 flex items-center justify-between text-[10px] text-slate-400">
+        <div className="bg-slate-100 border-t border-slate-300 px-10 py-4 print:px-8 flex items-center justify-between text-[10px] text-slate-600">
           <div>
-            <p className="font-medium text-slate-600 mb-0.5">AVERTISSEMENT LÉGAL</p>
+            <p className="font-bold text-slate-800 mb-0.5">AVERTISSEMENT LÉGAL</p>
             <p>Ce document est un manifeste officiel soumis à la Banque Centrale du Congo. Toute falsification constitue une infraction pénale.</p>
             <p>La présentation de ce document ne constitue pas une autorisation d'entrée en coffre — l'approbation formelle est requise.</p>
           </div>
           <div className="text-right shrink-0 ml-6">
-            <p className="font-mono text-slate-500">{manifestRef}</p>
+            <p className="font-mono text-slate-700 font-medium">{manifestRef}</p>
             <p>Généré le {new Date().toLocaleDateString("fr-FR")}</p>
             <p>Page 1 / 1</p>
           </div>
@@ -400,7 +399,7 @@ export default function ManifestDocumentPage() {
 function MetaSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div>
-      <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2.5">{title}</p>
+      <p className="text-[10px] font-bold uppercase tracking-widest text-slate-600 mb-2.5 border-b border-slate-200 pb-1">{title}</p>
       <div className="space-y-1.5">{children}</div>
     </div>
   );
@@ -409,21 +408,21 @@ function MetaSection({ title, children }: { title: string; children: React.React
 function MetaRow({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
   return (
     <div className="flex gap-2">
-      <span className="text-xs text-slate-400 w-36 shrink-0">{label}</span>
-      <span className={`text-xs font-medium ${mono ? "font-mono" : ""}`}>{value}</span>
+      <span className="text-xs text-slate-600 w-36 shrink-0">{label}</span>
+      <span className={`text-xs font-semibold text-slate-900 ${mono ? "font-mono" : ""}`}>{value}</span>
     </div>
   );
 }
 
 function CertRow({ title, desc, ok }: { title: string; desc: string; ok?: boolean }) {
   return (
-    <div className="flex gap-2.5 py-2 border-b last:border-0">
-      <div className={`h-4 w-4 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${ok ? "bg-emerald-100" : "bg-slate-100"}`}>
-        {ok ? <CheckCircle2 className="h-3 w-3 text-emerald-600" /> : <Clock className="h-3 w-3 text-slate-400" />}
+    <div className="flex gap-2.5 py-2 border-b border-slate-200 last:border-0">
+      <div className={`h-4 w-4 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${ok ? "bg-emerald-100 border border-emerald-300" : "bg-slate-200 border border-slate-300"}`}>
+        {ok ? <CheckCircle2 className="h-3 w-3 text-emerald-700" /> : <Clock className="h-3 w-3 text-slate-500" />}
       </div>
       <div>
-        <p className="font-medium">{title}</p>
-        <p className="text-[11px] text-slate-500 mt-0.5">{desc}</p>
+        <p className="font-semibold text-slate-800">{title}</p>
+        <p className="text-[11px] text-slate-600 mt-0.5">{desc}</p>
       </div>
     </div>
   );
