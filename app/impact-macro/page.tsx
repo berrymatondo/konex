@@ -162,6 +162,8 @@ const MARKET_REF = {
   gdpUSDbn: 123.4,
   gdpRealGrowthPct: 5.9,
   finePurity: 0.995,
+  goldPriceUSD: 5050,
+  exchangeRateCDF: 2249,
 }
 
 // ─── i18n ─────────────────────────────────────────────────────────────────────
@@ -794,6 +796,19 @@ export default function ImpactMacroPage() {
     addToast(`${scenarios.length} scenario(s) exported.`)
   }
 
+  function handleRefreshMarket() {
+    setInputs(prev => ({
+      ...prev,
+      goldPriceUSD: MARKET_REF.goldPriceUSD,
+      exchangeRateInit: MARKET_REF.exchangeRateCDF,
+      reservesInit: MARKET_REF.reservesUSDbn,
+      importsPerMonthUSD: MARKET_REF.reservesUSDbn / MARKET_REF.importCoverMonths,
+      baseInflationPct: MARKET_REF.inflationYoY,
+      sterilizationRatePct: MARKET_REF.policyRate,
+    }))
+    addToast(lang === "fr" ? "Données de marché actualisées (juil. 2026)." : "Market inputs refreshed (Jul 2026).")
+  }
+
   function handleImportFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
@@ -941,13 +956,19 @@ export default function ImpactMacroPage() {
                   </span>
                   <div className="flex items-center gap-1 flex-wrap">
                     <Button size="sm" variant="outline" className="h-7 text-xs gap-1 px-2" onClick={() => setShowLibrary(true)}>
-                      <Layers className="h-3 w-3" />{lang === "fr" ? "Scénarios" : "Scenarios"}
+                      <Layers className="h-3 w-3" />{T.library}
+                    </Button>
+                    <Button size="sm" variant="outline" className="h-7 text-xs gap-1 px-2" onClick={() => setShowCompare(true)} disabled={scenarios.length === 0}>
+                      <BarChart2 className="h-3 w-3" />{T.compare}
                     </Button>
                     <Button size="sm" variant="outline" className="h-7 text-xs gap-1 px-2" onClick={handleNew}>
-                      <Plus className="h-3 w-3" />New
+                      <Plus className="h-3 w-3" />{lang === "fr" ? "Nouveau" : "New"}
+                    </Button>
+                    <Button size="sm" variant="outline" className="h-7 text-xs gap-1 px-2" onClick={handleRefreshMarket}>
+                      <RefreshCw className="h-3 w-3" />{lang === "fr" ? "Actualiser marchés" : "Refresh market"}
                     </Button>
                     <Button size="sm" variant="outline" className="h-7 text-xs gap-1 px-2" onClick={() => setInputs({ ...inputs })}>
-                      <RefreshCw className="h-3 w-3" />Recalculate
+                      <RefreshCw className="h-3 w-3" />{lang === "fr" ? "Recalculer" : "Recalculate"}
                     </Button>
                     <Button size="sm" variant="outline" className="h-7 text-xs gap-1 px-2" onClick={() => { setInputs(savedInputs); addToast("Reverted.") }} disabled={!isDirty}>
                       <RotateCcw className="h-3 w-3" />{lang === "fr" ? "Rétablir" : "Revert to saved"}
@@ -2009,8 +2030,154 @@ Sterilization cost  = cumulative sterilized stock (CDF) × sterilization rate
         ))}
       </div>
 
-      {/* Suppress unused var warnings */}
-      {compareMetrics && showCompare && compareId && <span className="hidden" />}
+      {/* ── Compare Dialog ───────────────────────────────────────────────── */}
+      <Dialog open={showCompare} onOpenChange={open => { setShowCompare(open); if (!open) setCompareId(null) }}>
+        <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col gap-0 p-0 overflow-hidden">
+          <div className="px-6 pt-6 pb-4 border-b border-border/60 shrink-0">
+            <p className="text-xs font-bold uppercase tracking-widest text-amber-400 mb-1">
+              {lang === "fr" ? "COMPARAISON DE SCÉNARIOS" : "SCENARIO COMPARISON"}
+            </p>
+            <div className="flex items-center justify-between gap-4">
+              <h2 className="text-xl font-bold">{lang === "fr" ? "Comparer les scénarios" : "Compare scenarios"}</h2>
+              <Button variant="ghost" size="sm" className="h-8 w-8 p-0 shrink-0" onClick={() => setShowCompare(false)}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+
+          <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+            {/* Scenario selector */}
+            <div>
+              <p className="text-xs font-medium text-muted-foreground mb-2">
+                {lang === "fr" ? "Scénario de référence pour la comparaison" : "Reference scenario for comparison"}
+              </p>
+              <select
+                value={compareId ?? ""}
+                onChange={e => setCompareId(e.target.value || null)}
+                className="w-full text-sm bg-zinc-800 border border-zinc-700 rounded-md px-3 py-2 text-zinc-200 focus:outline-none focus:border-amber-500"
+              >
+                <option value="">{lang === "fr" ? "— Sélectionner un scénario sauvegardé —" : "— Select a saved scenario —"}</option>
+                {scenarios.map(s => (
+                  <option key={s.id} value={s.id}>{s.name}{activeScenario?.id === s.id ? (lang === "fr" ? " (actif)" : " (active)") : ""}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Side-by-side table */}
+            {compareMetrics ? (
+              <div className="rounded-xl border border-zinc-700/60 overflow-hidden">
+                {/* Column headers */}
+                <div className="grid grid-cols-3 border-b border-zinc-700/60 bg-zinc-900/60">
+                  <div className="px-4 py-3 text-xs font-bold uppercase tracking-widest text-zinc-500">
+                    {lang === "fr" ? "MÉTRIQUE" : "METRIC"}
+                  </div>
+                  <div className="px-4 py-3 border-l border-zinc-700/60 text-center">
+                    <p className="text-xs font-bold text-amber-400">{lang === "fr" ? "Scénario actif" : "Current scenario"}</p>
+                    <p className="text-[10px] text-zinc-500 truncate mt-0.5">{activeScenario?.name ?? (lang === "fr" ? "Non sauvegardé" : "Unsaved")}</p>
+                  </div>
+                  <div className="px-4 py-3 border-l border-zinc-700/60 text-center">
+                    <p className="text-xs font-bold text-blue-400">{lang === "fr" ? "Scénario de référence" : "Comparison scenario"}</p>
+                    <p className="text-[10px] text-zinc-500 truncate mt-0.5">{compareScenario?.name ?? ""}</p>
+                  </div>
+                </div>
+
+                {/* Metric rows */}
+                {[
+                  {
+                    label: lang === "fr" ? "Inflation pic" : "Peak inflation",
+                    a: `${metrics.peakInflationPct.toFixed(1)}%`,
+                    b: `${compareMetrics.peakInflationPct.toFixed(1)}%`,
+                    aOk: metrics.peakInflationPct <= inputs.inflationCeilingPct,
+                    bOk: compareMetrics.peakInflationPct <= inputs.inflationCeilingPct,
+                    delta: compareMetrics.peakInflationPct - metrics.peakInflationPct,
+                    lowerIsBetter: true,
+                  },
+                  {
+                    label: lang === "fr" ? "Réserves ajoutées" : "Reserves added",
+                    a: `US$${metrics.reservesAddedUSDbn.toFixed(2)}bn`,
+                    b: `US$${compareMetrics.reservesAddedUSDbn.toFixed(2)}bn`,
+                    aOk: true, bOk: true,
+                    delta: compareMetrics.reservesAddedUSDbn - metrics.reservesAddedUSDbn,
+                    lowerIsBetter: false,
+                  },
+                  {
+                    label: lang === "fr" ? "Couverture imports (fin)" : "Import cover (final)",
+                    a: `${metrics.finalImportCoverMonths.toFixed(1)} ${lang === "fr" ? "mois" : "mths"}`,
+                    b: `${compareMetrics.finalImportCoverMonths.toFixed(1)} ${lang === "fr" ? "mois" : "mths"}`,
+                    aOk: metrics.finalImportCoverMonths >= inputs.importCoverFloorMonths,
+                    bOk: compareMetrics.finalImportCoverMonths >= inputs.importCoverFloorMonths,
+                    delta: compareMetrics.finalImportCoverMonths - metrics.finalImportCoverMonths,
+                    lowerIsBetter: false,
+                  },
+                  {
+                    label: lang === "fr" ? "Hausse inflation vs. référence" : "Inflation uplift vs. baseline",
+                    a: `+${Math.max(0, metrics.inflationUpliftPP).toFixed(2)} pp`,
+                    b: `+${Math.max(0, compareMetrics.inflationUpliftPP).toFixed(2)} pp`,
+                    aOk: metrics.inflationUpliftPP < 2,
+                    bOk: compareMetrics.inflationUpliftPP < 2,
+                    delta: compareMetrics.inflationUpliftPP - metrics.inflationUpliftPP,
+                    lowerIsBetter: true,
+                  },
+                  {
+                    label: lang === "fr" ? "FX vs. sans achats" : "FX vs. no-purchase",
+                    a: `+${Math.max(0, metrics.fxDepreciationVsBaseline).toFixed(2)}%`,
+                    b: `+${Math.max(0, compareMetrics.fxDepreciationVsBaseline).toFixed(2)}%`,
+                    aOk: metrics.fxDepreciationVsBaseline < 5,
+                    bOk: compareMetrics.fxDepreciationVsBaseline < 5,
+                    delta: compareMetrics.fxDepreciationVsBaseline - metrics.fxDepreciationVsBaseline,
+                    lowerIsBetter: true,
+                  },
+                  {
+                    label: lang === "fr" ? "Coût stéril. cumulé (% budget)" : "Cumul. steril. cost (% budget)",
+                    a: `${metrics.cumSterilCostPctBudgetHorizon.toFixed(1)}%`,
+                    b: `${compareMetrics.cumSterilCostPctBudgetHorizon.toFixed(1)}%`,
+                    aOk: metrics.cumSterilCostPctBudgetHorizon <= 5,
+                    bOk: compareMetrics.cumSterilCostPctBudgetHorizon <= 5,
+                    delta: compareMetrics.cumSterilCostPctBudgetHorizon - metrics.cumSterilCostPctBudgetHorizon,
+                    lowerIsBetter: true,
+                  },
+                  {
+                    label: lang === "fr" ? "Admissible" : "Admissible",
+                    a: metrics.admissible ? "✓ Oui" : "✗ Non",
+                    b: compareMetrics.admissible ? "✓ Oui" : "✗ Non",
+                    aOk: metrics.admissible,
+                    bOk: compareMetrics.admissible,
+                    delta: 0,
+                    lowerIsBetter: false,
+                  },
+                ].map((row, idx) => (
+                  <div key={idx} className={cn("grid grid-cols-3 border-b border-zinc-800/40 last:border-0", idx % 2 === 1 ? "bg-zinc-900/20" : "")}>
+                    <div className="px-4 py-3 text-xs text-zinc-400 flex items-center">{row.label}</div>
+                    <div className={cn("px-4 py-3 border-l border-zinc-800/40 text-center text-sm font-bold tabular-nums", row.aOk ? "text-emerald-400" : "text-red-400")}>
+                      {row.a}
+                    </div>
+                    <div className={cn("px-4 py-3 border-l border-zinc-800/40 text-center text-sm font-bold tabular-nums", row.bOk ? "text-emerald-400" : "text-red-400")}>
+                      {row.b}
+                      {row.delta !== 0 && (
+                        <span className={cn("ml-1.5 text-[10px] font-normal", (row.lowerIsBetter ? row.delta < 0 : row.delta > 0) ? "text-emerald-500" : "text-red-500")}>
+                          ({row.delta > 0 ? "+" : ""}{row.delta.toFixed(2)})
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="py-10 text-center text-sm text-muted-foreground">
+                {lang === "fr"
+                  ? "Sélectionnez un scénario sauvegardé pour afficher la comparaison."
+                  : "Select a saved scenario above to display the comparison."}
+              </div>
+            )}
+          </div>
+
+          <div className="px-6 py-4 border-t border-border/60 shrink-0 flex justify-end">
+            <Button variant="outline" className="px-6 font-semibold" onClick={() => setShowCompare(false)}>
+              {lang === "fr" ? "Fermer" : "Close"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </SidebarProvider>
   )
 }

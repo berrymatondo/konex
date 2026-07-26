@@ -53,6 +53,14 @@ import {
   FileSpreadsheet,
   Landmark,
   Activity,
+  ArrowLeftRight,
+  Sliders,
+  Inbox,
+  GitMerge,
+  PieChart,
+  Wrench,
+  Wallet,
+  TrendingUp,
 } from "lucide-react";
 
 // Documentation content
@@ -754,6 +762,131 @@ function verifyAuditChain(transactionId):
           "Removing a page from a profile hides its menu link and blocks direct URL access",
           "New users receive a temporary password and can sign in immediately",
         ],
+      },
+      {
+        id: "admin-equipment",
+        name: "Equipment Management",
+        route: "/admin/equipment",
+        icon: Wrench,
+        category: "System",
+        businessDescription:
+          "Registry of all assay and measurement equipment used in the gold intake workflow (precision scales, XRF analyzers, fire-assay furnaces, etc.). Each instrument carries its ISO 17025 accreditation record (accrediting body, number, validity window) and a calibration log (last calibration, certificate number, next-due date). Administrators can register new equipment, renew accreditations, and log calibration events. Expired or suspended equipment is automatically excluded from the lab selector in the Vault Intake workflow.",
+        technicalDescription:
+          "Client component fetching from GET /api/equipment which joins the equipment, accreditations, and calibrations tables. CRUD operations handled through dialogs with form validation. Bilingual (EN/FR) via useLanguage(). Tabs separate scales from analyzers. Expiry warnings computed client-side from next_due_at.",
+        userStory: "US-05 support",
+        dataFlow:
+          "GET/POST/PUT /api/equipment → equipment + accreditations + calibrations tables",
+        permissions: "System Administrator",
+        businessRules: [
+          "ISO 17025 accreditation must be valid before equipment can appear in lab selectors",
+          "Suspended equipment is excluded from all vault-intake workflows",
+          "Calibration interval (days) triggers an upcoming-due alert before next_due_at",
+          "Each calibration event records certificate number and certifying body for audit",
+        ],
+      },
+      {
+        id: "transactions",
+        name: "Transactions",
+        route: "/transactions",
+        icon: ArrowLeftRight,
+        category: "Main",
+        businessDescription:
+          "Alternative transaction hub providing a KPI summary (active counterparties, pending POs, gold in transit, monthly acquisitions) combined with a full paginated transactions table and a counterparty breakdown panel. Designed as an operations-centric view for traders and operations managers who need all transaction activity in one screen rather than navigating the individual module pages.",
+        technicalDescription:
+          "Client component using SWR to fetch aggregated data from GET /api/dashboard, reusing the KPICard, TransactionsTable, and CounterpartyDashboard shared components. Bilingual via useLanguage(). Toggle between showing recent transactions (5) and all transactions.",
+        userStory: "N/A",
+        dataFlow:
+          "GET /api/dashboard → stats + transactions array (reuses dashboard aggregation endpoint)",
+        permissions: "Trader, Operations Manager, Compliance Officer",
+      },
+      {
+        id: "previsions",
+        name: "Forecasts (Market Curves)",
+        route: "/previsions",
+        icon: TrendingUp,
+        category: "Main",
+        businessDescription:
+          "Market curve viewer aggregating seven key financial curves relevant to gold reserve management: XAU Deposit rates, SOFR OIS (overnight index swap), XAU Forward rates, US Treasury yields, Copper forward curve, FX Forward rates, and Gold Implied Volatility. Each curve shows bid/mid/ask values across multiple tenors, day-over-day and week-over-week changes, with individual and normalized chart views. Supports export of the full curve set. Purely display — no data modification.",
+        technicalDescription:
+          "Client-only component (~500 lines). Curve data is static/hardcoded for demonstration. Recharts LineChart for individual/normalized views. ViewMode (individual | normalized), PriceMode (bid | mid | ask), and CompareRef (J+1 | J+7 | M+1) state drives chart rendering. Export via CSV-style download. Bilingual via useLanguage().",
+        userStory: "N/A",
+        dataFlow:
+          "In-memory static curve data. Future integration: GET /api/market-data/curves → live pricing feeds.",
+        permissions: "Risk Manager, Trader, Reserve Manager",
+      },
+      {
+        id: "calibration",
+        name: "Liquidity Calibration",
+        route: "/calibration",
+        icon: Sliders,
+        category: "Main",
+        businessDescription:
+          "BCC base-money trajectory monitor and reserve-calibration tool. Displays the central bank's actual monetary base trajectory (Avoirs) against pre-programme and post-programme forecasts over a 12-month horizon. The Factors panel decomposes the monthly delta into its contributing components (gold purchases, Treasury operations, FX transactions, banknotes, BCC bonds). The Forecast panel adds a confidence band. A Required Reserves breakdown table shows how a gold-purchase injection affects mandatory reserves across CDF and USD deposit categories. A projection table provides J+1, J+7, and M+1 forward estimates with sterilization actions.",
+        technicalDescription:
+          "Client-only component with three chart views (avoirs | facteurs | prevision) driven by a ChartView state toggle. Recharts LineChart and ReferenceArea for corridor visualization. All data is static/hardcoded for the current pilot period. Bilingual via useLanguage().",
+        userStory: "MAC-01 support",
+        dataFlow:
+          "In-memory static data. Future integration: GET /api/bcc/monetary-base → live base-money statistics.",
+        permissions: "Risk Manager, Central Bank Analyst, Administrator",
+      },
+      {
+        id: "gestion-reserves",
+        name: "Reserve Management",
+        route: "/gestion-reserves",
+        icon: PieChart,
+        category: "Main",
+        businessDescription:
+          "Reserve Desk — Allocation Engine: a full-featured reserve portfolio management tool embedded as an iframe. Seven screens: (1) Overview — portfolio KPIs, asset allocation donut, currency composition, constraint status summary; (2) Positions — filterable/searchable positions table with asset class, CCY, issuer, rating, market value, duration, yield, liquidity; (3) New Optimization — strategic/tactical run types, constraint configuration, pre-run validation checklist, optimization trigger; (4) Recommendation — allocation recommendation with constraint check, suggested trades, rationale narrative, scenario robustness, approval workflow; (5) Assumptions — reusable optimization assumption templates (inflation, rate, FX, spread outlooks); (6) Scenarios — stress scenarios library (rate shock, credit spread, FX shock, outflow uplift); (7) Policy & Limits — versioned investment-policy and risk-limit sets with draft/approve/activate workflow.",
+        technicalDescription:
+          "React wrapper (app/gestion-reserves/page.tsx) hosts a self-contained HTML app (/public/reserve-engine.html) in an iframe. Tab navigation is handled by the React wrapper which sends postMessage({action:'nav', screen}) and postMessage({action:'lang', lang}) to the iframe. The iframe exposes window.goScreen() for direct navigation. Language is synced from the global LanguageContext (localStorage key 'gold-acquisition-language') to the iframe on load and on language change. The HTML engine contains its own JS simulation data and i18n dictionary for EN/FR translation of all 7 screens.",
+        userStory: "RES-01",
+        dataFlow:
+          "Fully client-side simulation. The iframe reads localStorage for the current language. No API calls; no database reads or writes. Future: GET /api/reserves/portfolio → live position data.",
+        permissions: "Reserve Manager, Risk Manager, Administrator",
+      },
+      {
+        id: "manifest-queue",
+        name: "Manifest Queue",
+        route: "/manifest-queue",
+        icon: Inbox,
+        category: "Operations",
+        businessDescription:
+          "Queue for managing the export-manifest review cycle between the counterparty and the BCC Trade Compliance team. Each manifest item progresses through: Draft → Submitted → (Accepted | Returned). Compliance officers can accept a manifest (advancing the PO to dispatch-ready) or return it with a reason code and review notes, which re-opens it for counterparty correction. Shows attempt count, submission and review timestamps, document attachments, and SLA metrics.",
+        technicalDescription:
+          "Client component fetching from GET /api/manifest-queue (SWR). Filterable by status. Inline action buttons (Accept / Return) trigger PUT requests. Return dialog captures reason code and free-text notes. Links to the full manifest detail page at /purchase-orders/[id]/manifest.",
+        userStory: "US-04 support",
+        dataFlow:
+          "GET /api/manifest-queue → manifests + purchase_orders tables. PUT /api/purchase-orders/[id]/manifest → status transitions",
+        permissions: "Trade Compliance Officer, Senior Compliance Officer",
+      },
+      {
+        id: "po-lifecycle",
+        name: "PO Lifecycle",
+        route: "/po-lifecycle",
+        icon: GitMerge,
+        category: "Operations",
+        businessDescription:
+          "Visual, interactive workflow diagram of the end-to-end Purchase Order lifecycle, rendered as an SVG swimlane map. Shows every status node (BCC internal, counterparty, external systems) and every transition arrow, color-coded by actor: BCC operations (blue), counterparty (orange), payment/banking systems (amber), optional/future nodes (slate). Clicking a node highlights the relevant swimlane. Live status counts fetched via API show how many POs are currently in each state. Useful for onboarding, training, and monitoring.",
+        technicalDescription:
+          "Client component rendering an SVG at a 1520×910 virtual coordinate space scaled responsively via CSS percentage positioning. Node positions use pX()/pY() helpers. Status counts fetched via SWR from GET /api/po-lifecycle/counts. Clicking a node calls setHighlighted(). Bilingual labels.",
+        userStory: "US-03 support",
+        dataFlow:
+          "GET /api/po-lifecycle/counts → count per PO status from purchase_orders table",
+        permissions: "All authenticated users (read-only)",
+      },
+      {
+        id: "business-plan",
+        name: "Business Plan",
+        route: "/business-plan",
+        icon: Wallet,
+        category: "System",
+        businessDescription:
+          "Commercial positioning and financial planning page for the Gold Acquisition Platform product (when offered as a SaaS). Presents three pricing tiers — Starter (€350/mo, up to 5 users), Business (€1 000/mo, up to 25 users), Enterprise (€3 000/mo, unlimited users) — with a feature matrix per tier. Includes a 3-year business plan projection showing subscriber ramp, revenue, OPEX, development cost, gross margin, and EBITDA with cumulative P&L breakeven visualization. Internal use only; not visible to end-users.",
+        technicalDescription:
+          "Static client component with hardcoded pricing tiers (TIERS) and annual plan rows (PLAN). Recharts ComposedChart for financial projections (Bar + Line). EUR() formatter for French locale currency display. No API calls.",
+        userStory: "N/A",
+        dataFlow: "In-memory static data only. No persistence.",
+        permissions: "Administrator",
       },
     ],
     workflow: {
@@ -1550,6 +1683,131 @@ Exécution du Règlement:
           "Les nouveaux utilisateurs reçoivent un mot de passe temporaire et peuvent se connecter immédiatement",
         ],
       },
+      {
+        id: "admin-equipment",
+        name: "Gestion du Matériel",
+        route: "/admin/equipment",
+        icon: Wrench,
+        category: "Système",
+        businessDescription:
+          "Registre de tout l'équipement d'essai et de mesure utilisé dans le workflow de réception d'or (balances de précision, analyseurs XRF, fours d'essai au feu, etc.). Chaque instrument porte son accréditation ISO 17025 (organisme, numéro, fenêtre de validité) et un journal d'étalonnage (dernier étalonnage, numéro de certificat, prochaine date). Les administrateurs peuvent enregistrer un nouvel équipement, renouveler les accréditations et journaliser les étalonnages. Le matériel expiré ou suspendu est automatiquement exclu du sélecteur de labo dans le workflow de réception coffre.",
+        technicalDescription:
+          "Composant client récupérant via GET /api/equipment avec jointure sur les tables equipment, accreditations et calibrations. Opérations CRUD via dialogues avec validation de formulaire. Bilingue (EN/FR) via useLanguage(). Onglets séparant balances et analyseurs. Alertes d'expiration calculées côté client à partir de next_due_at.",
+        userStory: "Support US-05",
+        dataFlow:
+          "GET/POST/PUT /api/equipment → tables equipment + accreditations + calibrations",
+        permissions: "Administrateur système",
+        businessRules: [
+          "L'accréditation ISO 17025 doit être valide pour que l'équipement apparaisse dans les sélecteurs de labo",
+          "Le matériel suspendu est exclu de tous les workflows de réception coffre",
+          "L'intervalle d'étalonnage (jours) déclenche une alerte d'échéance avant next_due_at",
+          "Chaque étalonnage enregistre le numéro de certificat et l'organisme certificateur pour l'audit",
+        ],
+      },
+      {
+        id: "transactions",
+        name: "Transactions",
+        route: "/transactions",
+        icon: ArrowLeftRight,
+        category: "Principal",
+        businessDescription:
+          "Hub transactionnel alternatif fournissant un résumé KPI (contreparties actives, OA en attente, or en transit, acquisitions mensuelles) combiné à un tableau complet de transactions paginé et un panneau de ventilation par contrepartie. Conçu comme une vue orientée opérations pour les traders et responsables qui ont besoin de toute l'activité transactionnelle sur un seul écran.",
+        technicalDescription:
+          "Composant client utilisant SWR pour récupérer les données agrégées via GET /api/dashboard, réutilisant les composants KPICard, TransactionsTable et CounterpartyDashboard. Bilingue via useLanguage(). Bascule entre transactions récentes (5) et toutes les transactions.",
+        userStory: "N/A",
+        dataFlow:
+          "GET /api/dashboard → stats + tableau transactions (réutilise l'endpoint d'agrégation du tableau de bord)",
+        permissions: "Trader, Responsable Opérations, Officier de Conformité",
+      },
+      {
+        id: "previsions",
+        name: "Prévisions (Courbes de Marché)",
+        route: "/previsions",
+        icon: TrendingUp,
+        category: "Principal",
+        businessDescription:
+          "Visualiseur de courbes de marché agrégeant sept courbes financières clés pour la gestion des réserves : taux de dépôt XAU, SOFR OIS (swap indexé au jour le jour), taux forward XAU, courbe des taux US Treasury, courbe forward cuivre, taux forward FX et volatilité implicite or. Chaque courbe affiche les valeurs bid/mid/ask sur plusieurs maturités, variations J-1 et S-1, avec vues individuelle et normalisée. Purement affichage — aucune modification de données.",
+        technicalDescription:
+          "Composant client uniquement (~500 lignes). Les données de courbes sont statiques/codées en dur. LineChart Recharts pour les vues individuelle/normalisée. États ViewMode (individual | normalized), PriceMode (bid | mid | ask) et CompareRef (J+1 | J+7 | M+1). Export via téléchargement CSV. Bilingue via useLanguage().",
+        userStory: "N/A",
+        dataFlow:
+          "Données statiques en mémoire. Intégration future : GET /api/market-data/curves → flux de prix en direct.",
+        permissions: "Gestionnaire des Risques, Trader, Gestionnaire de Réserves",
+      },
+      {
+        id: "calibration",
+        name: "Calibration de Liquidité",
+        route: "/calibration",
+        icon: Sliders,
+        category: "Principal",
+        businessDescription:
+          "Moniteur de trajectoire de base monétaire BCC et outil de calibration des réserves. Affiche la trajectoire effective des avoirs de la banque centrale face aux prévisions pré-programme et post-programme sur 12 mois. Le panneau Facteurs décompose le delta mensuel en ses composantes (achats d'or, opérations Trésor, opérations FX, billets, bons BCC). Le panneau Prévision ajoute une bande de confiance. Un tableau de décomposition des réserves obligatoires montre comment une injection liée aux achats d'or affecte les réserves sur les dépôts CDF et USD. Un tableau de projection fournit les estimations J+1, J+7 et M+1 avec les actions de stérilisation.",
+        technicalDescription:
+          "Composant client uniquement avec trois vues graphiques (avoirs | facteurs | prevision) pilotées par une bascule d'état ChartView. LineChart et ReferenceArea Recharts pour la visualisation du corridor. Données statiques/codées en dur pour la période pilote actuelle. Bilingue via useLanguage().",
+        userStory: "Support MAC-01",
+        dataFlow:
+          "Données statiques en mémoire. Intégration future : GET /api/bcc/monetary-base → statistiques de base monétaire en direct.",
+        permissions: "Gestionnaire des Risques, Analyste Banque Centrale, Administrateur",
+      },
+      {
+        id: "gestion-reserves",
+        name: "Gestion des Réserves",
+        route: "/gestion-reserves",
+        icon: PieChart,
+        category: "Principal",
+        businessDescription:
+          "Reserve Desk — Moteur d'allocation : outil complet de gestion de portefeuille de réserves intégré en iframe. Sept écrans : (1) Vue d'ensemble — KPI portefeuille, donut d'allocation d'actifs, composition devises, résumé statut contraintes ; (2) Positions — tableau de positions filtrable/recherchable avec classe d'actif, devise, émetteur, notation, valeur de marché, duration, rendement, liquidité ; (3) Nouvelle optimisation — types d'exécution stratégique/tactique, configuration des contraintes, liste de validation pré-exécution, déclencheur d'optimisation ; (4) Recommandation — recommandation d'allocation avec vérification des contraintes, ordres suggérés, justification narrative, robustesse scénarielle, workflow d'approbation ; (5) Hypothèses — modèles d'hypothèses d'optimisation réutilisables (inflation, taux, change, spreads) ; (6) Scénarios — bibliothèque de scénarios de stress (choc de taux, spread crédit, choc FX, majoration des sorties) ; (7) Politique & Limites — jeux de limites de politique d'investissement et de risque versionnés avec workflow brouillon/soumettre/approuver.",
+        technicalDescription:
+          "Wrapper React (app/gestion-reserves/page.tsx) héberge une application HTML autonome (/public/reserve-engine.html) dans une iframe. La navigation par onglets est gérée par le wrapper React qui envoie postMessage({action:'nav', screen}) et postMessage({action:'lang', lang}) à l'iframe. L'iframe expose window.goScreen() pour la navigation directe. La langue est synchronisée depuis le LanguageContext global (clé localStorage 'gold-acquisition-language') vers l'iframe au chargement et lors de chaque changement de langue. Le moteur HTML contient ses propres données de simulation JS et son dictionnaire i18n EN/FR pour la traduction des 7 écrans.",
+        userStory: "RES-01",
+        dataFlow:
+          "Simulation entièrement côté client. L'iframe lit localStorage pour la langue courante. Aucun appel API. Futur : GET /api/reserves/portfolio → données de positions en direct.",
+        permissions: "Gestionnaire de Réserves, Gestionnaire des Risques, Administrateur",
+      },
+      {
+        id: "manifest-queue",
+        name: "File Manifestes",
+        route: "/manifest-queue",
+        icon: Inbox,
+        category: "Opérations",
+        businessDescription:
+          "File d'attente pour gérer le cycle de révision des manifestes d'exportation entre la contrepartie et l'équipe Conformité Commerce BCC. Chaque manifeste progresse selon : Brouillon → Soumis → (Accepté | Retourné). Les officiers de conformité peuvent accepter (faisant avancer le PO vers prêt-pour-dispatch) ou retourner avec un code de motif et des notes, ce qui le rouvre pour correction par la contrepartie. Affiche le nombre de tentatives, les horodatages de soumission et révision, les pièces jointes et les métriques de délai.",
+        technicalDescription:
+          "Composant client récupérant via GET /api/manifest-queue (SWR). Filtrable par statut. Boutons d'action inline (Accepter / Retourner) déclenchent des PUT. Le dialogue de retour capture le code de motif et des notes en texte libre. Liens vers la page de détail manifeste /purchase-orders/[id]/manifest.",
+        userStory: "Support US-04",
+        dataFlow:
+          "GET /api/manifest-queue → tables manifests + purchase_orders. PUT /api/purchase-orders/[id]/manifest → transitions de statut",
+        permissions: "Officier de Conformité Commerce, Officier de Conformité Senior",
+      },
+      {
+        id: "po-lifecycle",
+        name: "Cycle de Vie PO",
+        route: "/po-lifecycle",
+        icon: GitMerge,
+        category: "Opérations",
+        businessDescription:
+          "Diagramme de workflow visuel et interactif du cycle de vie complet des ordres d'achat, rendu sous forme de carte SVG à couloirs. Montre chaque nœud de statut (BCC interne, contrepartie, systèmes externes) et chaque flèche de transition, codés par couleur selon l'acteur : opérations BCC (bleu), contrepartie (orange), systèmes de paiement/banque (ambre), nœuds optionnels/futurs (ardoise). Cliquer sur un nœud met en surbrillance le couloir concerné. Les comptages de statut en direct récupérés via API montrent combien de PO se trouvent dans chaque état. Utile pour l'onboarding, la formation et le suivi.",
+        technicalDescription:
+          "Composant client rendant un SVG dans un espace de coordonnées virtuelles 1520×910 dimensionné de façon responsive via positionnement CSS en pourcentage. Les positions des nœuds utilisent les helpers pX()/pY(). Comptages récupérés via SWR depuis GET /api/po-lifecycle/counts. Cliquer sur un nœud appelle setHighlighted(). Labels bilingues.",
+        userStory: "Support US-03",
+        dataFlow:
+          "GET /api/po-lifecycle/counts → comptage par statut PO depuis la table purchase_orders",
+        permissions: "Tous les utilisateurs authentifiés (lecture seule)",
+      },
+      {
+        id: "business-plan",
+        name: "Business Plan",
+        route: "/business-plan",
+        icon: Wallet,
+        category: "Système",
+        businessDescription:
+          "Page de positionnement commercial et de planification financière pour le produit Gold Acquisition Platform (dans sa version SaaS). Présente trois niveaux tarifaires — Starter (350 €/mois, jusqu'à 5 utilisateurs), Business (1 000 €/mois, jusqu'à 25 utilisateurs), Enterprise (3 000 €/mois, utilisateurs illimités) — avec une matrice de fonctionnalités par niveau. Inclut une projection de business plan sur 3 ans montrant la montée en abonnés, le chiffre d'affaires, l'OPEX, le coût de développement, la marge brute et l'EBITDA avec visualisation P&L cumulatif. Usage interne uniquement.",
+        technicalDescription:
+          "Composant client statique avec niveaux de tarification (TIERS) et lignes de plan annuel (PLAN) codés en dur. ComposedChart Recharts pour les projections financières (Bar + Line). Formateur EUR() pour l'affichage monétaire en locale française. Aucun appel API.",
+        userStory: "N/A",
+        dataFlow: "Données statiques en mémoire uniquement. Aucune persistance.",
+        permissions: "Administrateur",
+      },
     ],
     workflow: {
       title: "Workflow de Bout en Bout",
@@ -1914,7 +2172,7 @@ export default function DocumentationPage() {
                   <div className="flex flex-wrap items-center justify-center gap-2">
                     {content.workflow.steps.map((step, i) => (
                       <div key={i} className="flex items-center gap-2">
-                        <div className="flex flex-col items-center p-3 rounded-lg border bg-card min-w-[140px]">
+                        <div className="flex flex-col items-center p-3 rounded-lg border bg-card min-w-35">
                           <Badge variant="outline" className="mb-2">
                             {step.userStory}
                           </Badge>
@@ -1960,7 +2218,7 @@ export default function DocumentationPage() {
                         </CardTitle>
                       </CardHeader>
                       <CardContent className="p-0">
-                        <ScrollArea className="h-[600px]">
+                        <ScrollArea className="h-150">
                           <div className="space-y-1 p-4 pt-0">
                             {(language === "fr"
                               ? ["Principal", "Opérations", "Système"]
@@ -2133,7 +2391,7 @@ export default function DocumentationPage() {
                             )}
                           </div>
                         ) : (
-                          <div className="flex flex-col items-center justify-center h-[500px] text-center">
+                          <div className="flex flex-col items-center justify-center h-125 text-center">
                             <BookOpen className="h-12 w-12 text-muted-foreground/50 mb-4" />
                             <h3 className="font-semibold mb-2">
                               {language === "fr"
