@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { useParams, useRouter } from "next/navigation"
+import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { AppSidebar } from "@/components/app-sidebar"
 import { SidebarProvider } from "@/components/sidebar-provider"
 import { AppHeader } from "@/components/app-header"
@@ -29,6 +29,11 @@ import {
   Plus,
   X,
   Send,
+  Mail,
+  MessageSquare,
+  Bell,
+  Phone,
+  Lock,
 } from "lucide-react"
 import { useLanguage } from "@/lib/i18n/language-context"
 
@@ -37,12 +42,19 @@ type Resolution = "partial_accepted" | "hold" | "rejected" | ""
 export default function CountDiscrepancyPage() {
   const params = useParams()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { language } = useLanguage()
   const shipmentId = params.id as string
 
-  const [expectedCount, setExpectedCount] = useState<number>(100)
-  const [receivedCount, setReceivedCount] = useState<number>(97)
-  const [missingSerials, setMissingSerials] = useState<string[]>(["BAR-2026-0341", "BAR-2026-0342", "BAR-2026-0343"])
+  const expectedFromIntake = parseInt(searchParams.get("expected") || "", 10)
+  const receivedFromIntake = parseInt(searchParams.get("received") || "", 10)
+
+  const [expectedCount, setExpectedCount] = useState<number>(Number.isFinite(expectedFromIntake) && expectedFromIntake > 0 ? expectedFromIntake : 100)
+  const [receivedCount, setReceivedCount] = useState<number>(Number.isFinite(receivedFromIntake) ? receivedFromIntake : 97)
+  const [missingSerials, setMissingSerials] = useState<string[]>([])
+
+  const [reportedAt] = useState(() => new Date())
+  const slaDeadline = new Date(reportedAt.getTime() + 4 * 60 * 60 * 1000)
   const [newSerial, setNewSerial] = useState("")
   const [notes, setNotes] = useState("")
   const [resolution, setResolution] = useState<Resolution>("")
@@ -155,7 +167,7 @@ export default function CountDiscrepancyPage() {
               {/* Alert Banner */}
               <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4">
                 <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
-                <div>
+                <div className="flex-1">
                   <p className="font-semibold text-amber-800">
                     {language === "fr" ? "Discordance de comptage détectée" : "Bar Count Discrepancy Detected"}
                   </p>
@@ -164,6 +176,10 @@ export default function CountDiscrepancyPage() {
                       ? `${discrepancy} barre(s) manquante(s) sur ${expectedCount} attendues (${discrepancyPct.toFixed(2)}%).`
                       : `${discrepancy} bar(s) missing out of ${expectedCount} expected (${discrepancyPct.toFixed(2)}%).`}
                   </p>
+                  <div className="flex flex-wrap gap-x-5 gap-y-1 text-xs text-amber-700 mt-3">
+                    <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{language === "fr" ? "Signalé :" : "Reported:"} {reportedAt.toLocaleString()}</span>
+                    <span className="flex items-center gap-1"><AlertTriangle className="h-3 w-3" />{language === "fr" ? "SLA : réponse Gestionnaire Coffre sous" : "SLA: Vault Manager response within"} 4h ({language === "fr" ? "échéance" : "due"} {slaDeadline.toLocaleTimeString()})</span>
+                  </div>
                 </div>
               </div>
 
@@ -171,13 +187,13 @@ export default function CountDiscrepancyPage() {
               <div className="grid grid-cols-3 gap-4">
                 {[
                   {
-                    label: language === "fr" ? "Attendu" : "Expected",
+                    label: language === "fr" ? "Attendu (manifeste)" : "Expected (manifest)",
                     value: expectedCount,
                     color: "text-foreground",
                     setter: (v: number) => setExpectedCount(v),
                   },
                   {
-                    label: language === "fr" ? "Reçu" : "Received",
+                    label: language === "fr" ? "Reçu (physique)" : "Received (physical)",
                     value: receivedCount,
                     color: "text-foreground",
                     setter: (v: number) => setReceivedCount(v),
@@ -208,6 +224,41 @@ export default function CountDiscrepancyPage() {
                     </CardContent>
                   </Card>
                 ))}
+              </div>
+
+              {/* Notifications dispatched automatically */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">{language === "fr" ? "Notifications envoyées automatiquement" : "Notifications dispatched automatically"}</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  {[
+                    { name: language === "fr" ? "Gestionnaire Coffre" : "Vault Manager", role: language === "fr" ? "Autorité de décision — accepter partiel ou rejeter" : "Decision authority — accept partial or reject", icons: [MessageSquare, Mail, Bell], sla: "4h SLA", slaClass: "bg-amber-50 text-amber-700" },
+                    { name: language === "fr" ? "Responsable Transactions" : "Trade Manager", role: language === "fr" ? "Supervision PO — notifié de l'écart" : "PO oversight — notified of shortfall", icons: [Mail, Bell], sla: language === "fr" ? "Info" : "FYI", slaClass: "bg-muted text-muted-foreground" },
+                    { name: language === "fr" ? "Transporteur" : "Carrier", role: language === "fr" ? "Doit justifier la barre manquante" : "Must account for missing bar", icons: [Mail, Phone], sla: language === "fr" ? "Action requise" : "Action req.", slaClass: "bg-muted text-muted-foreground" },
+                  ].map((n) => (
+                    <div key={n.name} className="flex items-center gap-3 p-2.5 rounded-lg border bg-muted/20">
+                      <div className="flex-1">
+                        <div className="text-sm font-medium">{n.name}</div>
+                        <div className="text-xs text-muted-foreground">{n.role}</div>
+                      </div>
+                      <div className="flex gap-1.5 text-muted-foreground">
+                        {n.icons.map((Icon, i) => <Icon key={i} className="h-3.5 w-3.5" />)}
+                      </div>
+                      <Badge variant="outline" className={`${n.slaClass} border-0 text-[11px]`}>{n.sla}</Badge>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+
+              {/* Block notice */}
+              <div className="flex items-start gap-2.5 rounded-lg border bg-muted/30 p-3.5 text-sm text-muted-foreground">
+                <Lock className="h-4 w-4 shrink-0 mt-0.5" />
+                <span>
+                  {language === "fr"
+                    ? `Les ${receivedCount} barres reçues sont sécurisées au coffre mais pas encore enregistrées dans la réception. L'intake reste bloqué jusqu'à la décision du Gestionnaire Coffre : accepter la livraison partielle (les barres reçues avancent, le PO reste ouvert pour la barre manquante) ou rejeter l'expédition complète (toutes les barres retournées, PO en attente).`
+                    : `The ${receivedCount} bars received are secured in the vault but not yet logged into the intake record. Intake stays blocked until the Vault Manager decides: accept the partial shipment (received bars proceed, PO stays open for the missing bar) or reject the full shipment (all bars returned, PO on hold).`}
+                </span>
               </div>
 
               {/* Missing Serial Numbers */}

@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
+import { headers } from "next/headers";
 import { sql } from "@/lib/db";
+import { auth } from "@/lib/auth";
 
 export async function GET(
   request: Request,
@@ -9,7 +11,7 @@ export async function GET(
     const { id } = await params;
 
     const result = await sql`
-      SELECT 
+      SELECT
         po.id,
         po.tracking_id,
         po.status,
@@ -31,6 +33,31 @@ export async function GET(
 
     const po = result[0];
 
+    // Counterparty manifest declared at dispatch (US-04) — authoritative source for
+    // declared seals, expected bar count, carrier, per-bar declared weight/fineness.
+    let manifest: Record<string, unknown> | null = null;
+    try {
+      const manifestRows = await sql`
+        SELECT seal_number, seal_number_secondary, total_bars, carrier,
+               total_gross_weight_kg, total_fine_oz, po_fine_oz, bars_json, destination_vault
+        FROM counterparty_manifests
+        WHERE purchase_order_id = ${id} AND status != 'draft'
+        ORDER BY attempt_number DESC
+        LIMIT 1
+      `;
+      manifest = manifestRows[0] ?? null;
+    } catch {
+      manifest = null;
+    }
+
+    let receivedByName: string | null = null;
+    try {
+      const session = await auth.api.getSession({ headers: await headers() });
+      receivedByName = (session?.user as { name?: string } | undefined)?.name ?? null;
+    } catch {
+      receivedByName = null;
+    }
+
     // Also load the most recent saved reception record for this PO (if any),
     // so the page can re-hydrate seals, net weight, OTP and photo evidence.
     let reception: Record<string, unknown> | null = null;
@@ -40,7 +67,13 @@ export async function GET(
                weight_variance, otp_code, photo_evidence, operator_id, vault_location,
                selected_po_id, po_reference, sample_id, lab_id, assay_method,
                au_purity, ag_purity, cu_purity, fe_purity, pure_gold_weight, po_estimate,
-               validation_status, certificate_pathname, certificate_file_name, updated_at
+               validation_status, certificate_pathname, certificate_file_name,
+               arrival_date, arrival_time, received_by, carrier_name, carrier_rep_present, condition_on_arrival,
+               bar_count_expected, bar_count_received, seal_verifications,
+               witness_name, holding_bay, container_opened, bars_transferred,
+               scale_id, weighing_scheduled_at, accreditation_number, expected_results_at,
+               bar_records, declaration_measurements, declaration_assay, declaration_compliance,
+               updated_at
         FROM vault_receptions
         WHERE po_id = ${id}
         ORDER BY created_at DESC
@@ -63,6 +96,21 @@ export async function GET(
       poValue: parseFloat(String(po.total_estimated_value || 0)),
       currency: po.currency || "USD",
       vaultLocation: po.delivery_vault_id || "Default Vault",
+      // Declared-at-dispatch manifest (US-04) — authoritative "manifest" reference values
+      manifest: manifest
+        ? {
+            sealPrimaryDeclared: manifest.seal_number ?? null,
+            sealSecondaryDeclared: manifest.seal_number_secondary ?? null,
+            totalBars: manifest.total_bars ?? null,
+            carrier: manifest.carrier ?? null,
+            totalGrossWeightKg: manifest.total_gross_weight_kg != null ? parseFloat(String(manifest.total_gross_weight_kg)) : null,
+            totalFineOz: manifest.total_fine_oz != null ? parseFloat(String(manifest.total_fine_oz)) : null,
+            poFineOz: manifest.po_fine_oz != null ? parseFloat(String(manifest.po_fine_oz)) : null,
+            destinationVault: manifest.destination_vault ?? null,
+            bars: Array.isArray(manifest.bars_json) ? manifest.bars_json : [],
+          }
+        : null,
+      receivedByDefault: receivedByName,
       // Saved reception fields (null when no reception has been recorded yet)
       reception: reception
         ? {
@@ -89,6 +137,27 @@ export async function GET(
             validationStatus: reception.validation_status ?? null,
             certificatePathname: reception.certificate_pathname ?? null,
             certificateFileName: reception.certificate_file_name ?? null,
+            arrivalDate: reception.arrival_date ?? null,
+            arrivalTime: reception.arrival_time ?? null,
+            receivedBy: reception.received_by ?? null,
+            carrierName: reception.carrier_name ?? null,
+            carrierRepPresent: reception.carrier_rep_present ?? null,
+            conditionOnArrival: reception.condition_on_arrival ?? null,
+            barCountExpected: reception.bar_count_expected ?? null,
+            barCountReceived: reception.bar_count_received ?? null,
+            sealVerifications: reception.seal_verifications ?? [],
+            witnessName: reception.witness_name ?? null,
+            holdingBay: reception.holding_bay ?? null,
+            containerOpened: reception.container_opened ?? false,
+            barsTransferred: reception.bars_transferred ?? false,
+            scaleId: reception.scale_id ?? null,
+            weighingScheduledAt: reception.weighing_scheduled_at ?? null,
+            accreditationNumber: reception.accreditation_number ?? null,
+            expectedResultsAt: reception.expected_results_at ?? null,
+            barRecords: reception.bar_records ?? [],
+            declarationMeasurements: reception.declaration_measurements ?? false,
+            declarationAssay: reception.declaration_assay ?? false,
+            declarationCompliance: reception.declaration_compliance ?? false,
             updatedAt: reception.updated_at ?? null,
           }
         : null,

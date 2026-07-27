@@ -41,6 +41,31 @@ async function ensureReceptionTable() {
   await sql`ALTER TABLE vault_receptions ADD COLUMN IF NOT EXISTS validation_status text`;
   await sql`ALTER TABLE vault_receptions ADD COLUMN IF NOT EXISTS certificate_pathname text`;
   await sql`ALTER TABLE vault_receptions ADD COLUMN IF NOT EXISTS certificate_file_name text`;
+  // Section 1 — arrival details & per-seal verification (US-05 reference screens)
+  await sql`ALTER TABLE vault_receptions ADD COLUMN IF NOT EXISTS arrival_date text`;
+  await sql`ALTER TABLE vault_receptions ADD COLUMN IF NOT EXISTS arrival_time text`;
+  await sql`ALTER TABLE vault_receptions ADD COLUMN IF NOT EXISTS received_by text`;
+  await sql`ALTER TABLE vault_receptions ADD COLUMN IF NOT EXISTS carrier_name text`;
+  await sql`ALTER TABLE vault_receptions ADD COLUMN IF NOT EXISTS carrier_rep_present text`;
+  await sql`ALTER TABLE vault_receptions ADD COLUMN IF NOT EXISTS condition_on_arrival text`;
+  await sql`ALTER TABLE vault_receptions ADD COLUMN IF NOT EXISTS bar_count_expected int`;
+  await sql`ALTER TABLE vault_receptions ADD COLUMN IF NOT EXISTS bar_count_received int`;
+  await sql`ALTER TABLE vault_receptions ADD COLUMN IF NOT EXISTS seal_verifications jsonb DEFAULT '[]'::jsonb`;
+  // Section 2 — secure transfer & scheduling (previously accepted by the client but silently dropped)
+  await sql`ALTER TABLE vault_receptions ADD COLUMN IF NOT EXISTS witness_name text`;
+  await sql`ALTER TABLE vault_receptions ADD COLUMN IF NOT EXISTS holding_bay text`;
+  await sql`ALTER TABLE vault_receptions ADD COLUMN IF NOT EXISTS container_opened boolean DEFAULT false`;
+  await sql`ALTER TABLE vault_receptions ADD COLUMN IF NOT EXISTS bars_transferred boolean DEFAULT false`;
+  await sql`ALTER TABLE vault_receptions ADD COLUMN IF NOT EXISTS scale_id text`;
+  await sql`ALTER TABLE vault_receptions ADD COLUMN IF NOT EXISTS weighing_scheduled_at text`;
+  await sql`ALTER TABLE vault_receptions ADD COLUMN IF NOT EXISTS accreditation_number text`;
+  await sql`ALTER TABLE vault_receptions ADD COLUMN IF NOT EXISTS expected_results_at text`;
+  // Sections 3+4 — per-bar weighing & assay records (keyed by serial)
+  await sql`ALTER TABLE vault_receptions ADD COLUMN IF NOT EXISTS bar_records jsonb DEFAULT '[]'::jsonb`;
+  // Section 5 — acceptance declarations
+  await sql`ALTER TABLE vault_receptions ADD COLUMN IF NOT EXISTS declaration_measurements boolean DEFAULT false`;
+  await sql`ALTER TABLE vault_receptions ADD COLUMN IF NOT EXISTS declaration_assay boolean DEFAULT false`;
+  await sql`ALTER TABLE vault_receptions ADD COLUMN IF NOT EXISTS declaration_compliance boolean DEFAULT false`;
 }
 
 export async function GET() {
@@ -110,7 +135,13 @@ export async function POST(request: Request) {
         weight_variance, vault_location, operator_id, otp_code, photo_evidence,
         sample_id, lab_id, assay_method,
         au_purity, ag_purity, cu_purity, fe_purity, pure_gold_weight, po_estimate,
-        validation_status, certificate_pathname, certificate_file_name, updated_at
+        validation_status, certificate_pathname, certificate_file_name,
+        arrival_date, arrival_time, received_by, carrier_name, carrier_rep_present, condition_on_arrival,
+        bar_count_expected, bar_count_received, seal_verifications,
+        witness_name, holding_bay, container_opened, bars_transferred,
+        scale_id, weighing_scheduled_at, accreditation_number, expected_results_at,
+        bar_records, declaration_measurements, declaration_assay, declaration_compliance,
+        updated_at
       ) VALUES (
         ${receptionId}, ${body.poId ?? null}, ${selectedPoId}, ${body.poReference ?? null},
         ${body.trackingId ?? null}, ${body.counterpartyName ?? null},
@@ -122,7 +153,19 @@ export async function POST(request: Request) {
         ${body.auPurity ?? null}, ${body.agPurity ?? null}, ${body.cuPurity ?? null},
         ${body.fePurity ?? null}, ${body.pureGoldWeight ?? null}, ${body.poEstimate ?? null},
         ${body.validationStatus ?? null}, ${body.certificatePathname ?? null},
-        ${body.certificateFileName ?? null}, now()
+        ${body.certificateFileName ?? null},
+        ${body.arrivalDate ?? null}, ${body.arrivalTime ?? null}, ${body.receivedBy ?? null},
+        ${body.carrierName ?? null}, ${body.carrierRepPresent ?? null}, ${body.conditionOnArrival ?? null},
+        ${body.barCountExpected ?? null}, ${body.barCountReceived ?? null},
+        ${JSON.stringify(body.sealVerifications ?? [])}::jsonb,
+        ${body.witnessName ?? null}, ${body.holdingBay ?? null},
+        ${body.containerOpened ?? false}, ${body.barsTransferred ?? false},
+        ${body.scaleId ?? null}, ${body.weighingScheduledAt ?? null},
+        ${body.accreditationNumber ?? null}, ${body.expectedResultsAt ?? null},
+        ${JSON.stringify(body.barRecords ?? [])}::jsonb,
+        ${body.declarationMeasurements ?? false}, ${body.declarationAssay ?? false},
+        ${body.declarationCompliance ?? false},
+        now()
       )
       ON CONFLICT (id) DO NOTHING
     `;

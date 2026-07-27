@@ -307,27 +307,28 @@ export default function VaultIntakePage() {
                     {language === "fr" ? "Workflow US-05: Réception Coffre & Essai" : "US-05 Workflow: Vault Intake & Assay"}
                   </CardTitle>
                   <CardDescription>
-                    {language === "fr" 
-                      ? "Processus en 4 étapes: Réception → Planification Essai → Vérification Pureté → Transfert Règlement"
-                      : "4-stage process: Intake → Assay Scheduling → Purity Verification → Settlement Handoff"}
+                    {language === "fr"
+                      ? "Processus en 5 étapes: Réception → Transfert & Planification → Pesée → Essai → Acceptation"
+                      : "5-stage process: Receipt → Transfer & Scheduling → Weighing → Assay → Acceptance"}
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="flex items-center justify-between gap-4">
+                  <div className="flex items-center justify-between gap-3">
                     {[
                       { step: 1, label: language === "fr" ? "Réception & Scellés" : "Receipt & Seals", icon: Package },
-                      { step: 2, label: language === "fr" ? "Planif. Essai" : "Assay Scheduling", icon: FlaskConical },
-                      { step: 3, label: language === "fr" ? "Vérif. Pureté" : "Purity Verification", icon: Scale },
-                      { step: 4, label: language === "fr" ? "Transfert US-06" : "US-06 Handoff", icon: ArrowRight },
+                      { step: 2, label: language === "fr" ? "Transfert & Planif." : "Transfer & Scheduling", icon: Warehouse },
+                      { step: 3, label: language === "fr" ? "Pesée" : "Weighing", icon: Scale },
+                      { step: 4, label: language === "fr" ? "Essai" : "Assay", icon: FlaskConical },
+                      { step: 5, label: language === "fr" ? "Acceptation" : "Acceptance", icon: CheckCircle2 },
                     ].map((stage, idx) => (
-                      <div key={stage.step} className="flex items-center gap-4 flex-1">
+                      <div key={stage.step} className="flex items-center gap-3 flex-1">
                         <div className="flex flex-col items-center text-center flex-1">
                           <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-2">
                             <stage.icon className="h-6 w-6 text-primary" />
                           </div>
                           <span className="text-xs font-medium">{stage.label}</span>
                         </div>
-                        {idx < 3 && (
+                        {idx < 4 && (
                           <ArrowRight className="h-5 w-5 text-muted-foreground shrink-0" />
                         )}
                       </div>

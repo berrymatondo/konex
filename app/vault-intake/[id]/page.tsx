@@ -63,6 +63,9 @@ import {
   ShieldAlert,
 } from "lucide-react";
 
+// ─── Troy oz ↔ gram conversion (matches app/api/purchase-orders/[id]/manifest/route.ts) ──
+const OZ_TO_GRAM = 31.1035;
+
 // ─── Equipment register — precision scales ───────────────────────────────────
 const SCALES = [
   {
@@ -118,7 +121,7 @@ const LABS = [
     method: "fire_assay" as const,
     accreditationNumber: "ACC-2025-0048",
     body: "ILAC / ISO 17025",
-    validTo: "2026-06-15",
+    validTo: "2026-09-10",
     turnaround: "72h",
   },
   {
@@ -133,6 +136,8 @@ const LABS = [
   },
 ];
 
+type EquipmentState = "ok" | "near" | "over";
+
 // % of calibration life remaining (0-100)
 function getCalibrationPct(scale: (typeof SCALES)[number]): number {
   if (scale.expired) return 0;
@@ -144,6 +149,11 @@ function getCalibrationPct(scale: (typeof SCALES)[number]): number {
   return Math.max(0, Math.min(100, ((next - now) / total) * 100));
 }
 
+function getScaleState(scale: (typeof SCALES)[number]): EquipmentState {
+  if (scale.expired) return "over";
+  return getCalibrationPct(scale) <= 20 ? "near" : "ok";
+}
+
 // % of accreditation life remaining (relative to 1-year window)
 function getAccreditationPct(lab: (typeof LABS)[number]): number {
   const now = Date.now();
@@ -151,6 +161,67 @@ function getAccreditationPct(lab: (typeof LABS)[number]): number {
   const oneYear = 365 * 24 * 60 * 60 * 1000;
   if (next < now) return 0;
   return Math.max(0, Math.min(100, ((next - now) / oneYear) * 100));
+}
+
+function getLabState(lab: (typeof LABS)[number]): EquipmentState {
+  if (new Date(lab.validTo).getTime() < Date.now()) return "over";
+  return getAccreditationPct(lab) <= 20 ? "near" : "ok";
+}
+
+// ─── Per-bar record shared by the weighing (§3) and assay (§4) steps ─────────
+interface BarRecord {
+  serial: string;
+  manifestWeightG: number | null; // declared at dispatch (US-04 manifest), null if no manifest detail
+  vaultGrossWeightG: string; // entered in §3
+  manifestFineness: number | null; // declared at dispatch — stands in for a "reference certificate"
+  vaultFineness: string; // entered in §4
+}
+
+interface ManifestBar {
+  barNumber?: string;
+  grossWeightKg?: number;
+  fineness?: number;
+}
+
+interface ManifestInfo {
+  sealPrimaryDeclared: string | null;
+  sealSecondaryDeclared: string | null;
+  totalBars: number | null;
+  carrier: string | null;
+  totalGrossWeightKg: number | null;
+  totalFineOz: number | null;
+  poFineOz: number | null;
+  destinationVault: string | null;
+  bars: ManifestBar[];
+}
+
+type SealCondition = "intact" | "broken" | null;
+interface SealState {
+  declared: string;
+  physical: string;
+  condition: SealCondition;
+}
+
+function weightVarianceOf(bar: BarRecord): number | null {
+  const vault = parseFloat(bar.vaultGrossWeightG);
+  if (!bar.manifestWeightG || bar.manifestWeightG <= 0 || isNaN(vault) || vault <= 0) return null;
+  return ((vault - bar.manifestWeightG) / bar.manifestWeightG) * 100;
+}
+
+function fineWeightOf(bar: BarRecord): number | null {
+  const vault = parseFloat(bar.vaultGrossWeightG);
+  const fineness = parseFloat(bar.vaultFineness);
+  if (isNaN(vault) || isNaN(fineness) || vault <= 0 || fineness <= 0) return null;
+  return Math.floor(((vault * fineness) / 1000) * 1000) / 1000;
+}
+
+type AssayStatus = "pending" | "confirmed" | "diverges" | "below_floor";
+function assayStatusOf(bar: BarRecord): AssayStatus {
+  const fineness = parseFloat(bar.vaultFineness);
+  if (!bar.vaultFineness || isNaN(fineness)) return "pending";
+  if (fineness < 995.0) return "below_floor";
+  if (bar.manifestFineness != null && Math.abs(fineness - bar.manifestFineness) > 1.0) return "diverges";
+  return "confirmed";
 }
 
 export default function VaultIntakeDetailPage() {
@@ -165,6 +236,8 @@ export default function VaultIntakeDetailPage() {
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
   const [intakeData, setIntakeData] = useState<Record<string, unknown> | null>(null);
+  const [manifest, setManifest] = useState<ManifestInfo | null>(null);
+  const [receivedByDefault, setReceivedByDefault] = useState<string>("");
 
   // Shipped POs
   const [shippedPOs, setShippedPOs] = useState<Array<{
@@ -200,22 +273,31 @@ export default function VaultIntakeDetailPage() {
   const [intakeForm, setIntakeForm] = useState({
     poReference: "PO-2026-0891",
     trackingId: "TRK-990",
-    // seal1 = declared seal (manifest), seal2 = physical seal (observed)
-    seal1: "SLF-2026-7714A",
-    seal2: "",
-    manifestMatch: true,
     grossWeightKg: "327.50",
     netWeightKg: "324.85",
-    otpCode: "",
+    arrivalDate: "",
+    arrivalTime: "",
+    carrierRepPresent: "",
+    conditionOnArrival: "good",
   });
 
-  const [barCount, setBarCount] = useState({ expected: 12, received: 12 });
+  const [seals, setSeals] = useState<{ primary: SealState; secondary: SealState }>({
+    primary: { declared: "", physical: "", condition: null },
+    secondary: { declared: "", physical: "", condition: null },
+  });
 
+  const [barCount, setBarCount] = useState({ expected: 0, received: 0 });
+
+  const sealMatch = (role: "primary" | "secondary") => {
+    const s = seals[role];
+    if (!s.declared || !s.physical) return null;
+    return s.physical.trim().toUpperCase() === s.declared.trim().toUpperCase();
+  };
   const sealMismatch =
-    Boolean(intakeForm.seal1) &&
-    Boolean(intakeForm.seal2) &&
-    intakeForm.seal1 !== intakeForm.seal2;
-  const countMismatch = barCount.received < barCount.expected;
+    (["primary", "secondary"] as const).some((role) => seals[role].condition === "broken") ||
+    (["primary", "secondary"] as const).some((role) => sealMatch(role) === false);
+  const secondarySealLocked = !seals.primary.physical.trim();
+  const countMismatch = barCount.expected > 0 && barCount.received < barCount.expected;
 
   // OTP
   const [otpDigits, setOtpDigits] = useState<string[]>(["", "", "", "", "", ""]);
@@ -235,7 +317,6 @@ export default function VaultIntakeDetailPage() {
     barsTransferred: false,
   });
 
-  // Three acceptance declarations for Section 5
   const [declarations, setDeclarations] = useState([false, false, false]);
 
   const [selectedScale, setSelectedScale] = useState("");
@@ -247,7 +328,6 @@ export default function VaultIntakeDetailPage() {
     expectedResultsAt: "",
   });
 
-  // Still generate a sample ID / QR for internal tracking
   const sampleId = `SAMP-${intakeId}-${new Date().getFullYear()}`;
   const [sampleQrUrl, setSampleQrUrl] = useState<string>("");
   useEffect(() => {
@@ -259,38 +339,50 @@ export default function VaultIntakeDetailPage() {
   const scaleDetail = SCALES.find((s) => s.id === selectedScale) ?? null;
   const labDetail = LABS.find((l) => l.id === assayCommission.selectedLab) ?? null;
 
-  // ─── Section 3: Independent weighing ─────────────────────────────────────
-  const [barWeights, setBarWeights] = useState<Array<{ serial: string; grossWeightG: string; fineness: string }>>(
-    Array.from({ length: 12 }, (_, i) => ({
-      serial: `BAR-2026-${String(i + 1).padStart(4, "0")}`,
-      grossWeightG: "",
-      fineness: "",
-    }))
-  );
+  // ─── Sections 3+4: per-bar weighing & assay (same bar identity throughout) ─
+  const [barRecords, setBarRecords] = useState<BarRecord[]>([]);
+  const barRecordsInitialized = useRef(false);
 
+  // Initialize bar records from the counterparty manifest once it (or the bar
+  // count) is known — real declared weight/fineness per bar when available,
+  // otherwise an even split of the total gross weight with no fineness reference.
   useEffect(() => {
-    setBarWeights(
-      Array.from({ length: Math.max(1, barCount.received) }, (_, i) => ({
-        serial: `BAR-${intakeForm.poReference}-${String(i + 1).padStart(4, "0")}`,
-        grossWeightG: "",
-        fineness: "",
-      }))
-    );
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [barCount.received]);
+    if (barRecordsInitialized.current) return;
+    const received = barCount.received;
+    if (received <= 0) return;
+    barRecordsInitialized.current = true;
+    const manifestBars = manifest?.bars ?? [];
+    if (manifestBars.length > 0) {
+      setBarRecords(
+        manifestBars.map((b, i) => ({
+          serial: b.barNumber || `BAR-${intakeForm.poReference}-${String(i + 1).padStart(4, "0")}`,
+          manifestWeightG: b.grossWeightKg != null ? b.grossWeightKg * 1000 : null,
+          vaultGrossWeightG: "",
+          manifestFineness: b.fineness ?? null,
+          vaultFineness: "",
+        }))
+      );
+    } else {
+      const totalG = (parseFloat(intakeForm.grossWeightKg) || 0) * 1000;
+      const perBarG = received > 0 ? totalG / received : null;
+      setBarRecords(
+        Array.from({ length: received }, (_, i) => ({
+          serial: `BAR-${intakeForm.poReference}-${String(i + 1).padStart(4, "0")}`,
+          manifestWeightG: perBarG,
+          vaultGrossWeightG: "",
+          manifestFineness: null,
+          vaultFineness: "",
+        }))
+      );
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [barCount.received, manifest]);
 
-  // ─── Section 4: Assay results (async) ────────────────────────────────────
-  const [assayResults, setAssayResults] = useState({
-    auPurity: 99.25,
-    agPurity: 0.32,
-    cuPurity: 0.18,
-    fePurity: 0.07,
-    pureGoldWeight: 322.41,
-    poEstimate: 325.0,
-    certificateUploaded: false,
-    certificatePathname: "" as string,
-    certificateFileName: "" as string,
-    validationStatus: "pending" as "pending" | "passed" | "review" | "rejected",
+  // Certificate (global lab document, complements the per-bar figures)
+  const [certificate, setCertificate] = useState({
+    uploaded: false,
+    pathname: "" as string,
+    fileName: "" as string,
   });
   const [uploadingCertificate, setUploadingCertificate] = useState(false);
 
@@ -302,7 +394,7 @@ export default function VaultIntakeDetailPage() {
     lbmaCompliant: true,
   });
 
-  // ─── Load existing PO data ────────────────────────────────────────────────
+  // ─── Load existing PO data (+ US-04 manifest + saved reception) ──────────
   useEffect(() => {
     (async () => {
       try {
@@ -310,42 +402,80 @@ export default function VaultIntakeDetailPage() {
         if (!res.ok) return;
         const data = await res.json();
         setIntakeData(data);
+        const m = (data.manifest ?? null) as ManifestInfo | null;
+        setManifest(m);
+        setReceivedByDefault(data.receivedByDefault || "");
         const r = data.reception;
+
         setIntakeForm((prev) => ({
           ...prev,
           poReference: r?.selectedPoId ?? (data.poReference || prev.poReference),
           trackingId: data.trackingId || prev.trackingId,
-          seal1: r?.seal1 ?? prev.seal1,
-          seal2: r?.seal2 ?? prev.seal2,
-          manifestMatch: r?.manifestMatch ?? prev.manifestMatch,
           grossWeightKg: String(r?.grossWeightKg ?? data.grossWeightKg ?? prev.grossWeightKg),
           netWeightKg: r?.netWeightKg != null ? String(r.netWeightKg) : prev.netWeightKg,
+          arrivalDate: r?.arrivalDate ?? prev.arrivalDate,
+          arrivalTime: r?.arrivalTime ?? prev.arrivalTime,
+          carrierRepPresent: r?.carrierRepPresent ?? prev.carrierRepPresent,
+          conditionOnArrival: r?.conditionOnArrival ?? prev.conditionOnArrival,
         }));
+
+        setSeals({
+          primary: {
+            declared: m?.sealPrimaryDeclared ?? "",
+            physical: r?.sealVerifications?.[0]?.physical ?? r?.seal1 ?? "",
+            condition: r?.sealVerifications?.[0]?.condition ?? null,
+          },
+          secondary: {
+            declared: m?.sealSecondaryDeclared ?? "",
+            physical: r?.sealVerifications?.[1]?.physical ?? r?.seal2 ?? "",
+            condition: r?.sealVerifications?.[1]?.condition ?? null,
+          },
+        });
+
+        setBarCount({
+          expected: r?.barCountExpected ?? m?.totalBars ?? 0,
+          received: r?.barCountReceived ?? m?.totalBars ?? 0,
+        });
+
         if (r?.otpCode) {
           const digits = String(r.otpCode).slice(0, 6).split("");
           setOtpDigits([0, 1, 2, 3, 4, 5].map((i) => digits[i] ?? ""));
         }
+
+        setSecureTransfer((prev) => ({
+          witnessName: r?.witnessName ?? prev.witnessName,
+          holdingBay: r?.holdingBay ?? prev.holdingBay,
+          containerOpened: r?.containerOpened ?? prev.containerOpened,
+          barsTransferred: r?.barsTransferred ?? prev.barsTransferred,
+        }));
         if (r?.labId) {
           setAssayCommission((prev) => ({
             ...prev,
             selectedLab: r.labId,
             assayMethod: r.assayMethod ?? prev.assayMethod,
+            expectedResultsAt: r.expectedResultsAt ?? prev.expectedResultsAt,
           }));
         }
         if (r?.scaleId) setSelectedScale(r.scaleId);
-        setAssayResults((prev) => ({
-          ...prev,
-          auPurity: r?.auPurity ?? prev.auPurity,
-          agPurity: r?.agPurity ?? prev.agPurity,
-          cuPurity: r?.cuPurity ?? prev.cuPurity,
-          fePurity: r?.fePurity ?? prev.fePurity,
-          pureGoldWeight: r?.pureGoldWeight ?? prev.pureGoldWeight,
-          poEstimate: r?.poEstimate ?? prev.poEstimate,
-          validationStatus: r?.validationStatus ?? prev.validationStatus,
-          certificatePathname: r?.certificatePathname ?? prev.certificatePathname,
-          certificateFileName: r?.certificateFileName ?? prev.certificateFileName,
-          certificateUploaded: Boolean(r?.certificatePathname),
-        }));
+        if (r?.weighingScheduledAt) setWeighingScheduledAt(r.weighingScheduledAt);
+
+        if (Array.isArray(r?.barRecords) && r.barRecords.length > 0) {
+          barRecordsInitialized.current = true;
+          setBarRecords(r.barRecords);
+        }
+
+        setCertificate({
+          uploaded: Boolean(r?.certificatePathname),
+          pathname: r?.certificatePathname ?? "",
+          fileName: r?.certificateFileName ?? "",
+        });
+
+        setDeclarations([
+          Boolean(r?.declarationMeasurements),
+          Boolean(r?.declarationAssay),
+          Boolean(r?.declarationCompliance),
+        ]);
+
         if (Array.isArray(r?.photoEvidence) && r.photoEvidence.length > 0) {
           setPhotoEvidence(
             r.photoEvidence.map((p: { pathname: string; fileName: string }) => ({
@@ -379,8 +509,27 @@ export default function VaultIntakeDetailPage() {
     return gross === 0 ? 0 : ((net - gross) / gross) * 100;
   })();
 
+  const totalManifestWeightG = barRecords.reduce((s, b) => s + (b.manifestWeightG || 0), 0);
+  const totalVaultWeightG = barRecords.reduce((s, b) => s + (parseFloat(b.vaultGrossWeightG) || 0), 0);
+  const barsWeighedCount = barRecords.filter((b) => b.vaultGrossWeightG).length;
+
+  const totalFineWeightG = barRecords.reduce((s, b) => s + (fineWeightOf(b) || 0), 0);
+  const barsAssayedCount = barRecords.filter((b) => b.vaultFineness).length;
+  const anyBarBelowFloor = barRecords.some((b) => b.vaultFineness && assayStatusOf(b) === "below_floor");
+  const anyBarDiverges = barRecords.some((b) => b.vaultFineness && assayStatusOf(b) === "diverges");
+
+  const poFineWeightG = manifest?.poFineOz != null ? manifest.poFineOz * OZ_TO_GRAM : null;
   const purityVariance =
-    ((assayResults.pureGoldWeight - assayResults.poEstimate) / assayResults.poEstimate) * 100;
+    poFineWeightG && poFineWeightG > 0 ? ((totalFineWeightG - poFineWeightG) / poFineWeightG) * 100 : null;
+
+  const overallValidationStatus: "pending" | "passed" | "review" | "rejected" =
+    barsAssayedCount === 0
+      ? "pending"
+      : anyBarBelowFloor
+      ? "rejected"
+      : anyBarDiverges || (purityVariance != null && Math.abs(purityVariance) > 0.5)
+      ? "review"
+      : "passed";
 
   // ─── Handlers ─────────────────────────────────────────────────────────────
   const buildReceptionPayload = () => ({
@@ -391,21 +540,33 @@ export default function VaultIntakeDetailPage() {
     counterpartyName:
       shippedPOs.find((po) => po.poId === intakeForm.poReference)?.counterpartyName ||
       selectedPOInfo.counterpartyName,
-    seal1: intakeForm.seal1,
-    seal2: intakeForm.seal2,
-    sealVerified: !sealMismatch && Boolean(intakeForm.seal1 && intakeForm.seal2),
-    manifestMatch: intakeForm.manifestMatch,
+    seal1: seals.primary.physical,
+    seal2: seals.secondary.physical,
+    sealVerified: !sealMismatch && Boolean(seals.primary.physical && seals.secondary.physical),
+    manifestMatch: !sealMismatch,
     grossWeightKg: parseFloat(intakeForm.grossWeightKg) || null,
     netWeightKg: parseFloat(intakeForm.netWeightKg) || null,
     vaultLocation: (intakeData?.vaultLocation as string) || handoffData.vaultLocation,
     operatorId: "vault_operator",
     otpCode: otpDigits.join(""),
     photoEvidence: photoEvidence.map((p) => ({ pathname: p.pathname, fileName: p.fileName })),
-    barCountExpected: barCount.expected,
-    barCountReceived: barCount.received,
+    arrivalDate: intakeForm.arrivalDate || null,
+    arrivalTime: intakeForm.arrivalTime || null,
+    receivedBy: receivedByDefault || null,
+    carrierName: manifest?.carrier ?? null,
+    carrierRepPresent: intakeForm.carrierRepPresent || null,
+    conditionOnArrival: intakeForm.conditionOnArrival || null,
+    barCountExpected: barCount.expected || null,
+    barCountReceived: barCount.received || null,
+    sealVerifications: [
+      { role: "primary", declared: seals.primary.declared, physical: seals.primary.physical, condition: seals.primary.condition, match: sealMatch("primary") },
+      { role: "secondary", declared: seals.secondary.declared, physical: seals.secondary.physical, condition: seals.secondary.condition, match: sealMatch("secondary") },
+    ],
     // vault_scheduling fields
     witnessName: secureTransfer.witnessName,
     holdingBay: secureTransfer.holdingBay,
+    containerOpened: secureTransfer.containerOpened,
+    barsTransferred: secureTransfer.barsTransferred,
     scaleId: selectedScale,
     weighingScheduledAt,
     labId: assayCommission.selectedLab,
@@ -413,16 +574,16 @@ export default function VaultIntakeDetailPage() {
     accreditationNumber: labDetail?.accreditationNumber ?? null,
     expectedResultsAt: assayCommission.expectedResultsAt,
     sampleId,
-    // assay results
-    auPurity: assayResults.auPurity,
-    agPurity: assayResults.agPurity,
-    cuPurity: assayResults.cuPurity,
-    fePurity: assayResults.fePurity,
-    pureGoldWeight: assayResults.pureGoldWeight,
-    poEstimate: assayResults.poEstimate,
-    validationStatus: assayResults.validationStatus,
-    certificatePathname: assayResults.certificatePathname || null,
-    certificateFileName: assayResults.certificateFileName || null,
+    // per-bar weighing + assay
+    barRecords,
+    pureGoldWeight: totalFineWeightG,
+    poEstimate: poFineWeightG,
+    validationStatus: overallValidationStatus,
+    certificatePathname: certificate.pathname || null,
+    certificateFileName: certificate.fileName || null,
+    declarationMeasurements: declarations[0],
+    declarationAssay: declarations[1],
+    declarationCompliance: declarations[2],
   });
 
   const handleSaveReception = async () => {
@@ -470,23 +631,37 @@ export default function VaultIntakeDetailPage() {
     }
   };
 
-  const handleValidateResults = async () => {
+  const handleContinueToAssay = async () => {
     setIsSubmitting(true);
-    const status: "passed" | "review" =
-      Math.abs(purityVariance) <= 0.5 ? "passed" : "review";
     try {
       const res = await fetch("/api/vault-intake", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...buildReceptionPayload(), validationStatus: status }),
+        body: JSON.stringify(buildReceptionPayload()),
       });
-      if (res.ok) {
-        setAssayResults((prev) => ({ ...prev, validationStatus: status }));
-        setActiveTab("handoff");
-      }
+      if (res.ok) setActiveTab("assay");
     } catch { /**/ } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleValidateResults = async () => {
+    setIsSubmitting(true);
+    try {
+      const res = await fetch("/api/vault-intake", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(buildReceptionPayload()),
+      });
+      if (res.ok) setActiveTab("handoff");
+    } catch { /**/ } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleRequestReassay = () => {
+    setBarRecords((prev) => prev.map((b) => ({ ...b, vaultFineness: "" })));
+    setCertificate({ uploaded: false, pathname: "", fileName: "" });
   };
 
   const handleLockAndProceed = async () => {
@@ -503,11 +678,11 @@ export default function VaultIntakeDetailPage() {
         body: JSON.stringify({
           purchaseOrderId: intakeId,
           counterpartyId: poData?.counterpartyId || null,
-          fineGoldWeightKg: assayResults.pureGoldWeight,
+          fineGoldWeightKg: totalFineWeightG / 1000,
           settlementPricePerOz: 2650,
           currency: "USD",
           paymentMethod: "wire_transfer",
-          notes: `Intake validated. PO: ${intakeForm.poReference}, Purity: ${assayResults.auPurity}%`,
+          notes: `Intake validated. PO: ${intakeForm.poReference}, Bars assayed: ${barsAssayedCount}/${barRecords.length}`,
         }),
       });
       if (res.ok) {
@@ -554,22 +729,12 @@ export default function VaultIntakeDetailPage() {
       const res = await fetch("/api/vault-intake/certificate", { method: "POST", body: formData });
       if (!res.ok) throw new Error("Upload failed");
       const data = await res.json();
-      setAssayResults((prev) => ({ ...prev, certificateUploaded: true, certificatePathname: data.pathname, certificateFileName: data.fileName }));
+      setCertificate({ uploaded: true, pathname: data.pathname, fileName: data.fileName });
     } catch (e) {
       alert(language === "fr" ? `Erreur upload: ${(e as Error).message}` : `Upload error: ${(e as Error).message}`);
     } finally {
       setUploadingCertificate(false);
     }
-  };
-
-  const handlePurityChange = (field: "auPurity" | "agPurity" | "cuPurity" | "fePurity", value: string) => {
-    const num = parseFloat(value);
-    setAssayResults((prev) => {
-      const next = { ...prev, [field]: Number.isNaN(num) ? 0 : num };
-      const netWeightG = (parseFloat(intakeForm.netWeightKg) || 0) * 1000;
-      if (netWeightG > 0) next.pureGoldWeight = (netWeightG * next.auPurity) / 100;
-      return next;
-    });
   };
 
   const handleOtpChange = (index: number, value: string) => {
@@ -607,32 +772,15 @@ export default function VaultIntakeDetailPage() {
     );
   };
 
-  const PurityVarianceBar = ({ variance }: { variance: number }) => {
-    const abs = Math.abs(variance);
-    let color = "bg-emerald-500";
-    if (abs > 0.1 && abs <= 0.3) color = "bg-amber-500";
-    if (abs > 0.3) color = "bg-red-500";
-    return (
-      <div className="space-y-2">
-        <div className="flex gap-0 h-3 rounded-full overflow-hidden">
-          <div className="flex-1 bg-emerald-500 flex items-center justify-center"><span className="text-[10px] text-white font-medium">±0.1g</span></div>
-          <div className="flex-1 bg-amber-500 flex items-center justify-center"><span className="text-[10px] text-white font-medium">±0.1-0.3g</span></div>
-          <div className="flex-1 bg-red-500 flex items-center justify-center"><span className="text-[10px] text-white font-medium">{">"}±0.3g</span></div>
-        </div>
-        <div className="relative h-2 bg-muted rounded-full">
-          <div className={`absolute top-0 h-full ${color} rounded-full transition-all`} style={{ width: `${Math.min(100, (abs / 3) * 100)}%`, left: variance < 0 ? `${50 - Math.min(50, (abs / 3) * 50)}%` : "50%" }} />
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-0.5 h-4 bg-foreground" />
-        </div>
-      </div>
-    );
-  };
-
   // ─── Progress bar component used for calibration & accreditation ──────────
   const ProgressBar = ({ pct, color }: { pct: number; color: string }) => (
     <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
       <div className={`h-full rounded-full transition-all ${color}`} style={{ width: `${pct}%` }} />
     </div>
   );
+
+  const stateColor = (state: EquipmentState) =>
+    state === "over" ? "bg-red-500" : state === "near" ? "bg-amber-500" : "bg-emerald-500";
 
   // Save button (reused across tabs)
   const SaveBtn = () => (
@@ -649,6 +797,15 @@ export default function VaultIntakeDetailPage() {
       )}
     </>
   );
+
+  const assayStatusBadge = (status: AssayStatus, required: boolean) => {
+    if (status === "pending") {
+      return <Badge variant={required ? "outline" : "secondary"} className={required ? "border-amber-400 text-amber-700 bg-amber-50" : ""}>{required ? (language === "fr" ? "Requis" : "Required") : (language === "fr" ? "En attente" : "Pending")}</Badge>;
+    }
+    if (status === "below_floor") return <Badge variant="destructive">{language === "fr" ? "Sous le seuil" : "Below floor"}</Badge>;
+    if (status === "diverges") return <Badge className="bg-amber-500 hover:bg-amber-500">{language === "fr" ? "Diverge" : "Diverges"}</Badge>;
+    return <Badge className="bg-emerald-600 hover:bg-emerald-600">{language === "fr" ? "Confirmé" : "Confirmed"}</Badge>;
+  };
 
   // ─── Render ───────────────────────────────────────────────────────────────
   return (
@@ -784,6 +941,26 @@ export default function VaultIntakeDetailPage() {
                         </Select>
                       </div>
 
+                      {/* Arrival details */}
+                      <div className="grid md:grid-cols-4 gap-4">
+                        <div className="space-y-1.5">
+                          <Label className="text-xs text-muted-foreground">{language === "fr" ? "Date d'arrivée" : "Arrival date"}</Label>
+                          <Input type="date" value={intakeForm.arrivalDate} onChange={(e) => setIntakeForm({ ...intakeForm, arrivalDate: e.target.value })} />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-xs text-muted-foreground">{language === "fr" ? "Heure d'arrivée" : "Arrival time"}</Label>
+                          <Input type="time" value={intakeForm.arrivalTime} onChange={(e) => setIntakeForm({ ...intakeForm, arrivalTime: e.target.value })} />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-xs text-muted-foreground">{language === "fr" ? "Reçu par" : "Received by"}</Label>
+                          <Input value={receivedByDefault || (language === "fr" ? "Officier Coffre" : "Vault Officer")} readOnly />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-xs text-muted-foreground">{language === "fr" ? "Transporteur" : "Carrier"}</Label>
+                          <Input value={manifest?.carrier || "—"} readOnly />
+                        </div>
+                      </div>
+
                       <div className="grid md:grid-cols-2 gap-6">
                         {/* ── Tamper seal verification ── */}
                         <div className="space-y-3">
@@ -792,40 +969,76 @@ export default function VaultIntakeDetailPage() {
                             {language === "fr" ? "Vérification Scellés Anti-Effraction" : "Tamper Seal Verification"}
                             <span className="text-destructive">*</span>
                           </Label>
-                          <div className="space-y-3">
-                            <div className="space-y-1.5">
-                              <Label className="text-xs text-muted-foreground">
-                                {language === "fr" ? "Scellé déclaré (manifeste)" : "Declared seal (manifest)"}
-                              </Label>
-                              <Input
-                                value={intakeForm.seal1}
-                                onChange={(e) => setIntakeForm({ ...intakeForm, seal1: e.target.value })}
-                                placeholder="Ex: SLF-2026-7714A"
-                                className="font-mono"
-                              />
+
+                          {/* Primary seal */}
+                          <div className={`rounded-lg border-2 p-3 space-y-2 ${seals.primary.condition === "broken" || sealMatch("primary") === false ? "border-red-300 bg-red-50/40" : sealMatch("primary") === true ? "border-emerald-300 bg-emerald-50/40" : ""}`}>
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm font-medium">{language === "fr" ? "Scellé primaire" : "Primary seal"}</span>
+                              {sealMatch("primary") === true && <Badge className="bg-emerald-600 hover:bg-emerald-600">{language === "fr" ? "Correspond" : "Matched"}</Badge>}
+                              {sealMatch("primary") === false && <Badge variant="destructive">{language === "fr" ? "Discordance" : "Mismatch"}</Badge>}
                             </div>
-                            <div className="space-y-1.5">
-                              <Label className="text-xs text-muted-foreground">
-                                {language === "fr" ? "Scellé physique (observé sur le conteneur)" : "Physical seal (observed on container)"}
-                              </Label>
-                              <Input
-                                value={intakeForm.seal2}
-                                onChange={(e) => setIntakeForm({ ...intakeForm, seal2: e.target.value })}
-                                placeholder="Ex: SLF-2026-7714A"
-                                className="font-mono"
-                              />
+                            <div className="grid grid-cols-2 gap-2">
+                              <div className="space-y-1">
+                                <Label className="text-[10px] uppercase text-muted-foreground">{language === "fr" ? "Déclaré (manifeste)" : "Manifest declared"}</Label>
+                                <Input value={seals.primary.declared || "—"} readOnly className="font-mono bg-muted/40" />
+                              </div>
+                              <div className="space-y-1">
+                                <Label className="text-[10px] uppercase text-muted-foreground">{language === "fr" ? "Physique (observé)" : "Physical (observed)"}</Label>
+                                <Input
+                                  value={seals.primary.physical}
+                                  onChange={(e) => setSeals((prev) => ({ ...prev, primary: { ...prev.primary, physical: e.target.value.toUpperCase() } }))}
+                                  placeholder={language === "fr" ? "Saisir tel qu'estampillé" : "Type exactly as stamped"}
+                                  className="font-mono"
+                                />
+                              </div>
+                            </div>
+                            <div className="flex gap-2">
+                              <Button type="button" size="sm" variant="outline" className={seals.primary.condition === "intact" ? "border-emerald-500 bg-emerald-100 text-emerald-800" : ""} onClick={() => setSeals((prev) => ({ ...prev, primary: { ...prev.primary, condition: "intact" } }))}>
+                                <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />{language === "fr" ? "Intact" : "Intact"}
+                              </Button>
+                              <Button type="button" size="sm" variant="outline" className={seals.primary.condition === "broken" ? "border-red-500 bg-red-100 text-red-800" : ""} onClick={() => setSeals((prev) => ({ ...prev, primary: { ...prev.primary, condition: "broken" } }))}>
+                                <X className="mr-1.5 h-3.5 w-3.5" />{language === "fr" ? "Cassé / manquant" : "Broken / missing"}
+                              </Button>
                             </div>
                           </div>
 
-                          {/* Seal match indicator */}
-                          {intakeForm.seal1 && intakeForm.seal2 && (
-                            <div className={`flex items-center gap-2 p-3 rounded-lg text-sm font-medium ${sealMismatch ? "bg-red-50 text-red-700 border border-red-200" : "bg-emerald-50 text-emerald-700 border border-emerald-200"}`}>
-                              {sealMismatch ? <AlertTriangle className="h-4 w-4 shrink-0" /> : <CheckCircle2 className="h-4 w-4 shrink-0" />}
-                              {sealMismatch
-                                ? (language === "fr" ? "Discordance de scellé détectée" : "Seal mismatch detected")
-                                : (language === "fr" ? "Scellés correspondants" : "Seals match")}
+                          {/* Secondary seal — locked until primary has a value */}
+                          <div className={`rounded-lg border-2 p-3 space-y-2 transition-opacity ${secondarySealLocked ? "opacity-50 pointer-events-none" : ""} ${seals.secondary.condition === "broken" || sealMatch("secondary") === false ? "border-red-300 bg-red-50/40" : sealMatch("secondary") === true ? "border-emerald-300 bg-emerald-50/40" : ""}`}>
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm font-medium">{language === "fr" ? "Scellé secondaire" : "Secondary seal"}</span>
+                              {secondarySealLocked ? (
+                                <Badge variant="secondary">{language === "fr" ? "Compléter le primaire d'abord" : "Complete primary first"}</Badge>
+                              ) : (
+                                <>
+                                  {sealMatch("secondary") === true && <Badge className="bg-emerald-600 hover:bg-emerald-600">{language === "fr" ? "Correspond" : "Matched"}</Badge>}
+                                  {sealMatch("secondary") === false && <Badge variant="destructive">{language === "fr" ? "Discordance" : "Mismatch"}</Badge>}
+                                </>
+                              )}
                             </div>
-                          )}
+                            <div className="grid grid-cols-2 gap-2">
+                              <div className="space-y-1">
+                                <Label className="text-[10px] uppercase text-muted-foreground">{language === "fr" ? "Déclaré (manifeste)" : "Manifest declared"}</Label>
+                                <Input value={seals.secondary.declared || "—"} readOnly className="font-mono bg-muted/40" />
+                              </div>
+                              <div className="space-y-1">
+                                <Label className="text-[10px] uppercase text-muted-foreground">{language === "fr" ? "Physique (observé)" : "Physical (observed)"}</Label>
+                                <Input
+                                  value={seals.secondary.physical}
+                                  onChange={(e) => setSeals((prev) => ({ ...prev, secondary: { ...prev.secondary, physical: e.target.value.toUpperCase() } }))}
+                                  placeholder={language === "fr" ? "Saisir tel qu'estampillé" : "Type exactly as stamped"}
+                                  className="font-mono"
+                                />
+                              </div>
+                            </div>
+                            <div className="flex gap-2">
+                              <Button type="button" size="sm" variant="outline" className={seals.secondary.condition === "intact" ? "border-emerald-500 bg-emerald-100 text-emerald-800" : ""} onClick={() => setSeals((prev) => ({ ...prev, secondary: { ...prev.secondary, condition: "intact" } }))}>
+                                <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />{language === "fr" ? "Intact" : "Intact"}
+                              </Button>
+                              <Button type="button" size="sm" variant="outline" className={seals.secondary.condition === "broken" ? "border-red-500 bg-red-100 text-red-800" : ""} onClick={() => setSeals((prev) => ({ ...prev, secondary: { ...prev.secondary, condition: "broken" } }))}>
+                                <X className="mr-1.5 h-3.5 w-3.5" />{language === "fr" ? "Cassé / manquant" : "Broken / missing"}
+                              </Button>
+                            </div>
+                          </div>
 
                           {/* Seal escalation */}
                           {sealMismatch && (
@@ -843,7 +1056,19 @@ export default function VaultIntakeDetailPage() {
                                 <Button
                                   size="sm"
                                   className="bg-red-600 hover:bg-red-700 text-white"
-                                  onClick={() => router.push(`/vault-intake/${intakeId}/security`)}
+                                  onClick={() => {
+                                    const q = new URLSearchParams({
+                                      primaryDeclared: seals.primary.declared,
+                                      primaryPhysical: seals.primary.physical,
+                                      primaryCondition: seals.primary.condition || "",
+                                      primaryMatch: String(sealMatch("primary") === true),
+                                      secondaryDeclared: seals.secondary.declared,
+                                      secondaryPhysical: seals.secondary.physical,
+                                      secondaryCondition: seals.secondary.condition || "",
+                                      secondaryMatch: String(sealMatch("secondary") === true),
+                                    });
+                                    router.push(`/vault-intake/${intakeId}/security?${q.toString()}`);
+                                  }}
                                 >
                                   <ShieldAlert className="mr-2 h-4 w-4" />
                                   {language === "fr" ? "Escalader à l'Officier de Sécurité" : "Escalate to Security Officer"}
@@ -860,17 +1085,8 @@ export default function VaultIntakeDetailPage() {
                             {language === "fr" ? "Comptage des Barres" : "Bar Count Verification"}
                             <span className="text-destructive">*</span>
                           </Label>
-                          <div className="grid grid-cols-2 gap-3">
-                            <div className="space-y-1.5">
-                              <Label className="text-xs text-muted-foreground">{language === "fr" ? "Attendu (manifeste)" : "Expected (manifest)"}</Label>
-                              <Input
-                                type="number"
-                                min={1}
-                                value={barCount.expected}
-                                onChange={(e) => setBarCount((prev) => ({ ...prev, expected: parseInt(e.target.value, 10) || 0 }))}
-                                className="font-mono text-center text-lg font-bold"
-                              />
-                            </div>
+
+                          {manifest?.totalBars ? (
                             <div className="space-y-1.5">
                               <Label className="text-xs text-muted-foreground">{language === "fr" ? "Reçu (compté)" : "Received (counted)"}</Label>
                               <Input
@@ -880,8 +1096,34 @@ export default function VaultIntakeDetailPage() {
                                 onChange={(e) => setBarCount((prev) => ({ ...prev, received: parseInt(e.target.value, 10) || 0 }))}
                                 className="font-mono text-center text-lg font-bold"
                               />
+                              <p className="text-xs text-muted-foreground">
+                                {language === "fr" ? "Attendu (manifeste) :" : "Expected (manifest):"} <span className="font-mono font-medium text-foreground">{barCount.expected}</span> {language === "fr" ? "barres" : "bars"}
+                              </p>
                             </div>
-                          </div>
+                          ) : (
+                            <div className="grid grid-cols-2 gap-3">
+                              <div className="space-y-1.5">
+                                <Label className="text-xs text-muted-foreground">{language === "fr" ? "Attendu (manifeste)" : "Expected (manifest)"}</Label>
+                                <Input
+                                  type="number"
+                                  min={1}
+                                  value={barCount.expected}
+                                  onChange={(e) => setBarCount((prev) => ({ ...prev, expected: parseInt(e.target.value, 10) || 0 }))}
+                                  className="font-mono text-center text-lg font-bold"
+                                />
+                              </div>
+                              <div className="space-y-1.5">
+                                <Label className="text-xs text-muted-foreground">{language === "fr" ? "Reçu (compté)" : "Received (counted)"}</Label>
+                                <Input
+                                  type="number"
+                                  min={0}
+                                  value={barCount.received}
+                                  onChange={(e) => setBarCount((prev) => ({ ...prev, received: parseInt(e.target.value, 10) || 0 }))}
+                                  className="font-mono text-center text-lg font-bold"
+                                />
+                              </div>
+                            </div>
+                          )}
 
                           {barCount.expected > 0 && (
                             <div className={`flex items-center gap-2 p-3 rounded-lg text-sm font-medium ${countMismatch ? "bg-amber-50 text-amber-700 border border-amber-200" : "bg-emerald-50 text-emerald-700 border border-emerald-200"}`}>
@@ -908,7 +1150,13 @@ export default function VaultIntakeDetailPage() {
                                 <Button
                                   size="sm"
                                   className="bg-amber-600 hover:bg-amber-700 text-white"
-                                  onClick={() => router.push(`/vault-intake/${intakeId}/count-discrepancy`)}
+                                  onClick={() => {
+                                    const q = new URLSearchParams({
+                                      expected: String(barCount.expected),
+                                      received: String(barCount.received),
+                                    });
+                                    router.push(`/vault-intake/${intakeId}/count-discrepancy?${q.toString()}`);
+                                  }}
                                 >
                                   <AlertTriangle className="mr-2 h-4 w-4" />
                                   {language === "fr" ? "Signaler Discordance" : "Report Discrepancy"}
@@ -916,6 +1164,26 @@ export default function VaultIntakeDetailPage() {
                               </div>
                             </div>
                           )}
+
+                          <div className="space-y-1.5 pt-1">
+                            <Label className="text-xs text-muted-foreground">{language === "fr" ? "Représentant transporteur présent" : "Carrier rep. present"}</Label>
+                            <Input
+                              value={intakeForm.carrierRepPresent}
+                              onChange={(e) => setIntakeForm({ ...intakeForm, carrierRepPresent: e.target.value })}
+                              placeholder={language === "fr" ? "Nom complet" : "Full name"}
+                            />
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label className="text-xs text-muted-foreground">{language === "fr" ? "Condition à l'arrivée" : "Condition on arrival"}</Label>
+                            <Select value={intakeForm.conditionOnArrival} onValueChange={(v) => setIntakeForm({ ...intakeForm, conditionOnArrival: v })}>
+                              <SelectTrigger><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="good">{language === "fr" ? "Bon état — aucun dommage visible" : "Good — no visible damage"}</SelectItem>
+                                <SelectItem value="minor">{language === "fr" ? "Marques de surface mineures" : "Minor surface marks"}</SelectItem>
+                                <SelectItem value="damaged">{language === "fr" ? "Endommagé" : "Damaged"}</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
                         </div>
                       </div>
 
@@ -1005,65 +1273,58 @@ export default function VaultIntakeDetailPage() {
                       </CardTitle>
                       <CardDescription>
                         {language === "fr"
-                          ? "Effectuez les étapes sous témoin avant de procéder à la pesée"
-                          : "Complete both steps under witness before proceeding to weighing"}
+                          ? "Effectuez les étapes sous témoin, dans l'ordre, avant de procéder à la pesée"
+                          : "Complete both steps under witness, in order, before proceeding to weighing"}
                       </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                      <div className="grid md:grid-cols-2 gap-4">
-                        <div className="space-y-1.5">
-                          <Label className="flex items-center gap-1.5">
-                            <UserCheck className="h-4 w-4" />
-                            {language === "fr" ? "Nom du témoin" : "Witness name"}
-                            <span className="text-destructive">*</span>
-                          </Label>
+                      <div className="space-y-1.5">
+                        <Label>{language === "fr" ? "Baie de stockage assignée" : "Assigned holding bay"} <span className="text-destructive">*</span></Label>
+                        <Input
+                          value={secureTransfer.holdingBay}
+                          onChange={(e) => setSecureTransfer({ ...secureTransfer, holdingBay: e.target.value })}
+                          placeholder="Ex: HB-03"
+                          className="font-mono max-w-xs"
+                        />
+                      </div>
+
+                      <div className="space-y-3 pt-1">
+                        {/* Step 1 — container opened under witness (inline witness name) */}
+                        <div className={`flex items-center gap-3 p-3 rounded-lg border transition-colors ${secureTransfer.containerOpened ? "border-emerald-300 bg-emerald-50/50" : ""}`}>
+                          <button
+                            type="button"
+                            onClick={() => setSecureTransfer((prev) => ({ ...prev, containerOpened: !prev.containerOpened && Boolean(prev.witnessName.trim()) ? true : !prev.containerOpened }))}
+                            disabled={!secureTransfer.witnessName.trim()}
+                            className={`w-5 h-5 rounded border flex items-center justify-center shrink-0 ${secureTransfer.containerOpened ? "bg-emerald-500 border-emerald-500" : "border-muted-foreground/40"} ${!secureTransfer.witnessName.trim() ? "opacity-40 cursor-not-allowed" : "cursor-pointer"}`}
+                          >
+                            {secureTransfer.containerOpened && <CheckCircle2 className="h-3.5 w-3.5 text-white" />}
+                          </button>
+                          <div className="flex-1">
+                            <div className="text-sm font-medium flex items-center gap-1.5"><UserCheck className="h-3.5 w-3.5" />{language === "fr" ? "Conteneur ouvert sous témoin — comptage confirmé" : "Container opened in witness presence — count confirmed"}</div>
+                          </div>
                           <Input
                             value={secureTransfer.witnessName}
                             onChange={(e) => setSecureTransfer({ ...secureTransfer, witnessName: e.target.value })}
-                            placeholder={language === "fr" ? "Ex: M. Dupont — Responsable Coffre" : "Ex: J. Smith — Vault Supervisor"}
+                            onClick={(e) => e.stopPropagation()}
+                            placeholder={language === "fr" ? "Nom du témoin" : "Witness full name"}
+                            className="w-48 shrink-0"
                           />
                         </div>
-                        <div className="space-y-1.5">
-                          <Label>{language === "fr" ? "Baie de stockage assignée" : "Assigned holding bay"} <span className="text-destructive">*</span></Label>
-                          <Input
-                            value={secureTransfer.holdingBay}
-                            onChange={(e) => setSecureTransfer({ ...secureTransfer, holdingBay: e.target.value })}
-                            placeholder="Ex: HB-03"
-                            className="font-mono"
-                          />
-                        </div>
-                      </div>
 
-                      <div className="space-y-3 pt-2">
-                        {[
-                          {
-                            key: "containerOpened" as const,
-                            labelFr: "Conteneur ouvert en présence du témoin — comptage confirmé",
-                            labelEn: "Container opened in witness presence — count confirmed",
-                          },
-                          {
-                            key: "barsTransferred" as const,
-                            labelFr: "Barres transférées à la baie de stockage avec confirmation du comptage",
-                            labelEn: "Bars transferred to holding bay with count confirmation",
-                          },
-                        ].map(({ key, labelFr, labelEn }) => (
-                          <div
-                            key={key}
-                            className={`flex items-start gap-3 p-3 rounded-lg border transition-colors ${secureTransfer[key] ? "border-emerald-300 bg-emerald-50/50" : "hover:bg-muted/30"}`}
+                        {/* Step 2 — bars transferred, locked until step 1 */}
+                        <div className={`flex items-center gap-3 p-3 rounded-lg border transition-colors ${secureTransfer.barsTransferred ? "border-emerald-300 bg-emerald-50/50" : ""} ${!secureTransfer.containerOpened ? "opacity-50 pointer-events-none" : ""}`}>
+                          <button
+                            type="button"
+                            onClick={() => setSecureTransfer((prev) => ({ ...prev, barsTransferred: !prev.barsTransferred }))}
+                            className={`w-5 h-5 rounded border flex items-center justify-center shrink-0 cursor-pointer ${secureTransfer.barsTransferred ? "bg-emerald-500 border-emerald-500" : "border-muted-foreground/40"}`}
                           >
-                            <Checkbox
-                              id={key}
-                              checked={secureTransfer[key]}
-                              onCheckedChange={(v) => setSecureTransfer({ ...secureTransfer, [key]: Boolean(v) })}
-                              className="mt-0.5"
-                              disabled={!secureTransfer.witnessName || !secureTransfer.holdingBay}
-                            />
-                            <label htmlFor={key} className="text-sm cursor-pointer leading-relaxed">
-                              {language === "fr" ? labelFr : labelEn}
-                            </label>
-                            {secureTransfer[key] && <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0 ml-auto mt-0.5" />}
+                            {secureTransfer.barsTransferred && <CheckCircle2 className="h-3.5 w-3.5 text-white" />}
+                          </button>
+                          <div className="flex-1 text-sm font-medium">
+                            {language === "fr" ? "Barres transférées vers la baie de stockage — comptage confirmé" : "Bars transferred to holding bay — count confirmed"}
                           </div>
-                        ))}
+                          {secureTransfer.barsTransferred && <Badge className="bg-emerald-600 hover:bg-emerald-600">{language === "fr" ? "Confirmé" : "Confirmed"}</Badge>}
+                        </div>
                       </div>
                     </CardContent>
                   </Card>
@@ -1099,41 +1360,47 @@ export default function VaultIntakeDetailPage() {
                         </Select>
                       </div>
 
-                      {/* Calibration status card */}
-                      {scaleDetail && (
-                        <div className={`rounded-lg border-2 p-4 space-y-3 ${scaleDetail.expired ? "border-red-300 bg-red-50/50" : "border-emerald-300 bg-emerald-50/50"}`}>
-                          <div className="flex items-center justify-between">
-                            <span className="font-semibold text-sm">{language === "fr" ? "Statut d'Étalonnage" : "Calibration Status"}</span>
-                            <Badge variant={scaleDetail.expired ? "destructive" : "default"} className={scaleDetail.expired ? "" : "bg-emerald-600"}>
-                              {scaleDetail.expired ? (language === "fr" ? "Expiré — Bloqué" : "Expired — Blocked") : (language === "fr" ? "Étalonnage valide" : "Calibration current")}
-                            </Badge>
-                          </div>
-                          <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
-                            <div className="text-muted-foreground">{language === "fr" ? "ID Balance" : "Scale ID"}</div><div className="font-mono font-medium">{scaleDetail.id}</div>
-                            <div className="text-muted-foreground">{language === "fr" ? "Modèle" : "Model"}</div><div className="font-medium">{scaleDetail.model}</div>
-                            <div className="text-muted-foreground">{language === "fr" ? "Dernier étalonnage" : "Last calibration"}</div><div className="font-mono">{scaleDetail.lastCalibration}</div>
-                            <div className="text-muted-foreground">{language === "fr" ? "Prochain dû" : "Next due"}</div><div className={`font-mono ${scaleDetail.expired ? "text-red-600 font-semibold" : ""}`}>{scaleDetail.nextDue}</div>
-                            <div className="text-muted-foreground">{language === "fr" ? "Certifié par" : "Certified by"}</div><div className="font-medium">{scaleDetail.certifiedBy}</div>
-                          </div>
-                          <div className="space-y-1">
-                            <div className="flex justify-between text-xs text-muted-foreground">
-                              <span>{language === "fr" ? "Durée de vie étalonnage" : "Calibration life"}</span>
-                              <span>{Math.round(getCalibrationPct(scaleDetail))}%</span>
+                      {/* Calibration status card — 3 states (ok / near / over) */}
+                      {scaleDetail && (() => {
+                        const state = getScaleState(scaleDetail);
+                        const pct = getCalibrationPct(scaleDetail);
+                        return (
+                          <div className={`rounded-lg border-2 p-4 space-y-3 ${state === "over" ? "border-red-300 bg-red-50/50" : state === "near" ? "border-amber-300 bg-amber-50/50" : "border-emerald-300 bg-emerald-50/50"}`}>
+                            <div className="flex items-center justify-between">
+                              <span className="font-semibold text-sm">{language === "fr" ? "Statut d'Étalonnage" : "Calibration Status"}</span>
+                              <Badge variant={state === "over" ? "destructive" : "default"} className={state === "over" ? "" : state === "near" ? "bg-amber-500 hover:bg-amber-500" : "bg-emerald-600 hover:bg-emerald-600"}>
+                                {state === "over" ? (language === "fr" ? "Expiré — Bloqué" : "Expired — Blocked") : state === "near" ? (language === "fr" ? "Expire bientôt" : "Expiring soon") : (language === "fr" ? "Étalonnage valide" : "Calibration current")}
+                              </Badge>
                             </div>
-                            <ProgressBar
-                              pct={getCalibrationPct(scaleDetail)}
-                              color={scaleDetail.expired ? "bg-red-500" : getCalibrationPct(scaleDetail) > 50 ? "bg-emerald-500" : "bg-amber-500"}
-                            />
+                            <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
+                              <div className="text-muted-foreground">{language === "fr" ? "ID Balance" : "Scale ID"}</div><div className="font-mono font-medium">{scaleDetail.id}</div>
+                              <div className="text-muted-foreground">{language === "fr" ? "Modèle" : "Model"}</div><div className="font-medium">{scaleDetail.model}</div>
+                              <div className="text-muted-foreground">{language === "fr" ? "Dernier étalonnage" : "Last calibration"}</div><div className="font-mono">{scaleDetail.lastCalibration}</div>
+                              <div className="text-muted-foreground">{language === "fr" ? "Prochain dû" : "Next due"}</div><div className={`font-mono ${state === "over" ? "text-red-600 font-semibold" : ""}`}>{scaleDetail.nextDue}</div>
+                              <div className="text-muted-foreground">{language === "fr" ? "Certifié par" : "Certified by"}</div><div className="font-medium">{scaleDetail.certifiedBy}</div>
+                            </div>
+                            <div className="space-y-1">
+                              <div className="flex justify-between text-xs text-muted-foreground">
+                                <span>{language === "fr" ? "Durée de vie étalonnage" : "Calibration life"}</span>
+                                <span>{Math.round(pct)}%</span>
+                              </div>
+                              <ProgressBar pct={pct} color={stateColor(state)} />
+                            </div>
+                            {state === "over" && (
+                              <p className="text-xs text-red-700 font-medium">
+                                {language === "fr"
+                                  ? "⚠ Étalonnage expiré — cette balance ne peut pas être utilisée. Sélectionnez une autre balance."
+                                  : "⚠ Calibration expired — this scale cannot be used. Please select a different scale."}
+                              </p>
+                            )}
+                            {state === "near" && (
+                              <p className="text-xs text-amber-700">
+                                {language === "fr" ? "Étalonnage encore valide mais expire bientôt — prévoir un renouvellement." : "Calibration current but expiring soon — schedule renewal."}
+                              </p>
+                            )}
                           </div>
-                          {scaleDetail.expired && (
-                            <p className="text-xs text-red-700 font-medium">
-                              {language === "fr"
-                                ? "⚠ Étalonnage expiré — cette balance ne peut pas être utilisée. Sélectionnez une autre balance."
-                                : "⚠ Calibration expired — this scale cannot be used. Please select a different scale."}
-                            </p>
-                          )}
-                        </div>
-                      )}
+                        );
+                      })()}
 
                       <div className="space-y-1.5">
                         <Label>{language === "fr" ? "Pesée planifiée le" : "Weighing scheduled for"}</Label>
@@ -1170,8 +1437,8 @@ export default function VaultIntakeDetailPage() {
                             </SelectTrigger>
                             <SelectContent>
                               {LABS.map((l) => (
-                                <SelectItem key={l.id} value={l.id}>
-                                  {l.name} ({l.turnaround})
+                                <SelectItem key={l.id} value={l.id} disabled={getLabState(l) === "over"}>
+                                  {l.name} ({l.turnaround}){getLabState(l) === "over" ? (language === "fr" ? " ⚠ Accréditation expirée" : " ⚠ Accreditation expired") : ""}
                                 </SelectItem>
                               ))}
                             </SelectContent>
@@ -1198,41 +1465,54 @@ export default function VaultIntakeDetailPage() {
                             <p className="text-xs text-amber-600 flex items-center gap-1.5">
                               <AlertTriangle className="h-3.5 w-3.5" />
                               {language === "fr"
-                                ? "XRF : précision réduite pour barres à essai requis (intake_assay_required)"
-                                : "XRF: reduced precision for bars with intake_assay_required flag"}
+                                ? "XRF : lit la pureté de surface uniquement. Le fire assay lit la pureté en profondeur — à privilégier pour les barres à essai requis (intake_assay_required)."
+                                : "XRF reads surface purity only. Fire assay reads bulk purity — prefer it for bars with the intake_assay_required flag."}
                             </p>
                           )}
                         </div>
                       </div>
 
-                      {/* Accreditation status card */}
-                      {labDetail && (
-                        <div className="rounded-lg border-2 border-blue-300 bg-blue-50/50 p-4 space-y-3">
-                          <div className="flex items-center justify-between">
-                            <span className="font-semibold text-sm">{language === "fr" ? "Statut Accréditation" : "Accreditation Status"}</span>
-                            <Badge className="bg-blue-600">ISO 17025 {language === "fr" ? "Valide" : "Valid"}</Badge>
-                          </div>
-                          <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
-                            <div className="text-muted-foreground">{language === "fr" ? "ID Labo / Équip." : "Lab / Equip. ID"}</div><div className="font-mono font-medium">{labDetail.id}</div>
-                            <div className="text-muted-foreground">{language === "fr" ? "Type" : "Type"}</div><div className="font-medium">{labDetail.type}</div>
-                            <div className="text-muted-foreground">{language === "fr" ? "Méthode" : "Method"}</div><div className="font-medium">{labDetail.method === "fire_assay" ? "Fire Assay" : "XRF"}</div>
-                            <div className="text-muted-foreground">{language === "fr" ? "N° Accréditation" : "Accreditation no."}</div><div className="font-mono">{labDetail.accreditationNumber}</div>
-                            <div className="text-muted-foreground">{language === "fr" ? "Organisme" : "Body"}</div><div className="font-medium">{labDetail.body}</div>
-                            <div className="text-muted-foreground">{language === "fr" ? "Valable jusqu'au" : "Valid to"}</div><div className="font-mono">{labDetail.validTo}</div>
-                            <div className="text-muted-foreground">{language === "fr" ? "Délai typique" : "Typical turnaround"}</div><div className="font-medium">{labDetail.turnaround}</div>
-                          </div>
-                          <div className="space-y-1">
-                            <div className="flex justify-between text-xs text-muted-foreground">
-                              <span>{language === "fr" ? "Durée de vie accréditation" : "Accreditation life"}</span>
-                              <span>{Math.round(getAccreditationPct(labDetail))}%</span>
+                      {/* Accreditation status card — 3 states (ok / near / over) */}
+                      {labDetail && (() => {
+                        const state = getLabState(labDetail);
+                        const pct = getAccreditationPct(labDetail);
+                        return (
+                          <div className={`rounded-lg border-2 p-4 space-y-3 ${state === "over" ? "border-red-300 bg-red-50/50" : state === "near" ? "border-amber-300 bg-amber-50/50" : "border-blue-300 bg-blue-50/50"}`}>
+                            <div className="flex items-center justify-between">
+                              <span className="font-semibold text-sm">{language === "fr" ? "Statut Accréditation" : "Accreditation Status"}</span>
+                              <Badge className={state === "over" ? "bg-red-600 hover:bg-red-600" : state === "near" ? "bg-amber-500 hover:bg-amber-500" : "bg-blue-600 hover:bg-blue-600"}>
+                                {state === "over" ? (language === "fr" ? "Expirée — Bloquée" : "Expired — Blocked") : state === "near" ? (language === "fr" ? "Expire bientôt" : "Expiring soon") : `ISO 17025 ${language === "fr" ? "Valide" : "Valid"}`}
+                              </Badge>
                             </div>
-                            <ProgressBar
-                              pct={getAccreditationPct(labDetail)}
-                              color={getAccreditationPct(labDetail) > 50 ? "bg-blue-500" : "bg-amber-500"}
-                            />
+                            <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
+                              <div className="text-muted-foreground">{language === "fr" ? "ID Labo / Équip." : "Lab / Equip. ID"}</div><div className="font-mono font-medium">{labDetail.id}</div>
+                              <div className="text-muted-foreground">{language === "fr" ? "Type" : "Type"}</div><div className="font-medium">{labDetail.type}</div>
+                              <div className="text-muted-foreground">{language === "fr" ? "Méthode" : "Method"}</div><div className="font-medium">{labDetail.method === "fire_assay" ? "Fire Assay" : "XRF"}</div>
+                              <div className="text-muted-foreground">{language === "fr" ? "N° Accréditation" : "Accreditation no."}</div><div className="font-mono">{labDetail.accreditationNumber}</div>
+                              <div className="text-muted-foreground">{language === "fr" ? "Organisme" : "Body"}</div><div className="font-medium">{labDetail.body}</div>
+                              <div className="text-muted-foreground">{language === "fr" ? "Valable jusqu'au" : "Valid to"}</div><div className={`font-mono ${state === "over" ? "text-red-600 font-semibold" : ""}`}>{labDetail.validTo}</div>
+                              <div className="text-muted-foreground">{language === "fr" ? "Délai typique" : "Typical turnaround"}</div><div className="font-medium">{labDetail.turnaround}</div>
+                            </div>
+                            <div className="space-y-1">
+                              <div className="flex justify-between text-xs text-muted-foreground">
+                                <span>{language === "fr" ? "Durée de vie accréditation" : "Accreditation life"}</span>
+                                <span>{Math.round(pct)}%</span>
+                              </div>
+                              <ProgressBar pct={pct} color={stateColor(state)} />
+                            </div>
+                            {state === "over" && (
+                              <p className="text-xs text-red-700 font-medium">
+                                {language === "fr" ? "⚠ Accréditation expirée — ce laboratoire ne peut pas être utilisé." : "⚠ Accreditation expired — this lab cannot be used."}
+                              </p>
+                            )}
+                            {state === "near" && (
+                              <p className="text-xs text-amber-700">
+                                {language === "fr" ? "Accréditation encore valide mais expire bientôt — labo utilisable, renouvellement à prévoir." : "Accreditation current but expiring soon — lab usable now, renewal should be scheduled."}
+                              </p>
+                            )}
                           </div>
-                        </div>
-                      )}
+                        );
+                      })()}
 
                       <div className="space-y-1.5">
                         <Label>{language === "fr" ? "Résultats attendus le" : "Expected results by"}</Label>
@@ -1274,7 +1554,8 @@ export default function VaultIntakeDetailPage() {
                         !secureTransfer.witnessName ||
                         !secureTransfer.holdingBay ||
                         !selectedScale ||
-                        scaleDetail?.expired === true ||
+                        scaleDetail == null ||
+                        getScaleState(scaleDetail) === "over" ||
                         !assayCommission.selectedLab
                       }
                       className="flex-1"
@@ -1286,7 +1567,7 @@ export default function VaultIntakeDetailPage() {
                 </TabsContent>
 
                 {/* ══════════════════════════════════════════════════════════
-                    SECTION 3 — Independent Weighing
+                    SECTION 3 — Independent Weighing (weight only, per bar)
                 ══════════════════════════════════════════════════════════ */}
                 <TabsContent value="weighing" className="space-y-4 mt-6">
                   <Card>
@@ -1298,7 +1579,7 @@ export default function VaultIntakeDetailPage() {
                       <CardDescription>
                         {selectedScale
                           ? `${language === "fr" ? "Balance utilisée" : "Scale in use"}: ${selectedScale} — ${SCALES.find((s) => s.id === selectedScale)?.model}`
-                          : (language === "fr" ? "Saisissez le poids brut mesuré pour chaque barre" : "Enter measured gross weight for each bar")}
+                          : (language === "fr" ? "Saisissez le poids brut mesuré pour chaque barre, comparé au poids manifeste" : "Enter measured gross weight for each bar, compared to the manifest weight")}
                       </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
@@ -1307,45 +1588,38 @@ export default function VaultIntakeDetailPage() {
                           <TableRow>
                             <TableHead className="w-8">#</TableHead>
                             <TableHead>{language === "fr" ? "N° Série" : "Serial No."}</TableHead>
-                            <TableHead>{language === "fr" ? "Poids brut mesuré (g)" : "Measured gross weight (g)"}</TableHead>
-                            <TableHead>{language === "fr" ? "Titre / Finesse (‰)" : "Fineness (‰)"}</TableHead>
-                            <TableHead className="text-right">{language === "fr" ? "Poids fin (g)" : "Fine weight (g)"}</TableHead>
+                            <TableHead>{language === "fr" ? "Poids manifeste (g)" : "Manifest weight (g)"}</TableHead>
+                            <TableHead>{language === "fr" ? "Poids balance (g)" : "Vault scale weight (g)"}</TableHead>
+                            <TableHead>{language === "fr" ? "Variance" : "Variance"}</TableHead>
+                            <TableHead className="text-right">{language === "fr" ? "Statut" : "Status"}</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {barWeights.map((bar, idx) => {
-                            const gross = parseFloat(bar.grossWeightG) || 0;
-                            const fin = parseFloat(bar.fineness) || 0;
-                            const fineWeight = gross > 0 && fin > 0 ? Math.floor((gross * fin) / 1000 * 1000) / 1000 : null;
+                          {barRecords.map((bar, idx) => {
+                            const variance = weightVarianceOf(bar);
+                            const status = variance === null ? null : Math.abs(variance) <= 0.5 ? "ok" : "flag";
                             return (
                               <TableRow key={bar.serial}>
                                 <TableCell className="text-muted-foreground text-sm">{idx + 1}</TableCell>
                                 <TableCell className="font-mono text-sm">{bar.serial}</TableCell>
+                                <TableCell className="font-mono text-sm">{bar.manifestWeightG != null ? bar.manifestWeightG.toFixed(3) : "—"}</TableCell>
                                 <TableCell>
                                   <Input
                                     type="number"
                                     step="0.001"
                                     min="0"
-                                    value={bar.grossWeightG}
-                                    onChange={(e) => setBarWeights((prev) => prev.map((b, i) => i === idx ? { ...b, grossWeightG: e.target.value } : b))}
+                                    value={bar.vaultGrossWeightG}
+                                    onChange={(e) => setBarRecords((prev) => prev.map((b, i) => i === idx ? { ...b, vaultGrossWeightG: e.target.value } : b))}
                                     className="h-8 w-32 font-mono"
                                     placeholder="0.000"
                                   />
                                 </TableCell>
-                                <TableCell>
-                                  <Input
-                                    type="number"
-                                    step="0.1"
-                                    min="0"
-                                    max="999.9"
-                                    value={bar.fineness}
-                                    onChange={(e) => setBarWeights((prev) => prev.map((b, i) => i === idx ? { ...b, fineness: e.target.value } : b))}
-                                    className="h-8 w-28 font-mono"
-                                    placeholder="999.9"
-                                  />
+                                <TableCell className={`font-mono text-sm ${status === "flag" ? "text-red-600" : status === "ok" ? "text-emerald-600" : "text-muted-foreground"}`}>
+                                  {variance !== null ? `${variance >= 0 ? "+" : ""}${variance.toFixed(2)}%` : "—"}
                                 </TableCell>
-                                <TableCell className="text-right font-mono text-sm">
-                                  {fineWeight !== null ? fineWeight.toFixed(3) : "—"}
+                                <TableCell className="text-right">
+                                  {status === "ok" && <Badge className="bg-emerald-600 hover:bg-emerald-600">OK</Badge>}
+                                  {status === "flag" && <Badge variant="destructive">{language === "fr" ? "Signalé" : "Flag"}</Badge>}
                                 </TableCell>
                               </TableRow>
                             );
@@ -1356,26 +1630,16 @@ export default function VaultIntakeDetailPage() {
                       {/* Totals row */}
                       <div className="flex items-center gap-6 p-4 rounded-lg bg-muted/30 border">
                         <div className="flex-1">
-                          <p className="text-xs text-muted-foreground">{language === "fr" ? "Poids brut total (g)" : "Total gross weight (g)"}</p>
-                          <p className="font-mono font-bold text-lg">
-                            {barWeights.reduce((s, b) => s + (parseFloat(b.grossWeightG) || 0), 0).toFixed(3)}
-                          </p>
+                          <p className="text-xs text-muted-foreground">{language === "fr" ? "Poids manifeste total (g)" : "Total manifest weight (g)"}</p>
+                          <p className="font-mono font-bold text-lg">{totalManifestWeightG.toFixed(3)}</p>
                         </div>
                         <div className="flex-1">
-                          <p className="text-xs text-muted-foreground">{language === "fr" ? "Poids fin total LBMA (g)" : "LBMA total fine weight (g)"}</p>
-                          <p className="font-mono font-bold text-lg text-primary">
-                            {barWeights.reduce((s, b) => {
-                              const g = parseFloat(b.grossWeightG) || 0;
-                              const f = parseFloat(b.fineness) || 0;
-                              return s + (g > 0 && f > 0 ? Math.floor((g * f) / 1000 * 1000) / 1000 : 0);
-                            }, 0).toFixed(3)}
-                          </p>
+                          <p className="text-xs text-muted-foreground">{language === "fr" ? "Poids balance total (g)" : "Total vault scale weight (g)"}</p>
+                          <p className="font-mono font-bold text-lg text-primary">{totalVaultWeightG.toFixed(3)}</p>
                         </div>
                         <div className="flex-1">
                           <p className="text-xs text-muted-foreground">{language === "fr" ? "Barres pesées" : "Bars weighed"}</p>
-                          <p className="font-mono font-bold text-lg">
-                            {barWeights.filter((b) => b.grossWeightG).length} / {barWeights.length}
-                          </p>
+                          <p className="font-mono font-bold text-lg">{barsWeighedCount} / {barRecords.length}</p>
                         </div>
                       </div>
 
@@ -1385,7 +1649,7 @@ export default function VaultIntakeDetailPage() {
                           {language === "fr" ? "Retour" : "Back"}
                         </Button>
                         <SaveBtn />
-                        <Button onClick={() => setActiveTab("assay")} className="flex-1">
+                        <Button onClick={handleContinueToAssay} disabled={isSubmitting} className="flex-1">
                           {language === "fr" ? "Continuer vers Essai" : "Continue to Assay"}
                           <ArrowRight className="ml-2 h-4 w-4" />
                         </Button>
@@ -1395,7 +1659,7 @@ export default function VaultIntakeDetailPage() {
                 </TabsContent>
 
                 {/* ══════════════════════════════════════════════════════════
-                    SECTION 4 — Assay Results (async)
+                    SECTION 4 — Assay Results (async, fineness only, per bar)
                 ══════════════════════════════════════════════════════════ */}
                 <TabsContent value="assay" className="space-y-4 mt-6">
                   {/* Async notice banner */}
@@ -1419,100 +1683,108 @@ export default function VaultIntakeDetailPage() {
                     <CardHeader>
                       <CardTitle className="flex items-center gap-2">
                         <FlaskConical className="h-5 w-5" />
-                        {language === "fr" ? "Résultats Essai & Vérification Pureté" : "Assay Results & Purity Verification"}
+                        {language === "fr" ? "Résultats Essai — Barre par Barre" : "Assay Results — Bar by Bar"}
                       </CardTitle>
                       <CardDescription>
                         {language === "fr"
-                          ? "Saisissez les résultats transmis par le laboratoire et uploadez le certificat"
-                          : "Enter results received from the lab and upload the assay certificate"}
+                          ? "Saisissez la finesse mesurée au coffre, comparée à la finesse déclarée au manifeste"
+                          : "Enter the vault-measured fineness, compared against the manifest-declared fineness"}
                       </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-6">
-                      <div className="grid md:grid-cols-3 gap-6">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="w-8">#</TableHead>
+                            <TableHead>{language === "fr" ? "N° Série" : "Serial No."}</TableHead>
+                            <TableHead>{language === "fr" ? "Finesse manifeste (‰)" : "Manifest fineness (‰)"}</TableHead>
+                            <TableHead>{language === "fr" ? "Finesse coffre (‰)" : "Vault fineness (‰)"}</TableHead>
+                            <TableHead className="text-right">{language === "fr" ? "Statut" : "Status"}</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {barRecords.map((bar, idx) => {
+                            const status = assayStatusOf(bar);
+                            return (
+                              <TableRow key={bar.serial}>
+                                <TableCell className="text-muted-foreground text-sm">{idx + 1}</TableCell>
+                                <TableCell className="font-mono text-sm">{bar.serial}</TableCell>
+                                <TableCell className="font-mono text-sm">{bar.manifestFineness != null ? bar.manifestFineness.toFixed(1) : "—"}</TableCell>
+                                <TableCell>
+                                  <Input
+                                    type="number"
+                                    step="0.1"
+                                    min="0"
+                                    max="999.9"
+                                    value={bar.vaultFineness}
+                                    onChange={(e) => setBarRecords((prev) => prev.map((b, i) => i === idx ? { ...b, vaultFineness: e.target.value } : b))}
+                                    className="h-8 w-28 font-mono"
+                                    placeholder="999.9"
+                                  />
+                                </TableCell>
+                                <TableCell className="text-right">{assayStatusBadge(status, false)}</TableCell>
+                              </TableRow>
+                            );
+                          })}
+                        </TableBody>
+                      </Table>
+
+                      <div className="grid md:grid-cols-2 gap-6">
                         {/* Certificate */}
-                        <div className="space-y-4">
+                        <div className="space-y-3">
                           <Label className="text-base font-semibold">{language === "fr" ? "Upload Certificat" : "Certificate Upload"}</Label>
-                          {assayResults.certificateUploaded ? (
-                            <div className="aspect-square border-2 rounded-lg flex flex-col items-center justify-center p-4 relative">
-                              <Button type="button" variant="ghost" size="icon" className="absolute top-2 right-2 h-7 w-7" onClick={() => setAssayResults((prev) => ({ ...prev, certificateUploaded: false, certificatePathname: "", certificateFileName: "" }))}>
-                                <X className="h-4 w-4" />
-                              </Button>
-                              <FileText className="h-12 w-12 text-emerald-600 mb-3" />
-                              <span className="text-sm font-medium text-center break-all px-2">{assayResults.certificateFileName}</span>
-                              {assayResults.certificatePathname && (
-                                <a href={`/api/vault-intake/certificate?pathname=${encodeURIComponent(assayResults.certificatePathname)}`} target="_blank" rel="noopener noreferrer" className="mt-3 text-sm text-primary underline">
-                                  {language === "fr" ? "Voir le certificat" : "View certificate"}
+                          {certificate.uploaded ? (
+                            <div className="border-2 rounded-lg flex items-center gap-3 p-4">
+                              <FileText className="h-8 w-8 text-emerald-600 shrink-0" />
+                              <span className="text-sm font-medium truncate flex-1">{certificate.fileName}</span>
+                              {certificate.pathname && (
+                                <a href={`/api/vault-intake/certificate?pathname=${encodeURIComponent(certificate.pathname)}`} target="_blank" rel="noopener noreferrer" className="text-sm text-primary underline shrink-0">
+                                  {language === "fr" ? "Voir" : "View"}
                                 </a>
                               )}
+                              <Button type="button" variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => setCertificate({ uploaded: false, pathname: "", fileName: "" })}>
+                                <X className="h-4 w-4" />
+                              </Button>
                             </div>
                           ) : (
-                            <label className="aspect-square border-2 border-dashed rounded-lg flex flex-col items-center justify-center cursor-pointer hover:bg-muted/50 transition-colors">
+                            <label className="border-2 border-dashed rounded-lg flex items-center justify-center gap-3 p-4 cursor-pointer hover:bg-muted/50 transition-colors">
                               <input type="file" accept="application/pdf,image/jpeg,image/png" className="sr-only" disabled={uploadingCertificate} onChange={(e) => { const f = e.target.files?.[0]; if (f) handleCertificateUpload(f); e.target.value = ""; }} />
-                              {uploadingCertificate ? <Spinner className="h-10 w-10 text-muted-foreground" /> : <><Upload className="h-12 w-12 text-muted-foreground mb-4" /><span className="text-sm text-muted-foreground text-center px-4">{language === "fr" ? "Cliquez (PDF/JPG/PNG)" : "Click to upload (PDF/JPG/PNG)"}</span></>}
+                              {uploadingCertificate ? <Spinner className="h-6 w-6 text-muted-foreground" /> : <><Upload className="h-6 w-6 text-muted-foreground" /><span className="text-sm text-muted-foreground">{language === "fr" ? "Cliquez (PDF/JPG/PNG)" : "Click to upload (PDF/JPG/PNG)"}</span></>}
                             </label>
                           )}
                         </div>
 
-                        {/* Purity breakdown */}
-                        <div className="space-y-4">
-                          <Label className="text-base font-semibold">{language === "fr" ? "Détail Pureté" : "Purity Breakdown"}</Label>
-                          <Table>
-                            <TableBody>
-                              {([
-                                { key: "auPurity", label: "Au" },
-                                { key: "agPurity", label: "Ag" },
-                                { key: "cuPurity", label: "Cu" },
-                                { key: "fePurity", label: "Fe" },
-                              ] as const).map(({ key, label }) => (
-                                <TableRow key={key}>
-                                  <TableCell className="font-medium">{label}</TableCell>
-                                  <TableCell className="text-right">
-                                    <div className="flex items-center justify-end gap-1">
-                                      <Input type="number" step="0.01" min="0" max="100" value={assayResults[key]} onChange={(e) => handlePurityChange(key, e.target.value)} className="w-24 h-8 text-right font-mono" />
-                                      <span className="text-muted-foreground">%</span>
-                                    </div>
-                                  </TableCell>
-                                </TableRow>
-                              ))}
-                            </TableBody>
-                          </Table>
+                        {/* Pure gold weight */}
+                        <div className="p-4 bg-primary/5 rounded-lg text-center flex flex-col justify-center">
+                          <span className="text-sm text-muted-foreground">{language === "fr" ? "Poids Or Pur (calculé)" : "Pure Gold Weight (calculated)"}</span>
+                          <div className="text-3xl font-bold text-primary">{totalFineWeightG.toFixed(2)} g</div>
+                          <span className="text-xs text-muted-foreground mt-1">{barsAssayedCount} / {barRecords.length} {language === "fr" ? "barres essayées" : "bars assayed"}</span>
                         </div>
-
-                        {/* Validation status */}
-                        <div className="space-y-4">
-                          <Label className="text-base font-semibold">{language === "fr" ? "Statut Validation" : "Validation Status"}</Label>
-                          <div className="flex justify-center">
-                            <div className={`w-24 h-24 rounded-full border-4 flex items-center justify-center ${assayResults.validationStatus === "passed" ? "border-emerald-500 bg-emerald-50" : assayResults.validationStatus === "rejected" ? "border-red-500 bg-red-50" : "border-muted-foreground/30 bg-muted/30"}`}>
-                              <span className={`text-sm font-medium ${assayResults.validationStatus === "passed" ? "text-emerald-600" : assayResults.validationStatus === "rejected" ? "text-red-600" : "text-muted-foreground"}`}>
-                                {assayResults.validationStatus === "passed" ? (language === "fr" ? "Validé" : "Passed") : assayResults.validationStatus === "rejected" ? (language === "fr" ? "Rejeté" : "Rejected") : (language === "fr" ? "En attente" : "Pending")}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Pure gold weight */}
-                      <div className="p-4 bg-primary/5 rounded-lg text-center">
-                        <span className="text-sm text-muted-foreground">{language === "fr" ? "Poids Or Pur" : "Pure Gold Weight"}</span>
-                        <div className="text-3xl font-bold text-primary">{assayResults.pureGoldWeight.toFixed(2)} g</div>
                       </div>
 
                       {/* Variance comparison */}
-                      <div className="space-y-3">
-                        <Label className="text-base font-semibold">{language === "fr" ? "Comparaison de Variance" : "Variance Comparison"}</Label>
-                        <div className="flex items-center gap-4 mb-4">
-                          <Card className="flex-1 p-4">
-                            <div className="text-sm text-muted-foreground">{language === "fr" ? "Estimation PO" : "PO Estimate"}</div>
-                            <div className="text-xl font-mono font-bold">{assayResults.poEstimate.toFixed(2)} g</div>
-                          </Card>
-                          <ArrowRight className="h-5 w-5 text-muted-foreground shrink-0" />
-                          <Card className="flex-1 p-4">
-                            <div className="text-sm text-muted-foreground">{language === "fr" ? "Réel" : "Actual"}</div>
-                            <div className="text-xl font-mono font-bold">{assayResults.pureGoldWeight.toFixed(2)} g</div>
-                          </Card>
+                      {poFineWeightG != null && (
+                        <div className="space-y-3">
+                          <Label className="text-base font-semibold">{language === "fr" ? "Comparaison de Variance" : "Variance Comparison"}</Label>
+                          <div className="flex items-center gap-4">
+                            <Card className="flex-1 p-4">
+                              <div className="text-sm text-muted-foreground">{language === "fr" ? "PO fine (manifeste)" : "PO fine (manifest)"}</div>
+                              <div className="text-xl font-mono font-bold">{poFineWeightG.toFixed(2)} g</div>
+                            </Card>
+                            <ArrowRight className="h-5 w-5 text-muted-foreground shrink-0" />
+                            <Card className="flex-1 p-4">
+                              <div className="text-sm text-muted-foreground">{language === "fr" ? "Réel (coffre)" : "Actual (vault)"}</div>
+                              <div className="text-xl font-mono font-bold">{totalFineWeightG.toFixed(2)} g</div>
+                            </Card>
+                            {purityVariance != null && (
+                              <Card className={`flex-1 p-4 ${Math.abs(purityVariance) > 0.5 ? "border-amber-300 bg-amber-50/50" : "border-emerald-300 bg-emerald-50/50"}`}>
+                                <div className="text-sm text-muted-foreground">{language === "fr" ? "Variance" : "Variance"}</div>
+                                <div className="text-xl font-mono font-bold">{purityVariance >= 0 ? "+" : ""}{purityVariance.toFixed(2)}%</div>
+                              </Card>
+                            )}
+                          </div>
                         </div>
-                        <PurityVarianceBar variance={purityVariance} />
-                      </div>
+                      )}
 
                       <div className="flex flex-wrap items-center gap-4 pt-2">
                         <Button variant="outline" onClick={() => setActiveTab("weighing")}>
@@ -1523,7 +1795,7 @@ export default function VaultIntakeDetailPage() {
                         <Button onClick={handleValidateResults} disabled={isSubmitting} className="flex-1">
                           {isSubmitting ? (language === "fr" ? "Validation..." : "Validating...") : (language === "fr" ? "Valider Résultats" : "Validate Results")}
                         </Button>
-                        <Button variant="outline">{language === "fr" ? "Demander Re-Essai" : "Request Re-Assay"}</Button>
+                        <Button variant="outline" onClick={handleRequestReassay}>{language === "fr" ? "Demander Re-Essai" : "Request Re-Assay"}</Button>
                       </div>
                     </CardContent>
                   </Card>
@@ -1542,6 +1814,25 @@ export default function VaultIntakeDetailPage() {
                       <CardDescription>{language === "fr" ? "Confirmation finale — trois déclarations requises" : "Final confirmation — three declarations required"}</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-6">
+                      <div className="grid md:grid-cols-4 gap-4">
+                        <div className="bg-muted/40 rounded-lg p-3">
+                          <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">{language === "fr" ? "PO fine (g)" : "PO fine (g)"}</div>
+                          <div className="text-lg font-semibold">{poFineWeightG != null ? poFineWeightG.toFixed(2) : "—"}</div>
+                        </div>
+                        <div className="bg-muted/40 rounded-lg p-3">
+                          <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">{language === "fr" ? "Coffre fine (g)" : "Vault fine (g)"}</div>
+                          <div className="text-lg font-semibold text-emerald-700">{totalFineWeightG.toFixed(2)}</div>
+                        </div>
+                        <div className="bg-muted/40 rounded-lg p-3">
+                          <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">{language === "fr" ? "Variance" : "Variance"}</div>
+                          <div className="text-lg font-semibold text-emerald-700">{purityVariance != null ? `${purityVariance >= 0 ? "+" : ""}${purityVariance.toFixed(2)}%` : "—"}</div>
+                        </div>
+                        <div className="bg-muted/40 rounded-lg p-3">
+                          <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">{language === "fr" ? "Seuil LBMA" : "LBMA floor"}</div>
+                          <div className="text-lg font-semibold">≥ 995.0‰</div>
+                        </div>
+                      </div>
+
                       <div className="grid md:grid-cols-2 gap-6">
                         {/* Allocation summary */}
                         <Card className="border-2">
@@ -1552,8 +1843,7 @@ export default function VaultIntakeDetailPage() {
                             {[
                               { label: language === "fr" ? "Réf. PO" : "PO Reference", value: intakeForm.poReference },
                               { label: language === "fr" ? "Poids Net" : "Net Weight", value: `${intakeForm.netWeightKg} kg` },
-                              { label: language === "fr" ? "Pureté Au" : "Au Purity", value: `${assayResults.auPurity}%` },
-                              { label: language === "fr" ? "Poids Or Pur" : "Pure Au Weight", value: `${assayResults.pureGoldWeight.toFixed(2)} g` },
+                              { label: language === "fr" ? "Poids Or Pur (coffre)" : "Pure Au Weight (vault)", value: `${totalFineWeightG.toFixed(2)} g` },
                               { label: language === "fr" ? "Balance utilisée" : "Scale used", value: selectedScale || "—" },
                               { label: language === "fr" ? "Laboratoire" : "Lab", value: labDetail?.name || "—" },
                               { label: language === "fr" ? "N° Accréditation" : "Accreditation no.", value: labDetail?.accreditationNumber || "—" },
@@ -1607,8 +1897,8 @@ export default function VaultIntakeDetailPage() {
                               },
                               {
                                 idx: 2,
-                                fr: "Je confirme que les données ci-dessus sont exactes et autorise le règlement",
-                                en: "I confirm the above data is accurate and autorise le règlement",
+                                fr: "Je confirme que les données ci-dessus sont exactes et j'autorise le règlement",
+                                en: "I confirm the above data is accurate and I authorize settlement",
                               },
                             ].map(({ idx, fr, en }) => (
                               <div key={idx} className={`flex items-start gap-3 p-3 rounded-lg border text-sm transition-colors ${declarations[idx] ? "border-emerald-300 bg-emerald-50/50" : "hover:bg-muted/30"}`}>
@@ -1691,7 +1981,7 @@ export default function VaultIntakeDetailPage() {
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">{language === "fr" ? "Poids Or Pur :" : "Pure Au Weight:"}</span>
-              <span className="font-mono font-medium">{assayResults.pureGoldWeight.toFixed(2)} g</span>
+              <span className="font-mono font-medium">{totalFineWeightG.toFixed(2)} g</span>
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">{language === "fr" ? "Statut :" : "Status:"}</span>
