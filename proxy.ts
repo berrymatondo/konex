@@ -4,7 +4,7 @@ import { neon } from "@neondatabase/serverless"
 import { getPathByKey, ASSIGNABLE_PAGES } from "@/lib/pages"
 
 // Routes accessibles sans authentification
-const PUBLIC_ROUTES = ["/sign-in", "/sign-up"]
+const PUBLIC_ROUTES = ["/sign-in", "/sign-up", "/accueil"]
 
 // Le tableau de bord est toujours autorisé (fallback de redirection).
 const ALWAYS_ALLOWED = ["/"]
@@ -81,9 +81,10 @@ export async function proxy(request: NextRequest) {
   // Vérification optimiste de la présence du cookie de session (niveau edge).
   const sessionCookie = getSessionCookie(request)
 
-  // Non authentifié sur une route protégée -> redirection vers /sign-in
+  // Non authentifié sur une route protégée -> redirection vers la vitrine publique.
+  // C'est /accueil qui redirige ensuite vers /sign-in via "Accéder à la Plateforme".
   if (!sessionCookie && !isPublicRoute) {
-    return NextResponse.redirect(new URL("/sign-in", request.url))
+    return NextResponse.redirect(new URL("/accueil", request.url))
   }
 
   // Authentifié : application des accès par profil (masquage + blocage URL).
