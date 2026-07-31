@@ -3641,7 +3641,6 @@ export default function PurchaseOrderDetailPage() {
                               title={isFr ? "Bon de commande" : "Purchase Order"}
                               subtitle={po?.tracking_id ?? ""}
                               status={poNodeStatus}
-                              href={`/purchase-orders/${po?.id}`}
                             >
                               <div className="space-y-1 mt-2">
                                 <InfoRow label={isFr ? "Statut" : "Status"} value={po?.status?.replace(/_/g, " ") ?? "—"} />
@@ -3658,7 +3657,7 @@ export default function PurchaseOrderDetailPage() {
                               title={isFr ? "Manifeste d'expédition" : "Shipping Manifest"}
                               subtitle={latestManifest ? `${isFr ? "Tentative" : "Attempt"} #${latestManifest.attempt_number}` : isFr ? "Aucun manifeste soumis" : "No manifest submitted"}
                               status={manifestNodeStatus}
-                              href={latestManifest ? `/purchase-orders/${po?.id}` : undefined}
+                              href={latestManifest ? `/purchase-orders/${po?.id}/manifest` : undefined}
                             >
                               {latestManifest ? (
                                 <div className="space-y-1 mt-2">
@@ -3691,7 +3690,7 @@ export default function PurchaseOrderDetailPage() {
                               title={isFr ? "Réception Coffre" : "Vault Reception"}
                               subtitle={reception ? (reception.po_reference as string | null ?? reception.tracking_id as string ?? "—") : isFr ? "Pas encore reçu" : "Not yet received"}
                               status={receptionNodeStatus}
-                              href={reception ? `/vault-intake/${reception.id}` : undefined}
+                              href={reception ? `/vault-intake/${po?.id}` : undefined}
                             >
                               {reception ? (
                                 <div className="space-y-1 mt-2">

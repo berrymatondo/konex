@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { AppSidebar } from "@/components/app-sidebar";
 import { SidebarProvider } from "@/components/sidebar-provider";
 import { AppHeader } from "@/components/app-header";
@@ -37,6 +37,8 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 import { useLanguage } from "@/lib/i18n/language-context";
 import QRCode from "qrcode";
 import {
@@ -61,6 +63,7 @@ import {
   ClipboardCheck,
   UserCheck,
   ShieldAlert,
+  CalendarDays,
 } from "lucide-react";
 
 // ─── Troy oz ↔ gram conversion (matches app/api/purchase-orders/[id]/manifest/route.ts) ──
@@ -171,8 +174,8 @@ function getLabState(lab: (typeof LABS)[number]): EquipmentState {
 // ─── Per-bar record shared by the weighing (§3) and assay (§4) steps ─────────
 interface BarRecord {
   serial: string;
-  manifestWeightG: number | null; // declared at dispatch (US-04 manifest), null if no manifest detail
-  vaultGrossWeightG: string; // entered in §3
+  manifestWeightKg: number | null; // declared at dispatch (US-04 manifest), null if no manifest detail
+  vaultGrossWeightKg: string; // entered in §3
   manifestFineness: number | null; // declared at dispatch — stands in for a "reference certificate"
   vaultFineness: string; // entered in §4
 }
@@ -203,13 +206,13 @@ interface SealState {
 }
 
 function weightVarianceOf(bar: BarRecord): number | null {
-  const vault = parseFloat(bar.vaultGrossWeightG);
-  if (!bar.manifestWeightG || bar.manifestWeightG <= 0 || isNaN(vault) || vault <= 0) return null;
-  return ((vault - bar.manifestWeightG) / bar.manifestWeightG) * 100;
+  const vault = parseFloat(bar.vaultGrossWeightKg);
+  if (!bar.manifestWeightKg || bar.manifestWeightKg <= 0 || isNaN(vault) || vault <= 0) return null;
+  return ((vault - bar.manifestWeightKg) / bar.manifestWeightKg) * 100;
 }
 
 function fineWeightOf(bar: BarRecord): number | null {
-  const vault = parseFloat(bar.vaultGrossWeightG);
+  const vault = parseFloat(bar.vaultGrossWeightKg);
   const fineness = parseFloat(bar.vaultFineness);
   if (isNaN(vault) || isNaN(fineness) || vault <= 0 || fineness <= 0) return null;
   return Math.floor(((vault * fineness) / 1000) * 1000) / 1000;
@@ -224,13 +227,70 @@ function assayStatusOf(bar: BarRecord): AssayStatus {
   return "confirmed";
 }
 
+// ─── Date + time picker (calendar popover + time input) for scheduling fields ─
+// Defined at module scope (not nested in the page component) so the popover's
+// own open/closed state survives unrelated re-renders of the parent form.
+function DateTimePicker({
+  value,
+  onChange,
+  language,
+  placeholder,
+}: {
+  value: string; // "YYYY-MM-DDTHH:mm" (datetime-local format), "" when unset
+  onChange: (value: string) => void;
+  language: string;
+  placeholder?: string;
+}) {
+  const dateObj = value ? new Date(value) : undefined;
+  const timeStr = value ? value.slice(11, 16) : "";
+
+  const toDateTimeLocal = (d: Date, time: string) => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}T${time || "00:00"}`;
+  };
+
+  return (
+    <div className="flex gap-2">
+      <Popover>
+        <PopoverTrigger asChild>
+          <Button type="button" variant="outline" className="flex-1 justify-start font-normal">
+            <CalendarDays className="mr-2 h-4 w-4 text-muted-foreground shrink-0" />
+            {dateObj
+              ? dateObj.toLocaleDateString(language === "fr" ? "fr-FR" : "en-US", { day: "2-digit", month: "short", year: "numeric" })
+              : <span className="text-muted-foreground">{placeholder || (language === "fr" ? "Choisir une date" : "Pick a date")}</span>}
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-auto p-0" align="start">
+          <Calendar
+            mode="single"
+            selected={dateObj}
+            onSelect={(d) => d && onChange(toDateTimeLocal(d, timeStr))}
+            autoFocus
+          />
+        </PopoverContent>
+      </Popover>
+      <Input
+        type="time"
+        value={timeStr}
+        onChange={(e) => onChange(toDateTimeLocal(dateObj ?? new Date(), e.target.value))}
+        className="w-28 font-mono"
+      />
+    </div>
+  );
+}
+
 export default function VaultIntakeDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { language } = useLanguage();
   const intakeId = params.id as string;
+  const sealsResetFlag = searchParams.get("sealsReset") === "1";
 
   const [activeTab, setActiveTab] = useState("intake");
+  const [sealsJustReset, setSealsJustReset] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
@@ -299,10 +359,6 @@ export default function VaultIntakeDetailPage() {
   const secondarySealLocked = !seals.primary.physical.trim();
   const countMismatch = barCount.expected > 0 && barCount.received < barCount.expected;
 
-  // OTP
-  const [otpDigits, setOtpDigits] = useState<string[]>(["", "", "", "", "", ""]);
-  const otpRefs = useRef<Array<HTMLInputElement | null>>([]);
-
   // Photo evidence
   const [photoEvidence, setPhotoEvidence] = useState<
     Array<{ pathname: string; fileName: string; previewUrl: string }>
@@ -356,20 +412,20 @@ export default function VaultIntakeDetailPage() {
       setBarRecords(
         manifestBars.map((b, i) => ({
           serial: b.barNumber || `BAR-${intakeForm.poReference}-${String(i + 1).padStart(4, "0")}`,
-          manifestWeightG: b.grossWeightKg != null ? b.grossWeightKg * 1000 : null,
-          vaultGrossWeightG: "",
+          manifestWeightKg: b.grossWeightKg ?? null,
+          vaultGrossWeightKg: "",
           manifestFineness: b.fineness ?? null,
           vaultFineness: "",
         }))
       );
     } else {
-      const totalG = (parseFloat(intakeForm.grossWeightKg) || 0) * 1000;
-      const perBarG = received > 0 ? totalG / received : null;
+      const totalKg = parseFloat(intakeForm.grossWeightKg) || 0;
+      const perBarKg = received > 0 ? totalKg / received : null;
       setBarRecords(
         Array.from({ length: received }, (_, i) => ({
           serial: `BAR-${intakeForm.poReference}-${String(i + 1).padStart(4, "0")}`,
-          manifestWeightG: perBarG,
-          vaultGrossWeightG: "",
+          manifestWeightKg: perBarKg,
+          vaultGrossWeightKg: "",
           manifestFineness: null,
           vaultFineness: "",
         }))
@@ -422,25 +478,24 @@ export default function VaultIntakeDetailPage() {
         setSeals({
           primary: {
             declared: m?.sealPrimaryDeclared ?? "",
-            physical: r?.sealVerifications?.[0]?.physical ?? r?.seal1 ?? "",
-            condition: r?.sealVerifications?.[0]?.condition ?? null,
+            physical: sealsResetFlag ? "" : r?.sealVerifications?.[0]?.physical ?? r?.seal1 ?? "",
+            condition: sealsResetFlag ? null : r?.sealVerifications?.[0]?.condition ?? null,
           },
           secondary: {
             declared: m?.sealSecondaryDeclared ?? "",
-            physical: r?.sealVerifications?.[1]?.physical ?? r?.seal2 ?? "",
-            condition: r?.sealVerifications?.[1]?.condition ?? null,
+            physical: sealsResetFlag ? "" : r?.sealVerifications?.[1]?.physical ?? r?.seal2 ?? "",
+            condition: sealsResetFlag ? null : r?.sealVerifications?.[1]?.condition ?? null,
           },
         });
+        if (sealsResetFlag) {
+          setSealsJustReset(true);
+          router.replace(`/vault-intake/${intakeId}`);
+        }
 
         setBarCount({
           expected: r?.barCountExpected ?? m?.totalBars ?? 0,
           received: r?.barCountReceived ?? m?.totalBars ?? 0,
         });
-
-        if (r?.otpCode) {
-          const digits = String(r.otpCode).slice(0, 6).split("");
-          setOtpDigits([0, 1, 2, 3, 4, 5].map((i) => digits[i] ?? ""));
-        }
 
         setSecureTransfer((prev) => ({
           witnessName: r?.witnessName ?? prev.witnessName,
@@ -509,18 +564,18 @@ export default function VaultIntakeDetailPage() {
     return gross === 0 ? 0 : ((net - gross) / gross) * 100;
   })();
 
-  const totalManifestWeightG = barRecords.reduce((s, b) => s + (b.manifestWeightG || 0), 0);
-  const totalVaultWeightG = barRecords.reduce((s, b) => s + (parseFloat(b.vaultGrossWeightG) || 0), 0);
-  const barsWeighedCount = barRecords.filter((b) => b.vaultGrossWeightG).length;
+  const totalManifestWeightKg = barRecords.reduce((s, b) => s + (b.manifestWeightKg || 0), 0);
+  const totalVaultWeightKg = barRecords.reduce((s, b) => s + (parseFloat(b.vaultGrossWeightKg) || 0), 0);
+  const barsWeighedCount = barRecords.filter((b) => b.vaultGrossWeightKg).length;
 
-  const totalFineWeightG = barRecords.reduce((s, b) => s + (fineWeightOf(b) || 0), 0);
+  const totalFineWeightKg = barRecords.reduce((s, b) => s + (fineWeightOf(b) || 0), 0);
   const barsAssayedCount = barRecords.filter((b) => b.vaultFineness).length;
   const anyBarBelowFloor = barRecords.some((b) => b.vaultFineness && assayStatusOf(b) === "below_floor");
   const anyBarDiverges = barRecords.some((b) => b.vaultFineness && assayStatusOf(b) === "diverges");
 
-  const poFineWeightG = manifest?.poFineOz != null ? manifest.poFineOz * OZ_TO_GRAM : null;
+  const poFineWeightKg = manifest?.poFineOz != null ? (manifest.poFineOz * OZ_TO_GRAM) / 1000 : null;
   const purityVariance =
-    poFineWeightG && poFineWeightG > 0 ? ((totalFineWeightG - poFineWeightG) / poFineWeightG) * 100 : null;
+    poFineWeightKg && poFineWeightKg > 0 ? ((totalFineWeightKg - poFineWeightKg) / poFineWeightKg) * 100 : null;
 
   const overallValidationStatus: "pending" | "passed" | "review" | "rejected" =
     barsAssayedCount === 0
@@ -548,7 +603,6 @@ export default function VaultIntakeDetailPage() {
     netWeightKg: parseFloat(intakeForm.netWeightKg) || null,
     vaultLocation: (intakeData?.vaultLocation as string) || handoffData.vaultLocation,
     operatorId: "vault_operator",
-    otpCode: otpDigits.join(""),
     photoEvidence: photoEvidence.map((p) => ({ pathname: p.pathname, fileName: p.fileName })),
     arrivalDate: intakeForm.arrivalDate || null,
     arrivalTime: intakeForm.arrivalTime || null,
@@ -576,8 +630,8 @@ export default function VaultIntakeDetailPage() {
     sampleId,
     // per-bar weighing + assay
     barRecords,
-    pureGoldWeight: totalFineWeightG,
-    poEstimate: poFineWeightG,
+    pureGoldWeight: totalFineWeightKg,
+    poEstimate: poFineWeightKg,
     validationStatus: overallValidationStatus,
     certificatePathname: certificate.pathname || null,
     certificateFileName: certificate.fileName || null,
@@ -678,7 +732,7 @@ export default function VaultIntakeDetailPage() {
         body: JSON.stringify({
           purchaseOrderId: intakeId,
           counterpartyId: poData?.counterpartyId || null,
-          fineGoldWeightKg: totalFineWeightG / 1000,
+          fineGoldWeightKg: totalFineWeightKg,
           settlementPricePerOz: 2650,
           currency: "USD",
           paymentMethod: "wire_transfer",
@@ -735,18 +789,6 @@ export default function VaultIntakeDetailPage() {
     } finally {
       setUploadingCertificate(false);
     }
-  };
-
-  const handleOtpChange = (index: number, value: string) => {
-    const digit = value.replace(/\D/g, "").slice(-1);
-    setOtpDigits((prev) => { const next = [...prev]; next[index] = digit; return next; });
-    if (digit && index < 5) otpRefs.current[index + 1]?.focus();
-  };
-
-  const handleOtpKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Backspace" && !otpDigits[index] && index > 0) otpRefs.current[index - 1]?.focus();
-    else if (e.key === "ArrowLeft" && index > 0) otpRefs.current[index - 1]?.focus();
-    else if (e.key === "ArrowRight" && index < 5) otpRefs.current[index + 1]?.focus();
   };
 
   // ─── Sub-components ───────────────────────────────────────────────────────
@@ -868,6 +910,25 @@ export default function VaultIntakeDetailPage() {
                   )}
                 </CardContent>
               </Card>
+
+              {sealsJustReset && (
+                <div className="flex items-start gap-3 rounded-lg border border-emerald-300 bg-emerald-50 p-4">
+                  <ShieldAlert className="h-5 w-5 text-emerald-600 shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <p className="font-semibold text-emerald-800 text-sm">
+                      {language === "fr" ? "Incident de scellé résolu" : "Seal incident resolved"}
+                    </p>
+                    <p className="text-xs text-emerald-700 mt-1">
+                      {language === "fr"
+                        ? "La vérification des scellés a été réinitialisée. Repartez de zéro : réinspectez et ressaisissez les scellés physiques ci-dessous."
+                        : "Seal verification has been reset. Start fresh: re-inspect and re-enter the physical seals below."}
+                    </p>
+                  </div>
+                  <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={() => setSealsJustReset(false)}>
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
 
               {/* ── 5-section tabs ── */}
               <Tabs value={activeTab} onValueChange={setActiveTab}>
@@ -1234,20 +1295,6 @@ export default function VaultIntakeDetailPage() {
                         <p className="text-xs text-muted-foreground">Max 4 images, JPG/PNG, ≤5MB — {photoEvidence.length}/4</p>
                       </div>
 
-                      {/* OTP */}
-                      <div className="space-y-3 p-4 border rounded-lg bg-muted/30">
-                        <Label className="text-base font-semibold">{language === "fr" ? "Authentification Opérateur" : "Operator Authentication"} <span className="text-destructive">*</span></Label>
-                        <div className="flex items-center gap-4">
-                          <Label className="shrink-0">OTP <span className="text-destructive">*</span></Label>
-                          <div className="flex gap-2">
-                            {[0, 1, 2, 3, 4, 5].map((idx) => (
-                              <Input key={idx} ref={(el) => { otpRefs.current[idx] = el; }} maxLength={1} inputMode="numeric" value={otpDigits[idx]} onChange={(e) => handleOtpChange(idx, e.target.value)} onKeyDown={(e) => handleOtpKeyDown(idx, e)} className="w-10 h-12 text-center font-mono text-lg" />
-                            ))}
-                          </div>
-                          <span className="text-sm text-muted-foreground">{language === "fr" ? "Via SMS / App Authenticator" : "Via SMS / Authenticator App"}</span>
-                        </div>
-                      </div>
-
                       <div className="flex flex-wrap items-center gap-4 pt-2">
                         <SaveBtn />
                         <Button onClick={handleProceedToTransfer} disabled={isSubmitting || isSaving || sealMismatch} className="flex-1 min-w-40">
@@ -1404,12 +1451,7 @@ export default function VaultIntakeDetailPage() {
 
                       <div className="space-y-1.5">
                         <Label>{language === "fr" ? "Pesée planifiée le" : "Weighing scheduled for"}</Label>
-                        <Input
-                          type="datetime-local"
-                          value={weighingScheduledAt}
-                          onChange={(e) => setWeighingScheduledAt(e.target.value)}
-                          className="font-mono"
-                        />
+                        <DateTimePicker value={weighingScheduledAt} onChange={setWeighingScheduledAt} language={language} />
                       </div>
                     </CardContent>
                   </Card>
@@ -1516,11 +1558,10 @@ export default function VaultIntakeDetailPage() {
 
                       <div className="space-y-1.5">
                         <Label>{language === "fr" ? "Résultats attendus le" : "Expected results by"}</Label>
-                        <Input
-                          type="datetime-local"
+                        <DateTimePicker
                           value={assayCommission.expectedResultsAt}
-                          onChange={(e) => setAssayCommission({ ...assayCommission, expectedResultsAt: e.target.value })}
-                          className="font-mono"
+                          onChange={(v) => setAssayCommission({ ...assayCommission, expectedResultsAt: v })}
+                          language={language}
                         />
                       </div>
 
@@ -1588,8 +1629,8 @@ export default function VaultIntakeDetailPage() {
                           <TableRow>
                             <TableHead className="w-8">#</TableHead>
                             <TableHead>{language === "fr" ? "N° Série" : "Serial No."}</TableHead>
-                            <TableHead>{language === "fr" ? "Poids manifeste (g)" : "Manifest weight (g)"}</TableHead>
-                            <TableHead>{language === "fr" ? "Poids balance (g)" : "Vault scale weight (g)"}</TableHead>
+                            <TableHead>{language === "fr" ? "Poids manifeste (kg)" : "Manifest weight (kg)"}</TableHead>
+                            <TableHead>{language === "fr" ? "Poids balance (kg)" : "Vault scale weight (kg)"}</TableHead>
                             <TableHead>{language === "fr" ? "Variance" : "Variance"}</TableHead>
                             <TableHead className="text-right">{language === "fr" ? "Statut" : "Status"}</TableHead>
                           </TableRow>
@@ -1602,14 +1643,14 @@ export default function VaultIntakeDetailPage() {
                               <TableRow key={bar.serial}>
                                 <TableCell className="text-muted-foreground text-sm">{idx + 1}</TableCell>
                                 <TableCell className="font-mono text-sm">{bar.serial}</TableCell>
-                                <TableCell className="font-mono text-sm">{bar.manifestWeightG != null ? bar.manifestWeightG.toFixed(3) : "—"}</TableCell>
+                                <TableCell className="font-mono text-sm">{bar.manifestWeightKg != null ? bar.manifestWeightKg.toFixed(3) : "—"}</TableCell>
                                 <TableCell>
                                   <Input
                                     type="number"
                                     step="0.001"
                                     min="0"
-                                    value={bar.vaultGrossWeightG}
-                                    onChange={(e) => setBarRecords((prev) => prev.map((b, i) => i === idx ? { ...b, vaultGrossWeightG: e.target.value } : b))}
+                                    value={bar.vaultGrossWeightKg}
+                                    onChange={(e) => setBarRecords((prev) => prev.map((b, i) => i === idx ? { ...b, vaultGrossWeightKg: e.target.value } : b))}
                                     className="h-8 w-32 font-mono"
                                     placeholder="0.000"
                                   />
@@ -1630,12 +1671,12 @@ export default function VaultIntakeDetailPage() {
                       {/* Totals row */}
                       <div className="flex items-center gap-6 p-4 rounded-lg bg-muted/30 border">
                         <div className="flex-1">
-                          <p className="text-xs text-muted-foreground">{language === "fr" ? "Poids manifeste total (g)" : "Total manifest weight (g)"}</p>
-                          <p className="font-mono font-bold text-lg">{totalManifestWeightG.toFixed(3)}</p>
+                          <p className="text-xs text-muted-foreground">{language === "fr" ? "Poids manifeste total (kg)" : "Total manifest weight (kg)"}</p>
+                          <p className="font-mono font-bold text-lg">{totalManifestWeightKg.toFixed(3)}</p>
                         </div>
                         <div className="flex-1">
-                          <p className="text-xs text-muted-foreground">{language === "fr" ? "Poids balance total (g)" : "Total vault scale weight (g)"}</p>
-                          <p className="font-mono font-bold text-lg text-primary">{totalVaultWeightG.toFixed(3)}</p>
+                          <p className="text-xs text-muted-foreground">{language === "fr" ? "Poids balance total (kg)" : "Total vault scale weight (kg)"}</p>
+                          <p className="font-mono font-bold text-lg text-primary">{totalVaultWeightKg.toFixed(3)}</p>
                         </div>
                         <div className="flex-1">
                           <p className="text-xs text-muted-foreground">{language === "fr" ? "Barres pesées" : "Bars weighed"}</p>
@@ -1757,24 +1798,24 @@ export default function VaultIntakeDetailPage() {
                         {/* Pure gold weight */}
                         <div className="p-4 bg-primary/5 rounded-lg text-center flex flex-col justify-center">
                           <span className="text-sm text-muted-foreground">{language === "fr" ? "Poids Or Pur (calculé)" : "Pure Gold Weight (calculated)"}</span>
-                          <div className="text-3xl font-bold text-primary">{totalFineWeightG.toFixed(2)} g</div>
+                          <div className="text-3xl font-bold text-primary">{totalFineWeightKg.toFixed(3)} kg</div>
                           <span className="text-xs text-muted-foreground mt-1">{barsAssayedCount} / {barRecords.length} {language === "fr" ? "barres essayées" : "bars assayed"}</span>
                         </div>
                       </div>
 
                       {/* Variance comparison */}
-                      {poFineWeightG != null && (
+                      {poFineWeightKg != null && (
                         <div className="space-y-3">
                           <Label className="text-base font-semibold">{language === "fr" ? "Comparaison de Variance" : "Variance Comparison"}</Label>
                           <div className="flex items-center gap-4">
                             <Card className="flex-1 p-4">
                               <div className="text-sm text-muted-foreground">{language === "fr" ? "PO fine (manifeste)" : "PO fine (manifest)"}</div>
-                              <div className="text-xl font-mono font-bold">{poFineWeightG.toFixed(2)} g</div>
+                              <div className="text-xl font-mono font-bold">{poFineWeightKg.toFixed(3)} kg</div>
                             </Card>
                             <ArrowRight className="h-5 w-5 text-muted-foreground shrink-0" />
                             <Card className="flex-1 p-4">
                               <div className="text-sm text-muted-foreground">{language === "fr" ? "Réel (coffre)" : "Actual (vault)"}</div>
-                              <div className="text-xl font-mono font-bold">{totalFineWeightG.toFixed(2)} g</div>
+                              <div className="text-xl font-mono font-bold">{totalFineWeightKg.toFixed(3)} kg</div>
                             </Card>
                             {purityVariance != null && (
                               <Card className={`flex-1 p-4 ${Math.abs(purityVariance) > 0.5 ? "border-amber-300 bg-amber-50/50" : "border-emerald-300 bg-emerald-50/50"}`}>
@@ -1816,12 +1857,12 @@ export default function VaultIntakeDetailPage() {
                     <CardContent className="space-y-6">
                       <div className="grid md:grid-cols-4 gap-4">
                         <div className="bg-muted/40 rounded-lg p-3">
-                          <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">{language === "fr" ? "PO fine (g)" : "PO fine (g)"}</div>
-                          <div className="text-lg font-semibold">{poFineWeightG != null ? poFineWeightG.toFixed(2) : "—"}</div>
+                          <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">{language === "fr" ? "PO fine (kg)" : "PO fine (kg)"}</div>
+                          <div className="text-lg font-semibold">{poFineWeightKg != null ? poFineWeightKg.toFixed(3) : "—"}</div>
                         </div>
                         <div className="bg-muted/40 rounded-lg p-3">
-                          <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">{language === "fr" ? "Coffre fine (g)" : "Vault fine (g)"}</div>
-                          <div className="text-lg font-semibold text-emerald-700">{totalFineWeightG.toFixed(2)}</div>
+                          <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">{language === "fr" ? "Coffre fine (kg)" : "Vault fine (kg)"}</div>
+                          <div className="text-lg font-semibold text-emerald-700">{totalFineWeightKg.toFixed(3)}</div>
                         </div>
                         <div className="bg-muted/40 rounded-lg p-3">
                           <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">{language === "fr" ? "Variance" : "Variance"}</div>
@@ -1843,7 +1884,7 @@ export default function VaultIntakeDetailPage() {
                             {[
                               { label: language === "fr" ? "Réf. PO" : "PO Reference", value: intakeForm.poReference },
                               { label: language === "fr" ? "Poids Net" : "Net Weight", value: `${intakeForm.netWeightKg} kg` },
-                              { label: language === "fr" ? "Poids Or Pur (coffre)" : "Pure Au Weight (vault)", value: `${totalFineWeightG.toFixed(2)} g` },
+                              { label: language === "fr" ? "Poids Or Pur (coffre)" : "Pure Au Weight (vault)", value: `${totalFineWeightKg.toFixed(3)} kg` },
                               { label: language === "fr" ? "Balance utilisée" : "Scale used", value: selectedScale || "—" },
                               { label: language === "fr" ? "Laboratoire" : "Lab", value: labDetail?.name || "—" },
                               { label: language === "fr" ? "N° Accréditation" : "Accreditation no.", value: labDetail?.accreditationNumber || "—" },
@@ -1981,7 +2022,7 @@ export default function VaultIntakeDetailPage() {
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">{language === "fr" ? "Poids Or Pur :" : "Pure Au Weight:"}</span>
-              <span className="font-mono font-medium">{totalFineWeightG.toFixed(2)} g</span>
+              <span className="font-mono font-medium">{totalFineWeightKg.toFixed(3)} kg</span>
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">{language === "fr" ? "Statut :" : "Status:"}</span>

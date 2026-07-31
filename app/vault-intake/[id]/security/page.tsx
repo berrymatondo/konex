@@ -68,8 +68,9 @@ export default function SecurityOfficerResolutionPage() {
     condition: searchParams.get("secondaryCondition") || "",
     ok: searchParams.get("secondaryMatch") === "true" && searchParams.get("secondaryCondition") !== "broken",
   }
-  const hasSealSnapshot = Boolean(primarySeal.declared || primarySeal.physical || secondarySeal.declared || secondarySeal.physical)
-  const failingSeal = !secondarySeal.ok && hasSealSnapshot ? secondarySeal : !primarySeal.ok && hasSealSnapshot ? primarySeal : null
+  const hasPrimarySealSnapshot = Boolean(primarySeal.declared || primarySeal.physical)
+  const hasSecondarySealSnapshot = Boolean(secondarySeal.declared || secondarySeal.physical)
+  const failingSeal = hasSecondarySealSnapshot && !secondarySeal.ok ? secondarySeal : hasPrimarySealSnapshot && !primarySeal.ok ? primarySeal : null
 
   const [reportedAt] = useState(() => new Date())
   const slaDeadline = new Date(reportedAt.getTime() + 2 * 60 * 60 * 1000)
@@ -148,7 +149,7 @@ export default function SecurityOfficerResolutionPage() {
                       ? (language === "fr" ? "Écart documenté et résolu — expédition sous protocole étendu." : "Discrepancy documented and resolved — shipment under extended protocol.")
                       : (language === "fr" ? "Violation de sécurité confirmée — expédition bloquée et escaladée." : "Security breach confirmed — shipment blocked and escalated.")}
                   </p>
-                  <Button onClick={() => router.push(`/vault-intake/${shipmentId}`)} className="w-full">
+                  <Button onClick={() => router.push(`/vault-intake/${shipmentId}?sealsReset=1`)} className="w-full">
                     {language === "fr" ? "Retour à la réception" : "Back to Intake"}
                   </Button>
                 </CardContent>
@@ -171,6 +172,11 @@ export default function SecurityOfficerResolutionPage() {
           />
           <main className="flex-1 overflow-y-auto p-4 md:p-6">
             <div className="mx-auto max-w-4xl space-y-6">
+              <Button variant="outline" size="sm" onClick={() => router.push(`/vault-intake/${shipmentId}`)}>
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                {language === "fr" ? "Retour à la réception" : "Back to intake"}
+              </Button>
+
               {/* Incident Alert Banner */}
               <div className="flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 p-4">
                 <AlertTriangle className="h-5 w-5 text-red-600 shrink-0 mt-0.5" />
@@ -191,7 +197,7 @@ export default function SecurityOfficerResolutionPage() {
               </div>
 
               {/* Seal verification detail */}
-              {hasSealSnapshot && (
+              {(hasPrimarySealSnapshot || hasSecondarySealSnapshot) && (
                 <Card>
                   <CardHeader>
                     <CardTitle className="text-base flex items-center gap-2">
@@ -201,8 +207,8 @@ export default function SecurityOfficerResolutionPage() {
                   </CardHeader>
                   <CardContent className="space-y-2">
                     {[
-                      { label: language === "fr" ? "Scellé primaire" : "Primary seal", seal: primarySeal },
-                      { label: language === "fr" ? "Scellé secondaire" : "Secondary seal", seal: secondarySeal },
+                      ...(hasPrimarySealSnapshot ? [{ label: language === "fr" ? "Scellé primaire" : "Primary seal", seal: primarySeal }] : []),
+                      ...(hasSecondarySealSnapshot ? [{ label: language === "fr" ? "Scellé secondaire" : "Secondary seal", seal: secondarySeal }] : []),
                     ].map(({ label, seal }) => (
                       <div key={label} className={`flex items-center justify-between p-3 rounded-lg border ${seal.ok ? "border-emerald-200 bg-emerald-50/60" : "border-red-200 bg-red-50/60"}`}>
                         <div>
@@ -459,7 +465,7 @@ export default function SecurityOfficerResolutionPage() {
                   )}
 
                   <div className="flex gap-3 pt-2">
-                    <Button variant="outline" onClick={() => router.back()}>
+                    <Button variant="outline" onClick={() => router.push(`/vault-intake/${shipmentId}`)}>
                       <ArrowLeft className="mr-2 h-4 w-4" />
                       {language === "fr" ? "Retour" : "Back"}
                     </Button>
