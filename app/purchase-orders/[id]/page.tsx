@@ -3252,9 +3252,9 @@ export default function PurchaseOrderDetailPage() {
                         )}
                       </div>
 
-                      {/* Right column: review action card */}
+                      {/* Right column: review action card — internal (BCC/compliance) only */}
                       <div className="space-y-4">
-                        {manifest.status === "submitted" && (
+                        {manifest.status === "submitted" && !isCounterparty && (
                           <Card className="sticky top-4">
                             <CardHeader className="pb-3">
                               <CardTitle className="text-base">
@@ -3697,8 +3697,21 @@ export default function PurchaseOrderDetailPage() {
                                   {reception.validation_status && (
                                     <div className="mb-2">
                                       <StatusPill
-                                        label={reception.validation_status === "passed" ? (isFr ? "Analyse validée" : "Assay passed") : reception.validation_status === "failed" ? (isFr ? "Analyse échouée" : "Assay failed") : String(reception.validation_status)}
-                                        color={reception.validation_status === "passed" ? "text-emerald-500" : "text-red-500"}
+                                        label={
+                                          settlement
+                                            ? (isFr ? "Accepté — transmis au règlement" : "Accepted — sent to settlement")
+                                            : reception.validation_status === "passed" ? (isFr ? "Analyse validée" : "Assay passed")
+                                            : reception.validation_status === "rejected" ? (isFr ? "Rejeté" : "Rejected")
+                                            : reception.validation_status === "review" ? (isFr ? "En révision" : "Under review")
+                                            : reception.validation_status === "pending" ? (isFr ? "En attente" : "Pending")
+                                            : String(reception.validation_status)
+                                        }
+                                        color={
+                                          settlement || reception.validation_status === "passed" ? "text-emerald-500"
+                                          : reception.validation_status === "rejected" ? "text-red-500"
+                                          : reception.validation_status === "review" ? "text-amber-500"
+                                          : "text-slate-400"
+                                        }
                                       />
                                     </div>
                                   )}
@@ -3706,7 +3719,7 @@ export default function PurchaseOrderDetailPage() {
                                   {reception.gross_weight_kg && <InfoRow label={isFr ? "Poids brut" : "Gross weight"} value={`${Number(reception.gross_weight_kg).toFixed(3)} kg`} />}
                                   {reception.net_weight_kg && <InfoRow label={isFr ? "Poids net" : "Net weight"} value={`${Number(reception.net_weight_kg).toFixed(3)} kg`} />}
                                   {reception.au_purity && <InfoRow label={isFr ? "Pureté Au" : "Au purity"} value={`${Number(reception.au_purity).toFixed(2)}%`} />}
-                                  {reception.pure_gold_weight && <InfoRow label={isFr ? "Or pur" : "Pure gold"} value={`${Number(reception.pure_gold_weight).toFixed(2)} g`} />}
+                                  {reception.pure_gold_weight && <InfoRow label={isFr ? "Or pur" : "Pure gold"} value={`${Number(reception.pure_gold_weight).toFixed(3)} kg`} />}
                                   {reception.vault_location && <InfoRow label={isFr ? "Emplacement" : "Location"} value={String(reception.vault_location)} />}
                                   {reception.assay_method && <InfoRow label={isFr ? "Méthode" : "Method"} value={String(reception.assay_method)} />}
                                 </div>

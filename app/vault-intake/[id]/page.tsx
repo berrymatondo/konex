@@ -331,10 +331,10 @@ export default function VaultIntakeDetailPage() {
 
   // ─── Section 1: Shipment receipt ─────────────────────────────────────────
   const [intakeForm, setIntakeForm] = useState({
-    poReference: "PO-2026-0891",
-    trackingId: "TRK-990",
-    grossWeightKg: "327.50",
-    netWeightKg: "324.85",
+    poReference: "",
+    trackingId: "",
+    grossWeightKg: "",
+    netWeightKg: "",
     arrivalDate: "",
     arrivalTime: "",
     carrierRepPresent: "",
@@ -463,12 +463,17 @@ export default function VaultIntakeDetailPage() {
         setReceivedByDefault(data.receivedByDefault || "");
         const r = data.reception;
 
+        const resolvedGrossWeightKg = r?.grossWeightKg ?? data.grossWeightKg ?? null;
         setIntakeForm((prev) => ({
           ...prev,
           poReference: r?.selectedPoId ?? (data.poReference || prev.poReference),
           trackingId: data.trackingId || prev.trackingId,
-          grossWeightKg: String(r?.grossWeightKg ?? data.grossWeightKg ?? prev.grossWeightKg),
-          netWeightKg: r?.netWeightKg != null ? String(r.netWeightKg) : prev.netWeightKg,
+          grossWeightKg: resolvedGrossWeightKg != null ? String(resolvedGrossWeightKg) : prev.grossWeightKg,
+          // No saved net weight yet (fresh intake) — default it to the real gross weight
+          // instead of leaving it blank/stale, so it's never wildly out of scale with it.
+          netWeightKg: r?.netWeightKg != null
+            ? String(r.netWeightKg)
+            : resolvedGrossWeightKg != null ? String(resolvedGrossWeightKg) : prev.netWeightKg,
           arrivalDate: r?.arrivalDate ?? prev.arrivalDate,
           arrivalTime: r?.arrivalTime ?? prev.arrivalTime,
           carrierRepPresent: r?.carrierRepPresent ?? prev.carrierRepPresent,
@@ -585,6 +590,13 @@ export default function VaultIntakeDetailPage() {
       : anyBarDiverges || (purityVariance != null && Math.abs(purityVariance) > 0.5)
       ? "review"
       : "passed";
+
+  // Once the PO has moved past intake (settlement already initiated via
+  // handleLockAndProceed), the acceptance step is final — re-locking or
+  // re-submitting a settlement for the same reception must be prevented.
+  const alreadySentToSettlement =
+    (intakeData?.status as string | undefined) === "pending_settlement" ||
+    (intakeData?.status as string | undefined) === "settled";
 
   // ─── Handlers ─────────────────────────────────────────────────────────────
   const buildReceptionPayload = () => ({
@@ -980,7 +992,13 @@ export default function VaultIntakeDetailPage() {
                           value={intakeForm.poReference}
                           onValueChange={(v) => {
                             const sel = shippedPOs.find((po) => po.poId === v);
-                            setIntakeForm({ ...intakeForm, poReference: v, trackingId: sel?.trackingId || intakeForm.trackingId, grossWeightKg: sel ? String(sel.estimatedWeight) : intakeForm.grossWeightKg });
+                            setIntakeForm({
+                              ...intakeForm,
+                              poReference: v,
+                              trackingId: sel?.trackingId || intakeForm.trackingId,
+                              grossWeightKg: sel ? String(sel.estimatedWeight) : intakeForm.grossWeightKg,
+                              netWeightKg: sel ? String(sel.estimatedWeight) : intakeForm.netWeightKg,
+                            });
                           }}
                         >
                           <SelectTrigger className="font-mono">
@@ -1942,19 +1960,31 @@ export default function VaultIntakeDetailPage() {
                                 en: "I confirm the above data is accurate and I authorize settlement",
                               },
                             ].map(({ idx, fr, en }) => (
-                              <div key={idx} className={`flex items-start gap-3 p-3 rounded-lg border text-sm transition-colors ${declarations[idx] ? "border-emerald-300 bg-emerald-50/50" : "hover:bg-muted/30"}`}>
+                              <div key={idx} className={`flex items-start gap-3 p-3 rounded-lg border text-sm transition-colors ${declarations[idx] ? "border-emerald-300 bg-emerald-50/50" : "hover:bg-muted/30"} ${alreadySentToSettlement ? "opacity-60" : ""}`}>
                                 <Checkbox
                                   id={`decl-${idx}`}
                                   checked={declarations[idx]}
+                                  disabled={alreadySentToSettlement}
                                   onCheckedChange={(v) => setDeclarations((prev) => prev.map((d, i) => i === idx ? Boolean(v) : d))}
                                   className="mt-0.5"
                                 />
-                                <label htmlFor={`decl-${idx}`} className="cursor-pointer leading-relaxed">{language === "fr" ? fr : en}</label>
+                                <label htmlFor={`decl-${idx}`} className={`leading-relaxed ${alreadySentToSettlement ? "" : "cursor-pointer"}`}>{language === "fr" ? fr : en}</label>
                               </div>
                             ))}
                           </div>
                         </div>
                       </div>
+
+                      {alreadySentToSettlement && (
+                        <div className="flex items-start gap-3 rounded-lg border border-blue-200 bg-blue-50 p-4">
+                          <Lock className="h-5 w-5 text-blue-600 shrink-0 mt-0.5" />
+                          <p className="text-sm text-blue-800">
+                            {language === "fr"
+                              ? "Ce dossier a déjà été transmis au règlement. Les déclarations et le verrouillage sont désormais figés pour éviter une double soumission."
+                              : "This record has already been sent to settlement. Declarations and locking are now frozen to prevent a duplicate submission."}
+                          </p>
+                        </div>
+                      )}
 
                       {/* Audit hash */}
                       <Card className="bg-muted/30">
@@ -1979,9 +2009,11 @@ export default function VaultIntakeDetailPage() {
                           {language === "fr" ? "Retour" : "Back"}
                         </Button>
                         <SaveBtn />
-                        <Button onClick={handleLockAndProceed} disabled={isSubmitting || !declarations.every(Boolean)} className="flex-1">
+                        <Button onClick={handleLockAndProceed} disabled={isSubmitting || alreadySentToSettlement || !declarations.every(Boolean)} className="flex-1">
                           <Lock className="mr-2 h-4 w-4" />
-                          {isSubmitting ? (language === "fr" ? "Verrouillage..." : "Locking...") : (language === "fr" ? "Verrouiller & Procéder au Règlement" : "Lock and Proceed to Settlement")}
+                          {alreadySentToSettlement
+                            ? (language === "fr" ? "Déjà transmis au règlement" : "Already sent to settlement")
+                            : isSubmitting ? (language === "fr" ? "Verrouillage..." : "Locking...") : (language === "fr" ? "Verrouiller & Procéder au Règlement" : "Lock and Proceed to Settlement")}
                         </Button>
                         <Button variant="outline">
                           <FileText className="mr-2 h-4 w-4" />

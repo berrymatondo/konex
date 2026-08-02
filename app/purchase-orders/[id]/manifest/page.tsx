@@ -182,6 +182,7 @@ export default function ManifestPage() {
   // ── Shipment fields ──────────────────────────────────────────────────────
   const [shipmentDate, setShipmentDate] = useState("");
   const [carrier, setCarrier] = useState("");
+  const [carrierOther, setCarrierOther] = useState("");
   const [waybillNumber, setWaybillNumber] = useState("");
   const [sealNumber, setSealNumber] = useState("");
   const [departureLocation, setDepartureLocation] = useState("");
@@ -216,7 +217,14 @@ export default function ManifestPage() {
     if (!draft || !["draft", "returned"].includes(draft.status)) { setDraftRestored(true); return; }
 
     if (draft.shipment_date) setShipmentDate(draft.shipment_date.slice(0, 10));
-    if (draft.carrier) setCarrier(draft.carrier);
+    if (draft.carrier) {
+      if (CARRIERS.includes(draft.carrier)) {
+        setCarrier(draft.carrier);
+      } else {
+        setCarrier("Autre transporteur");
+        setCarrierOther(draft.carrier);
+      }
+    }
     if (draft.waybill_number) setWaybillNumber(draft.waybill_number);
     if (draft.seal_number) setSealNumber(draft.seal_number);
     if (draft.departure_location) setDepartureLocation(draft.departure_location);
@@ -254,6 +262,10 @@ export default function ManifestPage() {
     draft?.status === "returned" ||
     (draft?.status === "draft" && !!(draft?.review_notes || draft?.reason_code));
   const returnedFailedDocTypes = isResubmission && draft ? getFailedDocTypes(draft) : [];
+  // Weight sheet is only editable on resubmission when the return reason is specifically
+  // about the weight — otherwise the bar-by-bar figures stay locked/carried over.
+  const weightSectionEditable = isResubmission && draft?.reason_code === "weight_discrepancy";
+  const effectiveCarrier = carrier === "Autre transporteur" ? carrierOther.trim() : carrier;
   const reference = po?.tracking_id ?? id ?? "";
   const poFineOz = po
     ? Math.floor(((Number(po.estimated_weight_kg || 0) * Number(po.purity_factor || 0.9995) * 1000) / OZ_TO_GRAM) * 1000) / 1000
@@ -302,7 +314,7 @@ export default function ManifestPage() {
   const buildFormData = (withDecl: boolean, declValue?: boolean) => {
     const fd = new FormData();
     fd.append("shipmentDate", shipmentDate);
-    fd.append("carrier", carrier);
+    fd.append("carrier", effectiveCarrier);
     fd.append("waybillNumber", waybillNumber);
     fd.append("sealNumber", sealNumber);
     fd.append("departureLocation", departureLocation);
@@ -488,7 +500,7 @@ export default function ManifestPage() {
                   <ResSection
                     id="ship" title="Détails de l'expédition" icon={Truck}
                     open={openSections.has("ship")} onToggle={() => toggleSec("ship")}
-                    done={true} doneLabel={carrier || "Reporté"} locked={true}
+                    done={true} doneLabel={effectiveCarrier || "Reporté"} locked={true}
                   >
                     <div className="p-4 space-y-2">
                       <div className="rounded-lg bg-muted/30 px-3 py-2 text-xs text-muted-foreground flex items-center gap-2">
@@ -498,7 +510,7 @@ export default function ManifestPage() {
                       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                         {[
                           ["Date d'expédition", shipmentDate || "—"],
-                          ["Transporteur", carrier || "—"],
+                          ["Transporteur", effectiveCarrier || "—"],
                           ["N° lettre de voiture", waybillNumber || "—"],
                           ["Sceau de sécurité", sealNumber || "—"],
                           ["Lieu de départ", departureLocation || "—"],
@@ -514,18 +526,25 @@ export default function ManifestPage() {
                     </div>
                   </ResSection>
 
-                  {/* Section 2: Bars — locked */}
+                  {/* Section 2: Bars — locked, unless the return reason is a weight discrepancy */}
                   <ResSection
                     id="bars" title="Fiche de poids des lingots" icon={Scale}
                     open={openSections.has("bars")} onToggle={() => toggleSec("bars")}
-                    done={true} doneLabel={`${bars.filter((b) => b.barNumber).length} lingot${bars.filter((b) => b.barNumber).length !== 1 ? "s" : ""} reporté${bars.filter((b) => b.barNumber).length !== 1 ? "s" : ""}`}
-                    locked={true}
+                    done={true} doneLabel={`${bars.filter((b) => b.barNumber).length} lingot${bars.filter((b) => b.barNumber).length !== 1 ? "s" : ""}${weightSectionEditable ? "" : " reporté" + (bars.filter((b) => b.barNumber).length !== 1 ? "s" : "")}`}
+                    locked={!weightSectionEditable}
                   >
                     <div className="p-4 space-y-3">
-                      <div className="rounded-lg bg-muted/30 px-3 py-2 text-xs text-muted-foreground flex items-center gap-2">
-                        <Lock className="h-3.5 w-3.5" />
-                        Fiche de poids reportée — contactez la conformité commerciale si des corrections sont requises.
-                      </div>
+                      {weightSectionEditable ? (
+                        <div className="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-700 flex items-center gap-2">
+                          <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                          Écart de poids signalé par la conformité commerciale — corrigez la fiche de poids ci-dessous.
+                        </div>
+                      ) : (
+                        <div className="rounded-lg bg-muted/30 px-3 py-2 text-xs text-muted-foreground flex items-center gap-2">
+                          <Lock className="h-3.5 w-3.5" />
+                          Fiche de poids reportée — contactez la conformité commerciale si des corrections sont requises.
+                        </div>
+                      )}
                       <div className="overflow-x-auto">
                         <table className="w-full text-xs" style={{ minWidth: 420 }}>
                           <thead>
@@ -535,16 +554,36 @@ export default function ManifestPage() {
                               <th className="py-2 px-2 text-left font-medium">Poids brut (kg)</th>
                               <th className="py-2 px-2 text-left font-medium">Titre (‰)</th>
                               <th className="py-2 px-2 text-right font-medium">Oz fin</th>
+                              {weightSectionEditable && <th className="w-8" />}
                             </tr>
                           </thead>
                           <tbody>
                             {bars.map((bar, i) => (
                               <tr key={bar.id} className="border-b last:border-0">
                                 <td className="py-1.5 px-2 text-muted-foreground">{i + 1}</td>
-                                <td className="py-1.5 px-2 font-mono">{bar.barNumber || "—"}</td>
-                                <td className="py-1.5 px-2 font-mono">{Number(bar.grossWeightKg || 0).toFixed(3)}</td>
-                                <td className="py-1.5 px-2 font-mono">{Number(bar.fineness || 0).toFixed(1)}</td>
+                                {weightSectionEditable ? (
+                                  <>
+                                    <td className="py-1.5 px-2"><Input value={bar.barNumber} onChange={(e) => updateBar(bar.id, "barNumber", e.target.value)} className="h-8 text-xs font-mono" placeholder="BAR-001" /></td>
+                                    <td className="py-1.5 px-2"><Input type="number" step="0.001" min="0" value={bar.grossWeightKg === "" ? "" : bar.grossWeightKg} onChange={(e) => updateBar(bar.id, "grossWeightKg", e.target.value)} className="h-8 text-xs font-mono" placeholder="12.441" /></td>
+                                    <td className="py-1.5 px-2"><Input type="number" step="0.1" min="0" max="1000" value={bar.fineness === "" ? "" : bar.fineness} onChange={(e) => updateBar(bar.id, "fineness", e.target.value)} className="h-8 text-xs font-mono" placeholder="995.0" /></td>
+                                  </>
+                                ) : (
+                                  <>
+                                    <td className="py-1.5 px-2 font-mono">{bar.barNumber || "—"}</td>
+                                    <td className="py-1.5 px-2 font-mono">{Number(bar.grossWeightKg || 0).toFixed(3)}</td>
+                                    <td className="py-1.5 px-2 font-mono">{Number(bar.fineness || 0).toFixed(1)}</td>
+                                  </>
+                                )}
                                 <td className="py-1.5 px-2 text-right font-mono font-medium">{bar.fineOz > 0 ? bar.fineOz.toFixed(3) : "—"}</td>
+                                {weightSectionEditable && (
+                                  <td className="py-1.5 px-1">
+                                    {bars.length > 1 && (
+                                      <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => removeBar(bar.id)}>
+                                        <X className="h-3.5 w-3.5" />
+                                      </Button>
+                                    )}
+                                  </td>
+                                )}
                               </tr>
                             ))}
                           </tbody>
@@ -554,10 +593,16 @@ export default function ManifestPage() {
                               <td className="py-2 px-2 font-mono text-xs">{totalGrossKg.toFixed(3)}</td>
                               <td className="py-2 px-2 text-xs text-muted-foreground">avg ‰</td>
                               <td className="py-2 px-2 text-right font-mono text-sm">{totalFineOz > 0 ? totalFineOz.toFixed(3) : "—"}</td>
+                              {weightSectionEditable && <td />}
                             </tr>
                           </tfoot>
                         </table>
                       </div>
+                      {weightSectionEditable && (
+                        <Button variant="outline" size="sm" onClick={addBar} className="text-xs">
+                          <Plus className="mr-1.5 h-3.5 w-3.5" /> Ajouter un lingot
+                        </Button>
+                      )}
                       {totalFineOz > 0 && (
                         <div className="grid grid-cols-3 gap-2">
                           {[
@@ -878,6 +923,14 @@ export default function ManifestPage() {
                           <SelectTrigger><SelectValue placeholder="Choisir…" /></SelectTrigger>
                           <SelectContent>{CARRIERS.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
                         </Select>
+                        {carrier === "Autre transporteur" && (
+                          <Input
+                            className="mt-2"
+                            placeholder="Nom du transporteur"
+                            value={carrierOther}
+                            onChange={(e) => setCarrierOther(e.target.value)}
+                          />
+                        )}
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
