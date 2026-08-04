@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import useSWR from "swr";
@@ -118,6 +118,12 @@ export function RefiningOrderApproval() {
     };
   });
 
+  useEffect(() => {
+    if (order?.status === "approved") {
+      router.replace(`/refining-orders/${encodeURIComponent(order.reference)}/dispatch`);
+    }
+  }, [order?.reference, order?.status, router]);
+
   const banner = useMemo(() => {
     if (decision === "returned") return { tone: "warning", title: fr ? "Retourné au Trade Manager pour modification" : "Returned to the Trade Manager for changes", description: note };
     if (decision === "rejected") return { tone: "danger", title: fr ? "Ordre rejeté" : "Order rejected", description: note };
@@ -142,6 +148,10 @@ export function RefiningOrderApproval() {
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "Unable to record decision");
       setDecision(next);
+      if (result.status === "approved") {
+        router.replace(`/refining-orders/${encodeURIComponent(orderReference)}/dispatch`);
+        return;
+      }
       await mutateOrder();
     } catch (decisionError) {
       setError(decisionError instanceof Error ? decisionError.message : (fr ? "Échec de l’enregistrement." : "Unable to record decision."));
