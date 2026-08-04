@@ -107,7 +107,7 @@ export default function NewPurchaseOrderPage() {
     estimatedWeightKg: "",
     tolerancePercent: "5",
     goldType: "dore_bars",
-    assayRange: "85-92",
+    assayRange: "99.5+",
     declaredFinenessPromille: "995",
     sourceRefinerId: "",
     incoterms: "DAP",

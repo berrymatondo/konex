@@ -174,7 +174,7 @@ export default function CounterpartyRespondPage() {
         assayCertificateUrl: prev.assayCertificateUrl || po.cp_assay_certificate_url || "",
         proposedDispatchDate: prev.proposedDispatchDate || dateOnly(po.cp_proposed_dispatch_date),
         estimatedDeliveryDate: prev.estimatedDeliveryDate || dateOnly(po.cp_estimated_delivery_date),
-        proposedPremium: prev.proposedPremium || String(po.cp_proposed_premium ?? ""),
+        proposedPremium: prev.proposedPremium || String(po.cp_proposed_premium ?? po.premium_discount ?? 0),
       }));
     }
   }, [po?.id]);
@@ -296,6 +296,14 @@ export default function CounterpartyRespondPage() {
       }
       setFieldErrors({});
     }
+    if (d === "negotiate") {
+      const premium = Number(lot.proposedPremium);
+      if (!lot.proposedPremium.trim() || !Number.isFinite(premium) || premium < -100 || premium > 100) {
+        setFieldErrors((previous) => ({ ...previous, proposedPremium: true }));
+        setResult({ type: "error", text: isFr ? "Saisissez un premium ou une décote valide entre -100 % et 100 %." : "Enter a valid premium or discount between -100% and 100%." });
+        return;
+      }
+    }
     setSubmitting(true);
     setResult(null);
     try {
@@ -328,12 +336,13 @@ export default function CounterpartyRespondPage() {
     po && ["accepted", "negotiating", "declined"].includes(po.status);
 
   // Derived commercial figures.
-  const weightKg = Number(po?.estimated_weight_kg || 0);
-  const purityFactor = Number(po?.purity_factor || 0.88);
+  const weightKg = Number(lot.proposedWeightKg || po?.estimated_weight_kg || 0);
+  const purityFactor = Number(lot.proposedPurity || (Number(po?.purity_factor || 0.88) * 100)) / 100;
   const fineWeightKg = weightKg * purityFactor;
   const fineWeightOz = (fineWeightKg * 1000) / OZ_TO_GRAM;
-  const unitPrice =
-    (Number(po?.lbma_price_per_oz || 0)) * (1 + Number(po?.premium_discount || 0) / 100);
+  const effectivePremium = negotiationMode ? Number(lot.proposedPremium || 0) : Number(po?.premium_discount || 0);
+  const unitPrice = Number(po?.lbma_price_per_oz || 0) * (1 + effectivePremium / 100);
+  const indicativeAmount = fineWeightOz * unitPrice;
 
   // Pre-computed so the JSX never contains a ternary with a state variable
   // in a className prop (avoids Turbopack/SWC JSX-parse issues).
@@ -712,14 +721,22 @@ export default function CounterpartyRespondPage() {
                           <Row label={isFr ? "Pureté estimée" : "Estimated purity"} value={`${num(purityFactor * 100)} %`} />
                           <Row label={isFr ? "Poids d'or fin estimé" : "Est. fine gold"} value={`${num(fineWeightKg, 3)} kg · ${num(fineWeightOz, 1)} oz`} />
                           <Separator />
-                          <Row label={isFr ? "Premium / décote" : "Premium / discount"} value={`${num(po.premium_discount)} %`} />
+                          {negotiationMode ? (
+                            <div className="flex items-center justify-between gap-4">
+                              <Label htmlFor="proposedPremium" className="text-muted-foreground">{isFr ? "Premium / décote" : "Premium / discount"}</Label>
+                              <div className="relative w-32">
+                                <Input id="proposedPremium" type="number" min="-100" max="100" step="0.01" value={lot.proposedPremium} onChange={(event) => { setLot((state) => ({ ...state, proposedPremium: event.target.value })); setFieldErrors((errors) => ({ ...errors, proposedPremium: false })); }} aria-invalid={fieldErrors.proposedPremium || undefined} className={`pr-8 text-right ${fieldErrors.proposedPremium ? "border-destructive" : ""}`} />
+                                <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">%</span>
+                              </div>
+                            </div>
+                          ) : <Row label={isFr ? "Premium / décote" : "Premium / discount"} value={`${num(effectivePremium)} %`} />}
                           <Row label={isFr ? "Prix unitaire indicatif" : "Indicative unit price"} value={`${num(unitPrice)} USD/oz`} />
                           <div className="rounded-lg border bg-muted/40 p-4 text-center">
                             <p className="text-xs text-muted-foreground">
                               {isFr ? "Montant indicatif de l'offre" : "Indicative offer amount"}
                             </p>
                             <p className="text-2xl font-bold">
-                              {num(po.total_estimated_value, 0)} {po.currency || "USD"}
+                              {num(indicativeAmount, 0)} USD
                             </p>
                             <p className="text-[11px] text-muted-foreground mt-1">
                               {isFr

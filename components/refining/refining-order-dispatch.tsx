@@ -2,7 +2,7 @@
 
 import { useState, type ChangeEvent, type ReactNode } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import useSWR from "swr";
 import {
   ArrowLeft,
@@ -48,6 +48,7 @@ type DocumentKey = "manifest" | "sealCertificate" | "insuranceCertificate";
 
 export function RefiningOrderDispatch() {
   const params = useParams<{ id: string }>();
+  const router = useRouter();
   const { language } = useLanguage();
   const fr = language === "fr";
   const orderReference = typeof params.id === "string" ? params.id : "";
@@ -78,6 +79,8 @@ export function RefiningOrderDispatch() {
   const [witnessSigned, setWitnessSigned] = useState(false);
   const [saved, setSaved] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  const [confirmError, setConfirmError] = useState("");
 
   const lotGross = order?.inputGrossWeightKg ?? 0;
   const fineKg = order?.inputFineGoldKg ?? 0;
@@ -87,7 +90,12 @@ export function RefiningOrderDispatch() {
   const weightMatches = Math.abs(variance) < 0.0005;
   const dualControlComplete = dispatchingSigned && witnessSigned;
   const orderApproved = order?.status === "approved";
-  const canConfirm = dualControlComplete && !confirmed && orderApproved;
+  const requiredFieldsComplete = Boolean(
+    pieces && dispatchWeight && packaging && seals.every((seal) => seal.trim()) &&
+    carrier.trim() && transportMode && dispatchAt && insurer.trim() && coverage &&
+    documents.manifest && documents.sealCertificate,
+  );
+  const canConfirm = dualControlComplete && requiredFieldsComplete && weightMatches && !confirmed && !confirming && orderApproved;
   const insuredValue = fineKg * OZ_PER_KG * (order?.goldPricePerOz ?? 0);
 
   const updateSeal = (index: number, value: string) => setSeals((previous) => previous.map((seal, current) => current === index ? value : seal));
@@ -96,10 +104,37 @@ export function RefiningOrderDispatch() {
     setDocuments((previous) => ({ ...previous, [key]: file }));
   };
 
-  const confirmDispatch = () => {
+  const confirmDispatch = async () => {
     if (!canConfirm) return;
-    setConfirmed(true);
-    setSaved(true);
+    setConfirming(true);
+    setConfirmError("");
+    try {
+      const response = await fetch(`/api/refining-orders/${encodeURIComponent(orderReference)}/dispatch`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          pieces: Number(pieces), dispatchWeightKg: Number(dispatchWeight), packaging,
+          scaleReference: scaleReference.trim() || null, seals: seals.map((seal) => seal.trim()),
+          carrier: carrier.trim(), vehicle: vehicle.trim() || null, transportMode,
+          dispatchAt, arrivalAt: arrivalAt || null, insurer: insurer.trim(),
+          policyNumber: policyNumber.trim() || null, coverage, validThrough: validThrough || null,
+          documentNames: {
+            manifest: documents.manifest?.name,
+            sealCertificate: documents.sealCertificate?.name,
+            insuranceCertificate: documents.insuranceCertificate?.name || null,
+          },
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || (fr ? "Échec de la confirmation." : "Confirmation failed."));
+      setConfirmed(true);
+      setSaved(true);
+      router.push(`/refining-orders/${encodeURIComponent(orderReference)}/refining`);
+    } catch (error) {
+      setConfirmError(error instanceof Error ? error.message : (fr ? "Échec de la confirmation." : "Confirmation failed."));
+    } finally {
+      setConfirming(false);
+    }
   };
 
   return (
@@ -117,7 +152,7 @@ export function RefiningOrderDispatch() {
 
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div><div className="flex flex-wrap items-center gap-2"><h1 className="font-mono text-xl font-semibold">{dispatchReference}</h1><StatusPill tone={confirmed ? "success" : orderApproved ? "info" : "warning"}>{confirmed ? (fr ? "Expédié" : "Dispatched") : orderApproved ? (fr ? "Approuvé · prêt à expédier" : "Approved · ready to dispatch") : (fr ? "Approbations en attente" : "Pending approvals")}</StatusPill><StatusPill>{fr ? "Double contrôle" : "Dual control"}</StatusPill>{saved && <StatusPill tone="success">{fr ? "Enregistré" : "Saved"}</StatusPill>}</div><p className="mt-1 text-xs text-muted-foreground">{order?.reference || orderReference}{order?.purchaseOrderReference ? ` · PO ${order.purchaseOrderReference}` : ""}{order?.lotReference ? ` · Lot ${order.lotReference}` : ""}</p></div>
-        <div className="flex flex-wrap gap-2"><Button variant="ghost" onClick={() => window.print()}><Printer className="mr-2 h-4 w-4" />{fr ? "Bordereau PDF" : "Print dispatch note"}</Button><Button variant="outline" onClick={() => setSaved(true)} disabled={confirmed}><Save className="mr-2 h-4 w-4" />{fr ? "Enregistrer" : "Save Draft"}</Button><Button onClick={confirmDispatch} disabled={!canConfirm}><Truck className="mr-2 h-4 w-4" />{fr ? "Confirmer l’expédition" : "Confirm dispatch"}</Button></div>
+        <div className="flex flex-wrap gap-2"><Button variant="ghost" onClick={() => window.print()}><Printer className="mr-2 h-4 w-4" />{fr ? "Bordereau PDF" : "Print dispatch note"}</Button><Button variant="outline" onClick={() => setSaved(true)} disabled={confirmed}><Save className="mr-2 h-4 w-4" />{fr ? "Enregistrer" : "Save Draft"}</Button><Button onClick={confirmDispatch} disabled={!canConfirm}><Truck className="mr-2 h-4 w-4" />{confirming ? (fr ? "Confirmation…" : "Confirming…") : (fr ? "Confirmer l’expédition" : "Confirm dispatch")}</Button></div>
       </div>
 
       <WorkflowStepper active={confirmed ? 3 : 2} hrefs={["/refining-orders", `/refining-orders/${orderReference}/approval`, `/refining-orders/${orderReference}/dispatch`, undefined, undefined, undefined, `/refining-orders/${orderReference}/reserve-eligibility`]} labels={fr ? ["Brouillon", "Approuvé", "Expédition", "En raffinage", "Outturn reçu", "Rapproché", "Classification"] : ["Draft", "Approved", "Dispatch", "In refining", "Outturn received", "Reconciled", "Classification"]} />
@@ -156,7 +191,8 @@ export function RefiningOrderDispatch() {
             <div className="mt-3 rounded-lg border border-l-4 border-l-primary bg-primary/5 p-4 text-xs text-muted-foreground"><strong className="text-foreground">{fr ? "Chaîne de garde." : "Chain of custody."}</strong> {fr ? `Chaque remise est documentée : poids de sortie vérifié, scellés posés et constatés sous double contrôle, transit assuré, puis rapprochement à la réception. Les ${fineKg.toFixed(3)} kg d’or fin constituent la référence de l’outturn.` : `Every handoff is evidenced: verified weight out, seals witnessed under dual control, insured transit, then matched receipt. The ${fineKg.toFixed(3)} kg fine gold becomes the outturn baseline.`}</div>
           </RefiningPanel>
 
-          <div className="flex flex-col gap-3 border-t pt-5 sm:flex-row sm:items-center sm:justify-between"><p className={`text-xs ${dualControlComplete ? "text-emerald-500" : "text-muted-foreground"}`}>{confirmed ? (fr ? "Expédition confirmée. Réception de la raffinerie en attente." : "Dispatch confirmed. Refiner receipt is pending.") : dualControlComplete ? (fr ? "Double contrôle terminé — prêt à confirmer." : "Dual control complete — ready to confirm dispatch.") : (fr ? "Les deux signatures sont nécessaires pour confirmer l’expédition." : "Both sign-offs are required to confirm dispatch.")}</p><div className="flex justify-end gap-2"><Button variant="ghost" asChild><Link href={`/refining-orders/${orderReference}/approval`}>{fr ? "Annuler" : "Cancel"}</Link></Button><Button variant="outline" onClick={() => setSaved(true)} disabled={confirmed}>{fr ? "Enregistrer" : "Save Draft"}</Button><Button onClick={confirmDispatch} disabled={!canConfirm}><Truck className="mr-2 h-4 w-4" />{fr ? "Confirmer l’expédition" : "Confirm dispatch"}</Button></div></div>
+          {confirmError && <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">{confirmError}</div>}
+          <div className="flex flex-col gap-3 border-t pt-5 sm:flex-row sm:items-center sm:justify-between"><p className={`text-xs ${canConfirm ? "text-emerald-500" : "text-muted-foreground"}`}>{confirmed ? (fr ? "Expédition confirmée. Réception de la raffinerie en attente." : "Dispatch confirmed. Refiner receipt is pending.") : !dualControlComplete ? (fr ? "Les deux signatures sont nécessaires pour confirmer l’expédition." : "Both sign-offs are required to confirm dispatch.") : !requiredFieldsComplete ? (fr ? "Complétez les champs obligatoires et joignez les deux documents requis." : "Complete the required fields and attach both required documents.") : !weightMatches ? (fr ? "Le poids expédié doit correspondre au poids du lot." : "Dispatch weight must match the lot weight.") : (fr ? "Double contrôle terminé — prêt à confirmer." : "Dual control complete — ready to confirm dispatch.")}</p><div className="flex justify-end gap-2"><Button variant="ghost" asChild><Link href={`/refining-orders/${orderReference}/approval`}>{fr ? "Annuler" : "Cancel"}</Link></Button><Button variant="outline" onClick={() => setSaved(true)} disabled={confirmed}>{fr ? "Enregistrer" : "Save Draft"}</Button><Button onClick={confirmDispatch} disabled={!canConfirm}><Truck className="mr-2 h-4 w-4" />{confirming ? (fr ? "Confirmation…" : "Confirming…") : (fr ? "Confirmer l’expédition" : "Confirm dispatch")}</Button></div></div>
         </TabsContent>
         <TabsContent value="trace" className="mt-4"><RefiningPanel icon={Box} title={fr ? "Chaîne de garde et de provenance" : "Custody & provenance chain"}><Timeline items={[
           { state: "done", title: `${fr ? "Bon de commande accepté" : "Purchase order accepted"} — ${order?.purchaseOrderReference || "—"}`, meta: `${order?.counterpartyName || "—"} · ${lotGross.toFixed(3)} kg doré, ${purity.toFixed(2)}% assay` },

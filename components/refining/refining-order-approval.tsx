@@ -97,11 +97,20 @@ export function RefiningOrderApproval() {
   const tier = TIERS.find((candidate) => value <= candidate.max) ?? TIERS[2];
   const required = APPROVERS.slice(0, tier.count);
   const currentUserId = session?.user?.id;
+  const currentUserRole = String((session?.user as { role?: string } | undefined)?.role || "").toLowerCase();
+  const currentUserIsCounterparty = currentUserRole.includes("counterparty") || currentUserRole.includes("contrepart");
   const currentUserAlreadyApproved = Boolean(currentUserId && order?.approvals.some((approval) => approval.approverId === currentUserId && approval.decision === "approved"));
   const approvedCount = Math.min(required.length, order?.approvals.filter((approval) => approval.decision === "approved").length ?? 0);
   const youRequired = Boolean(currentUserId && !currentUserAlreadyApproved && approvedCount < required.length);
   const allChecked = checks.every(Boolean);
   const fullyApproved = approvedCount === required.length;
+  const workflowActive = order?.status === "in_refining" || order?.status === "dispatched"
+    ? 3
+    : order?.status === "approved"
+      ? 2
+      : fullyApproved
+        ? 2
+        : 1;
   const approvedRecords = order?.approvals.filter((approval) => approval.decision === "approved") ?? [];
   const approvalSlots = required.map((template, index) => {
     const recorded = approvedRecords[index];
@@ -119,10 +128,14 @@ export function RefiningOrderApproval() {
   });
 
   useEffect(() => {
-    if (order?.status === "approved") {
+    if (order && currentUserIsCounterparty && (order.status === "approved" || fullyApproved)) {
+      router.replace(`/refining-orders/${encodeURIComponent(order.reference)}/refining`);
+    } else if (order?.status === "in_refining" || order?.status === "dispatched") {
+      router.replace(`/refining-orders/${encodeURIComponent(order.reference)}/refining`);
+    } else if (order?.status === "approved") {
       router.replace(`/refining-orders/${encodeURIComponent(order.reference)}/dispatch`);
     }
-  }, [order?.reference, order?.status, router]);
+  }, [currentUserIsCounterparty, fullyApproved, order, router]);
 
   const banner = useMemo(() => {
     if (decision === "returned") return { tone: "warning", title: fr ? "Retourné au Trade Manager pour modification" : "Returned to the Trade Manager for changes", description: note };
@@ -218,7 +231,7 @@ export function RefiningOrderApproval() {
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"><div><div className="flex flex-wrap items-center gap-2"><h1 className="font-mono text-xl font-semibold">{order?.reference || orderReference}</h1><StatusPill tone={decision === "approved" ? "success" : decision === "rejected" ? "danger" : "warning"}>{decision === "approved" ? (fr ? "Approuvé" : "Approved") : decision === "returned" ? (fr ? "Retourné" : "Returned") : decision === "rejected" ? (fr ? "Rejeté" : "Rejected") : (fr ? "Approbation en attente" : "Pending approval")}</StatusPill><StatusPill>{tier.count === 1 ? (fr ? "Approbation simple" : "Single approval") : tier.count === 2 ? (fr ? "Double approbation" : "Dual approval") : (fr ? "Triple approbation" : "Triple approval")}</StatusPill></div><p className="mt-1 text-xs text-muted-foreground">Bullion Desk · Trade Manager{order?.createdAt ? ` · ${new Date(order.createdAt).toLocaleString(fr ? "fr-FR" : "en-GB")}` : ""}{order?.purchaseOrderReference ? ` · PO ${order.purchaseOrderReference}` : ""}{order?.lotReference ? ` · Lot ${order.lotReference}` : ""}</p>{deleteError && <p className="mt-2 text-xs text-destructive">{deleteError}</p>}</div>{access?.isAdmin && <AlertDialog><AlertDialogTrigger asChild><Button variant="destructive" size="sm" disabled={deleting}><Trash2 className="mr-2 h-4 w-4" />{fr ? "Supprimer l’ordre" : "Delete order"}</Button></AlertDialogTrigger><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>{fr ? "Supprimer cet ordre de raffinage ?" : "Delete this refining order?"}</AlertDialogTitle><AlertDialogDescription>{fr ? `L’ordre ${orderReference} sera supprimé définitivement. Cette action est irréversible.` : `Order ${orderReference} will be permanently deleted. This action cannot be undone.`}</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>{fr ? "Annuler" : "Cancel"}</AlertDialogCancel><AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={deleteOrder}>{deleting ? (fr ? "Suppression…" : "Deleting…") : (fr ? "Supprimer définitivement" : "Delete permanently")}</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>}</div>
 
-      <WorkflowStepper active={fullyApproved ? 2 : 1} hrefs={["/refining-orders", `/refining-orders/${orderReference}/approval`, `/refining-orders/${orderReference}/dispatch`, undefined, undefined, `/refining-orders/${orderReference}/reserve-eligibility`]} labels={fr ? ["Brouillon", "Approbation", "Expédition", "En raffinage", "Outturn", "Classification"] : ["Draft", "Approval", "Dispatch", "In refining", "Outturn", "Classification"]} />
+      <WorkflowStepper active={workflowActive} hrefs={["/refining-orders", `/refining-orders/${orderReference}/approval`, `/refining-orders/${orderReference}/dispatch`, `/refining-orders/${orderReference}/refining`, undefined, `/refining-orders/${orderReference}/reserve-eligibility`]} labels={fr ? ["Brouillon", "Approbation", "Expédition", "En raffinage", "Outturn", "Classification"] : ["Draft", "Approval", "Dispatch", "In refining", "Outturn", "Classification"]} />
 
       <Tabs defaultValue="review">
         <TabsList><TabsTrigger value="review">{fr ? "Examen de l’ordre" : "Order review"}</TabsTrigger><TabsTrigger value="history">{fr ? "Historique d’approbation" : "Approval history"}</TabsTrigger></TabsList>

@@ -32,6 +32,14 @@ export function RefiningOrdersList() {
   const { language } = useLanguage();
   const fr = language === "fr";
   const { data = [], error, isLoading, mutate } = useSWR<RefiningOrder[]>("/api/refining-orders", fetcher);
+  const { data: access } = useSWR<{ role?: string | null; roleLabel?: string | null }>("/api/access/me", fetcher);
+  const roleIdentity = `${access?.role || ""} ${access?.roleLabel || ""}`.toLowerCase();
+  const isCounterparty = roleIdentity.includes("counterparty") || roleIdentity.includes("contrepart");
+  const orderHref = (order: RefiningOrder) => {
+    if (["in_refining", "dispatched"].includes(order.status)) return `/refining-orders/${order.reference}/refining`;
+    if (order.status === "approved") return isCounterparty ? `/refining-orders/${order.reference}/refining` : `/refining-orders/${order.reference}/dispatch`;
+    return `/refining-orders/${order.reference}/approval`;
+  };
 
   return (
     <Card className="gap-0 overflow-hidden">
@@ -45,7 +53,7 @@ export function RefiningOrdersList() {
         </div>
         <CardAction className="flex items-center gap-2">
           <Button size="sm" variant="outline" onClick={() => mutate()} disabled={isLoading} aria-label={fr ? "Actualiser la liste" : "Refresh list"}><RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} /><span className="hidden sm:inline">{fr ? "Actualiser" : "Refresh"}</span></Button>
-          <Button size="sm" asChild><Link href="/refining-orders/new"><Plus className="h-4 w-4" />{fr ? "Nouvel ordre" : "New order"}</Link></Button>
+          {!isCounterparty && <Button size="sm" asChild><Link href="/refining-orders/new"><Plus className="h-4 w-4" />{fr ? "Nouvel ordre" : "New order"}</Link></Button>}
         </CardAction>
       </CardHeader>
       <CardContent className="p-0">
@@ -56,7 +64,7 @@ export function RefiningOrdersList() {
             </tr></thead>
             <tbody>{data.map((order) => (
               <tr key={order.id} className="border-t transition-colors hover:bg-muted/30">
-                <td className="px-4 py-4"><Link href={`/refining-orders/${order.reference}/approval`} className="inline-flex rounded-md bg-primary/10 px-2.5 py-1.5 font-mono text-xs font-semibold text-primary transition-colors hover:bg-primary/15">{order.reference}</Link></td>
+                <td className="px-4 py-4"><Link href={orderHref(order)} className="inline-flex rounded-md bg-primary/10 px-2.5 py-1.5 font-mono text-xs font-semibold text-primary transition-colors hover:bg-primary/15">{order.reference}</Link></td>
                 <td className="px-4 py-3"><div>{order.purchaseOrderReference || "—"}</div>{order.lotReference && <div className="text-xs text-muted-foreground">{order.lotReference}</div>}</td>
                 <td className="px-4 py-3">{order.counterpartyName || "—"}</td>
                 <td className="px-4 py-3">{order.refineryName || "—"}</td>

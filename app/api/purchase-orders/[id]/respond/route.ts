@@ -130,6 +130,12 @@ export async function POST(
         { status: 400 },
       )
     }
+    if (String(decision) === "negotiate") {
+      const premium = Number(proposedPremium)
+      if (proposedPremium === "" || proposedPremium == null || !Number.isFinite(premium) || premium < -100 || premium > 100) {
+        return NextResponse.json({ error: "Le premium ou la décote doit être compris entre -100 % et 100 %." }, { status: 400 })
+      }
+    }
 
     const rows = await sql`
       SELECT po.counterparty_id, po.status, po.created_by, po.tracking_id,

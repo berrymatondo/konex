@@ -29,18 +29,32 @@ function serialize(row: Record<string, unknown>) {
 
 export async function GET() {
   try {
+    const user = await getSessionUser();
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     await ensureTablesExist();
     await ensureRefiningOrdersTable();
-    const rows = await sql`
-      SELECT ro.*, po.tracking_id AS purchase_order_reference,
-             NULL::text AS lot_reference, seller.legal_name AS counterparty_name,
-             refinery.legal_name AS refinery_name
-      FROM refining_orders ro
-      JOIN purchase_orders po ON po.id = ro.purchase_order_id
-      LEFT JOIN counterparties seller ON seller.id = po.counterparty_id
-      LEFT JOIN counterparties refinery ON refinery.id = ro.refinery_id
-      ORDER BY ro.created_at DESC
-    `;
+    const rows = isCounterpartyProfile(user)
+      ? await sql`
+          SELECT ro.*, po.tracking_id AS purchase_order_reference,
+                 NULL::text AS lot_reference, seller.legal_name AS counterparty_name,
+                 refinery.legal_name AS refinery_name
+          FROM refining_orders ro
+          JOIN purchase_orders po ON po.id = ro.purchase_order_id
+          LEFT JOIN counterparties seller ON seller.id = po.counterparty_id
+          LEFT JOIN counterparties refinery ON refinery.id = ro.refinery_id
+          WHERE po.counterparty_id = ${user.counterpartyId}
+          ORDER BY ro.created_at DESC
+        `
+      : await sql`
+          SELECT ro.*, po.tracking_id AS purchase_order_reference,
+                 NULL::text AS lot_reference, seller.legal_name AS counterparty_name,
+                 refinery.legal_name AS refinery_name
+          FROM refining_orders ro
+          JOIN purchase_orders po ON po.id = ro.purchase_order_id
+          LEFT JOIN counterparties seller ON seller.id = po.counterparty_id
+          LEFT JOIN counterparties refinery ON refinery.id = ro.refinery_id
+          ORDER BY ro.created_at DESC
+        `;
     return NextResponse.json(rows.map((row) => serialize(row as Record<string, unknown>)));
   } catch (error) {
     console.error("Error fetching refining orders:", error);

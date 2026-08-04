@@ -635,7 +635,7 @@ export default function RiskAssessmentPage({ params }: { params: Promise<{ id: s
                       <Save className="mr-2 h-4 w-4" />
                       {isSubmitting 
                         ? (language === "fr" ? "Enregistrement..." : "Saving...") 
-                        : (language === "fr" ? "Enregistrer l'évaluation" : "Save Assessment")}
+                        : (language === "fr" ? "Approuver & Activer" : "Approve & Activate")}
                     </Button>
                   </CardFooter>
                 </Card>

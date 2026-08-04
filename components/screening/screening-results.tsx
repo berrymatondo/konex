@@ -992,7 +992,7 @@ export function ScreeningResults({
                 className="order-1 sm:order-2"
                 disabled={validationErrors.length > 0}
               >
-                {t.screening.approveActivate}
+                {language === "fr" ? "Valider" : "Validate"}
                 <ChevronRight className="ml-2 h-4 w-4" />
               </Button>
             )}
