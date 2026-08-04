@@ -23,19 +23,29 @@ export async function GET(request: Request) {
     
     if (counterpartyId) {
       assessments = await sql`
-        SELECT ra.*, c.legal_name as counterparty_name, c.country_of_incorporation
+        SELECT ra.*, c.legal_name as counterparty_name, c.country_of_incorporation,
+               c.status as counterparty_status
         FROM risk_assessments ra
         LEFT JOIN counterparties c ON ra.counterparty_id = c.id
         WHERE ra.counterparty_id = ${counterpartyId}
         ORDER BY ra.assessed_at DESC
-      ` as (RiskAssessment & { counterparty_name: string; country_of_incorporation: string })[];
+      ` as (RiskAssessment & {
+        counterparty_name: string;
+        country_of_incorporation: string;
+        counterparty_status: string | null;
+      })[];
     } else {
       assessments = await sql`
-        SELECT ra.*, c.legal_name as counterparty_name, c.country_of_incorporation
+        SELECT ra.*, c.legal_name as counterparty_name, c.country_of_incorporation,
+               c.status as counterparty_status
         FROM risk_assessments ra
         LEFT JOIN counterparties c ON ra.counterparty_id = c.id
         ORDER BY ra.assessed_at DESC
-      ` as (RiskAssessment & { counterparty_name: string; country_of_incorporation: string })[];
+      ` as (RiskAssessment & {
+        counterparty_name: string;
+        country_of_incorporation: string;
+        counterparty_status: string | null;
+      })[];
     }
 
     return NextResponse.json(
@@ -44,6 +54,7 @@ export async function GET(request: Request) {
         counterpartyId: a.counterparty_id,
         counterpartyName: a.counterparty_name,
         countryOfIncorporation: a.country_of_incorporation,
+        counterpartyStatus: a.counterparty_status,
         riskTier: a.risk_tier,
         overallScore: a.overall_score,
         countryRiskScore: a.country_risk_score,

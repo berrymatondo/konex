@@ -71,9 +71,86 @@ export async function GET() {
           ORDER BY po.created_at DESC
         `) as (PurchaseOrder & { counterparty_name: string; counterparty_risk_level: string | null })[];
 
+    // Optional vault/manifest details used by workflows that must list every PO.
+    // Keep the main list available on a fresh database where those workflow
+    // tables may not have been initialized yet.
+    const sourceDetails = new Map<
+      string,
+      {
+        lotReference: string | null;
+        deliveredAt: string | null;
+        receivedGrossWeightKg: number | null;
+        receivedPurity: number | null;
+      }
+    >();
+
+    if (purchaseOrders.length > 0) {
+      try {
+        const detailRows = await sql`
+          SELECT
+            po.id,
+            (
+              SELECT cm.manifest_reference
+              FROM counterparty_manifests cm
+              WHERE cm.purchase_order_id = po.id
+              ORDER BY cm.attempt_number DESC, cm.created_at DESC
+              LIMIT 1
+            ) AS lot_reference,
+            (
+              SELECT vr.arrival_date
+              FROM vault_receptions vr
+              WHERE vr.po_id = po.id OR vr.selected_po_id = po.id
+              ORDER BY vr.updated_at DESC
+              LIMIT 1
+            ) AS delivered_at,
+            COALESCE(
+              (
+                SELECT vr.gross_weight_kg
+                FROM vault_receptions vr
+                WHERE vr.po_id = po.id OR vr.selected_po_id = po.id
+                ORDER BY vr.updated_at DESC
+                LIMIT 1
+              ),
+              (
+                SELECT cm.total_gross_weight_kg
+                FROM counterparty_manifests cm
+                WHERE cm.purchase_order_id = po.id
+                ORDER BY cm.attempt_number DESC, cm.created_at DESC
+                LIMIT 1
+              )
+            ) AS received_gross_weight_kg,
+            (
+              SELECT vr.au_purity
+              FROM vault_receptions vr
+              WHERE vr.po_id = po.id OR vr.selected_po_id = po.id
+              ORDER BY vr.updated_at DESC
+              LIMIT 1
+            ) AS received_purity
+          FROM purchase_orders po
+          WHERE po.id = ANY(${purchaseOrders.map((po) => po.id)})
+        `;
+
+        for (const row of detailRows) {
+          sourceDetails.set(String(row.id), {
+            lotReference: row.lot_reference ? String(row.lot_reference) : null,
+            deliveredAt: row.delivered_at ? String(row.delivered_at) : null,
+            receivedGrossWeightKg:
+              row.received_gross_weight_kg == null
+                ? null
+                : Number(row.received_gross_weight_kg),
+            receivedPurity:
+              row.received_purity == null ? null : Number(row.received_purity),
+          });
+        }
+      } catch (error) {
+        console.warn("Optional PO source details are unavailable:", error);
+      }
+    }
+
     // Get approvals for each PO
     const result = await Promise.all(
       purchaseOrders.map(async (po) => {
+        const sourceDetail = sourceDetails.get(po.id);
         const approvals = await sql`
           SELECT * FROM po_approvals WHERE purchase_order_id = ${po.id}
         `;
@@ -103,6 +180,10 @@ export async function GET() {
           currency: po.currency,
           priceLockExpiry: po.price_lock_expiry,
           trackingId: po.tracking_id,
+          lotReference: sourceDetail?.lotReference ?? null,
+          deliveredAt: sourceDetail?.deliveredAt ?? null,
+          receivedGrossWeightKg: sourceDetail?.receivedGrossWeightKg ?? null,
+          receivedPurity: sourceDetail?.receivedPurity ?? null,
           createdBy: po.created_by,
           createdAt: po.created_at,
           submittedAt: po.submitted_at,

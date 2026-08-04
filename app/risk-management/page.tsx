@@ -36,6 +36,7 @@ interface RiskAssessment {
   counterpartyId: string;
   counterpartyName: string;
   countryOfIncorporation: string;
+  counterpartyStatus: string | null;
   riskTier: string;
   overallScore: number;
   countryRiskScore: number | null;
@@ -92,7 +93,12 @@ export default function RiskManagementPage() {
     high: assessments.filter((a) => a.riskTier === "high").length,
     medium: assessments.filter((a) => a.riskTier === "medium").length,
     low: assessments.filter((a) => a.riskTier === "low").length,
-    pendingEdd: assessments.filter((a) => a.eddRequired && a.eddStatus === "pending").length,
+    pendingEdd: assessments.filter(
+      (a) =>
+        a.eddRequired &&
+        a.eddStatus === "pending" &&
+        a.counterpartyStatus !== "active",
+    ).length,
   };
 
   // Get counterparties without assessment
@@ -306,7 +312,11 @@ export default function RiskManagementPage() {
                                   </Badge>
                                   {assessment.eddRequired && (
                                     <Badge variant="outline" className="border-orange-500 text-orange-500 text-xs hidden sm:inline-flex">
-                                      EDD {assessment.eddStatus === "pending" ? (language === "fr" ? "En attente" : "Pending") : assessment.eddStatus}
+                                      EDD{assessment.eddStatus === "pending"
+                                        ? assessment.counterpartyStatus === "active"
+                                          ? ""
+                                          : ` ${language === "fr" ? "En attente" : "Pending"}`
+                                        : ` ${assessment.eddStatus}`}
                                     </Badge>
                                   )}
                                 </div>

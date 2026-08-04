@@ -2,6 +2,30 @@ import { neon } from "@neondatabase/serverless";
 
 export const sql = neon(process.env.DATABASE_URL!);
 
+/** Initializes the refining-order sub-ledger independently of the larger schema bootstrap. */
+export async function ensureRefiningOrdersTable() {
+  await sql`
+    CREATE TABLE IF NOT EXISTS refining_orders (
+      id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+      reference TEXT NOT NULL UNIQUE,
+      purchase_order_id TEXT NOT NULL REFERENCES purchase_orders(id) ON DELETE RESTRICT,
+      refinery_id TEXT NOT NULL REFERENCES counterparties(id) ON DELETE RESTRICT,
+      status TEXT NOT NULL DEFAULT 'draft',
+      target_fineness TEXT NOT NULL,
+      turnaround_days INTEGER NOT NULL,
+      fee DECIMAL(12,2) NOT NULL,
+      fee_unit TEXT NOT NULL,
+      expected_loss_percent DECIMAL(6,3) NOT NULL,
+      input_gross_weight_kg DECIMAL(12,3) NOT NULL,
+      input_fine_gold_kg DECIMAL(12,3) NOT NULL,
+      expected_outturn_kg DECIMAL(12,3) NOT NULL,
+      created_by TEXT,
+      created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )
+  `;
+}
+
 // Auto-initialize database tables if they don't exist
 let dbInitialized = false;
 
