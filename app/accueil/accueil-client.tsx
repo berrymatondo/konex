@@ -213,8 +213,7 @@ export function AccueilClient() {
                 <span className="text-foreground">des Banques Centrales</span>
               </h1>
               <p className="text-base sm:text-lg text-muted-foreground max-w-xl leading-relaxed mx-auto lg:mx-0">
-                Konex accompagne les banques centrales dans l&apos;acquisition, le raffinage et la certification de l&apos;or, garantissant la
-                conformité aux normes internationales LBMA et une traçabilité complète.
+                Konex est une plateforme intégrée qui accompagne les banques centrales et les institutions financières dans la gestion stratégique de leurs réserves d&apos;or. Elle couvre le pré-traitement et l&apos;acquisition de l&apos;or, sa transformation en or monétaire, l&apos;analyse macroéconomique, l&apos;optimisation des réserves internationales et la conformité des opérations aux standards internationaux de la LBMA (London Bullion Market Association).
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
                 <Button size="lg" asChild className="gap-2 group">
