@@ -38,7 +38,7 @@ export async function GET(
 
     const po = result[0];
 
-    // Counterparty manifest declared at dispatch (US-04) — authoritative source for
+    // Counterparty manifest declared at dispatch — authoritative source for
     // declared seals, expected bar count, carrier, per-bar declared weight/fineness.
     let manifest: Record<string, unknown> | null = null;
     try {
@@ -112,7 +112,7 @@ export async function GET(
       poValue: parseFloat(String(po.total_estimated_value || 0)),
       currency: po.currency || "USD",
       vaultLocation: po.delivery_vault_id || "Default Vault",
-      // Declared-at-dispatch manifest (US-04) — authoritative "manifest" reference values
+      // Declared-at-dispatch manifest — authoritative "manifest" reference values
       manifest: manifest
         ? {
             id: manifest.id ?? null,

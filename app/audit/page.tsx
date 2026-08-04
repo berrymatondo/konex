@@ -212,7 +212,7 @@ export default function AuditPage() {
 
   const t = language === "fr" ? {
     title: "Audit & Conformité",
-    subtitle: "Piste d'audit immuable et exports réglementaires (US-07)",
+    subtitle: "Piste d'audit immuable et exports réglementaires",
     tabs: {
       auditTrail: "Piste d'Audit",
       reports: "Rapports Réglementaires",
@@ -227,7 +227,7 @@ export default function AuditPage() {
     exportXml: "Exporter XML",
   } : {
     title: "Audit & Compliance",
-    subtitle: "Immutable audit trail and regulatory exports (US-07)",
+    subtitle: "Immutable audit trail and regulatory exports",
     tabs: {
       auditTrail: "Audit Trail",
       reports: "Regulatory Reports",
@@ -262,11 +262,10 @@ export default function AuditPage() {
           <main className="flex-1 overflow-y-auto p-4 md:p-6">
             <div className="mx-auto max-w-7xl space-y-6">
               
-              {/* US-07 Workflow Header */}
+              {/*  Workflow Header */}
               <Card className="border-primary/20 bg-gradient-to-r from-primary/5 to-transparent">
                 <CardContent className="py-4">
                   <div className="flex flex-wrap items-center gap-4">
-                    <Badge variant="outline" className="border-primary text-primary">US-07</Badge>
                     <span className="text-sm text-muted-foreground">
                       {language === "fr" 
                         ? "Moteur d'Audit Immuable & Export Réglementaire" 

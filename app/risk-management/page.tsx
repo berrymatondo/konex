@@ -120,7 +120,7 @@ export default function RiskManagementPage() {
               </Link>
             </div>
 
-            {/* Quick Navigation - US-02 Screens */}
+            {/* Quick Navigation -  Screens */}
             <div className="flex flex-wrap gap-3">
               <Link href="/risk-management/feeds">
                 <Button variant="outline" size="sm">

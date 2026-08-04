@@ -21,14 +21,9 @@ import {
   BookOpen,
   Warehouse,
   UserCog,
-  Landmark,
   Inbox,
   GitMerge,
   ArrowLeftRight,
-  TrendingUp,
-  Sliders,
-  PieChart,
-  Activity,
   Factory,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -171,25 +166,16 @@ function SidebarContent({ isCollapsed, onNavClick }: { isCollapsed: boolean; onN
     { title: t.nav.onboarding, href: "/onboarding", icon: FileCheck },
     { title: t.nav.approvalQueue, href: "/approval-queue", icon: ClipboardList },
     { title: t.nav.riskManagement, href: "/risk-management", icon: ShieldAlert },
-    { title: language === "fr" ? "Politique Monétaire" : "Monetary Policy", href: "/monetary-policy", icon: Landmark },
     { title: language === "fr" ? "Transactions" : "Transactions", href: "/transactions", icon: ArrowLeftRight },
-  ].filter((item) => canSee(item.href));
-
-  const monetaryPolicyNavItems = [
-    { title: language === "fr" ? "Prévisions" : "Forecasts", href: "/previsions", icon: TrendingUp },
-    { title: language === "fr" ? "Calibration" : "Calibration", href: "/calibration", icon: Sliders },
-    { title: language === "fr" ? "Gestion des réserves" : "Reserve Management", href: "/gestion-reserves", icon: PieChart },
-    { title: language === "fr" ? "Impact Macro" : "Macro Impact", href: "/impact-macro", icon: Activity },
-    { title: language === "fr" ? "Or non monétaire" : "Non-monetary Gold", href: "/non-monetary-holdings", icon: Package },
   ].filter((item) => canSee(item.href));
 
   const operationsNavItems = [
     { title: t.nav.purchaseOrders, href: "/purchase-orders", icon: Package },
     { title: language === "fr" ? "Ordres de raffinage" : "Refining Orders", href: "/refining-orders", icon: Factory },
     { title: language === "fr" ? "File Manifestes" : "Manifest Queue", href: "/manifest-queue", icon: Inbox },
+    { title: language === "fr" ? "Réception Coffre" : "Vault Intake", href: "/vault-intake", icon: Warehouse },
+    { title: t.nav.settlements, href: "/settlements", icon: Wallet },
     { title: language === "fr" ? "Cycle de vie PO" : "PO Lifecycle", href: "/po-lifecycle", icon: GitMerge },
-{ title: language === "fr" ? "Réception Coffre" : "Vault Intake", href: "/vault-intake", icon: Warehouse },
-{ title: t.nav.settlements, href: "/settlements", icon: Wallet },
   ].filter((item) => canSee(item.href));
 
   const systemNavItems = [
@@ -245,30 +231,6 @@ function SidebarContent({ isCollapsed, onNavClick }: { isCollapsed: boolean; onN
               ))}
             </ul>
           </div>
-
-          {monetaryPolicyNavItems.length > 0 && (
-            <div>
-              {!isCollapsed && (
-                <p className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/50">
-                  {language === "fr" ? "Politique Monétaire" : "Monetary Policy"}
-                </p>
-              )}
-              <ul className="space-y-1">
-                {monetaryPolicyNavItems.map((item) => (
-                  <li key={item.href}>
-                    <NavItem
-                      href={item.href}
-                      icon={item.icon}
-                      title={item.title}
-                      isActive={isPathActive(item.href)}
-                      isCollapsed={isCollapsed}
-                      onClick={onNavClick}
-                    />
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
 
           <div>
             {!isCollapsed && (

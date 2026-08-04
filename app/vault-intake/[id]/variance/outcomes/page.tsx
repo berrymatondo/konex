@@ -48,7 +48,7 @@ export default function VarianceOutcomesPage() {
         <div className="flex flex-1 flex-col overflow-hidden">
           <AppHeader
             title={language === "fr" ? "Résultats Réponse Écart de Poids" : "Weight Variance Response Outcomes"}
-            subtitle={`${shipmentId} · US-05`}
+            subtitle={shipmentId}
           />
           <main className="flex-1 overflow-y-auto p-4 md:p-6">
             <div className="mx-auto max-w-4xl space-y-6">
@@ -84,7 +84,7 @@ export default function VarianceOutcomesPage() {
                   </TabsTrigger>
                 </TabsList>
 
-                {/* Tab 1 — Counterparty Accepts → US-06 */}
+                {/* Tab 1 — Counterparty Accepts →  */}
                 <TabsContent value="accept" className="space-y-4 mt-6">
                   <Card className="border-emerald-200">
                     <CardHeader>
@@ -95,7 +95,7 @@ export default function VarianceOutcomesPage() {
                         <div>
                           <CardTitle>{language === "fr" ? "Contrepartie a Accepté le Poids Ajusté" : "Counterparty Accepted Adjusted Weight"}</CardTitle>
                           <CardDescription>
-                            {language === "fr" ? "Transition vers US-06 — Valorisation & Règlement" : "Transition to US-06 — Valuation & Settlement"}
+                            {language === "fr" ? "Transition vers la valorisation et le règlement" : "Transition to valuation and settlement"}
                           </CardDescription>
                         </div>
                       </div>
@@ -147,7 +147,7 @@ export default function VarianceOutcomesPage() {
                       <Button asChild className="w-full">
                         <Link href="/settlements">
                           <Wallet className="mr-2 h-4 w-4" />
-                          {language === "fr" ? "Procéder au Règlement (US-06)" : "Proceed to Settlement (US-06)"}
+                          {language === "fr" ? "Procéder au Règlement" : "Proceed to Settlement"}
                         </Link>
                       </Button>
                     </CardContent>

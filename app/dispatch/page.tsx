@@ -94,8 +94,8 @@ export default function DispatchPage() {
   const content = {
     title: language === "fr" ? "Expédition & Documentation" : "Dispatch & Documentation",
     subtitle: language === "fr" 
-      ? "Validation des documents pré-expédition et autorisation de dispatch (US-04)"
-      : "Pre-shipment document validation and dispatch authorization (US-04)",
+      ? "Validation des documents pré-expédition et autorisation de dispatch"
+      : "Pre-shipment document validation and dispatch authorization",
     newDispatch: language === "fr" ? "Nouvelle Validation" : "New Validation",
     search: language === "fr" ? "Rechercher par PO ou ID..." : "Search by PO or ID...",
     stats: {

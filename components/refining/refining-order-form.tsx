@@ -120,7 +120,7 @@ export function RefiningOrderForm() {
       <Tabs defaultValue="details">
         <TabsList><TabsTrigger value="details">{fr ? "Détails" : "Details"}</TabsTrigger><TabsTrigger value="trace">{fr ? "Traçabilité" : "Traceability"}</TabsTrigger></TabsList>
         <TabsContent value="details" className="mt-4 space-y-4">
-          <RefiningPanel icon={FileText} title={<>{fr ? "Bon de commande et lot source" : "Source purchase order & lot"} <span className="text-primary">*</span></>}>
+          <RefiningPanel icon={FileText} title={<>{fr ? "Bon de commande et lot source" : "Source purchase order & lot"} <span className="text-destructive">*</span></>}>
             {!selected ? (
               <div className="flex flex-col gap-4 rounded-lg border border-dashed bg-muted/30 p-5 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-sm font-semibold">{fr ? "Aucun bon de commande sélectionné" : "No purchase order selected"}</p><p className="mt-1 text-xs text-muted-foreground">{fr ? "Choisissez un PO accepté, livré au coffre et non encore affecté à un ordre de raffinage." : "Pick an accepted PO delivered to the vault and not yet assigned to a refining order."}</p></div><Button onClick={() => setPickerOpen(true)}><Search className="mr-2 h-4 w-4" />{fr ? "Sélectionner PO / lot" : "Select PO / lot"}</Button></div>
             ) : (
@@ -130,13 +130,13 @@ export function RefiningOrderForm() {
 
           <div className="grid gap-4 lg:grid-cols-2">
             <RefiningPanel icon={FileText} title={fr ? "Référence interne" : "Internal reference"}><div className="grid gap-4 sm:grid-cols-2"><InfoCell label={fr ? "N° ordre de raffinage" : "Refining Order No."}>GAC-REF-2026-014</InfoCell><InfoCell label={fr ? "Créé" : "Created"}>22/07/2026</InfoCell><InfoCell label={fr ? "Bureau initiateur" : "Initiating desk"}>Bullion Desk · Trade Manager</InfoCell><InfoCell label={fr ? "Statut" : "Status"}><StatusPill tone="warning">{fr ? "Brouillon" : "Draft"}</StatusPill></InfoCell><InfoCell label="Source PO"><span className={selected ? "text-primary" : "text-muted-foreground"}>{selected?.po || (fr ? "— non sélectionné —" : "— not selected —")}</span></InfoCell><InfoCell label={fr ? "Lot doré" : "Doré lot"}>{selected?.lot || "—"}</InfoCell></div></RefiningPanel>
-            <RefiningPanel icon={Factory} title={<span className="flex flex-wrap items-center gap-2">{fr ? "Raffinerie affectée" : "Assigned refiner"}<StatusPill tone="success">KYC valid</StatusPill></span>}><div className="grid gap-4 sm:grid-cols-2"><InfoCell label={fr ? "Raffinerie" : "Refiner"} className="sm:col-span-2">{currentChannel.name}</InfoCell><InfoCell label="LBMA Good Delivery">{currentChannel.gd ? <StatusPill tone="success">LBMA GD accredited</StatusPill> : <StatusPill tone="warning">{fr ? "Demande en cours" : "Application in progress"}</StatusPill>}</InfoCell><InfoCell label={fr ? "Localisation" : "Location"}>{currentChannel.location}</InfoCell></div><p className="mt-4 border-t pt-4 text-xs text-muted-foreground">{fr ? "La raffinerie dépend du canal sélectionné. Son accréditation détermine si la production peut entrer dans les réserves monétaires (US-R05)." : "The refiner is set by the channel below. Its accreditation determines whether output can enter monetary reserves (US-R05)."}</p></RefiningPanel>
+            <RefiningPanel icon={Factory} title={<span className="flex flex-wrap items-center gap-2">{fr ? "Raffinerie affectée" : "Assigned refiner"}<StatusPill tone="success">KYC valid</StatusPill></span>}><div className="grid gap-4 sm:grid-cols-2"><InfoCell label={fr ? "Raffinerie" : "Refiner"} className="sm:col-span-2">{currentChannel.name}</InfoCell><InfoCell label="LBMA Good Delivery">{currentChannel.gd ? <StatusPill tone="success">LBMA GD accredited</StatusPill> : <StatusPill tone="warning">{fr ? "Demande en cours" : "Application in progress"}</StatusPill>}</InfoCell><InfoCell label={fr ? "Localisation" : "Location"}>{currentChannel.location}</InfoCell></div><p className="mt-4 border-t pt-4 text-xs text-muted-foreground">{fr ? "La raffinerie dépend du canal sélectionné. Son accréditation détermine si la production peut entrer dans les réserves monétaires." : "The refiner is set by the channel below. Its accreditation determines whether output can enter monetary reserves."}</p></RefiningPanel>
           </div>
 
           <RefiningPanel icon={Box} title={<span className="flex flex-wrap items-center gap-2">{fr ? "Or entrant" : "Input gold"} — {selected ? selected.lot : (fr ? "aucun lot" : "no lot selected")}<StatusPill>{fr ? "depuis le PO" : "from PO"}</StatusPill></span>}><div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"><InfoCell label={fr ? "Type d’or" : "Gold type"}>{selected?.type || "—"}</InfoCell><InfoCell label={fr ? "Poids brut" : "Gross weight"}>{selected ? `${fmt(selected.gross)} kg` : "—"}</InfoCell><InfoCell label={fr ? "Essai / pureté" : "Assay / purity"}>{selected ? `${selected.purity.toFixed(2)} %` : "—"}</InfoCell><InfoCell label={fr ? "Teneur en or fin" : "Fine gold content"}>{selected ? `${fmt(fineKg)} kg · ${fmt(fineOz, 2)} oz` : "—"}</InfoCell></div></RefiningPanel>
 
-          <RefiningPanel icon={Clock3} title={fr ? "Conditions de raffinage" : "Refining terms"} badge="US-R02">
-            <Label>{fr ? "Canal de raffinage" : "Refining channel"} <span className="text-primary">*</span></Label>
+          <RefiningPanel icon={Clock3} title={fr ? "Conditions de raffinage" : "Refining terms"}>
+            <Label>{fr ? "Canal de raffinage" : "Refining channel"} <span className="text-destructive">*</span></Label>
             <div className="mt-2 grid gap-3 md:grid-cols-2">
               <ChannelCard selected={channel === "domestic"} title={fr ? "Raffinage à façon national" : "Domestic toll refining"} description={fr ? "Kinshasa Refinery SA · pas encore GD · délai plus court" : "Kinshasa Refinery SA · not yet GD-accredited · faster turnaround"} onClick={() => chooseChannel("domestic")} />
               <ChannelCard selected={channel === "export"} title={fr ? "Export vers une raffinerie accréditée" : "Export to accredited refiner"} description={fr ? "Rand Refinery, Afrique du Sud · LBMA GD · logistique et assurance" : "Rand Refinery, South Africa · LBMA GD accredited · logistics + insurance"} onClick={() => chooseChannel("export")} />
@@ -146,7 +146,7 @@ export function RefiningOrderForm() {
               <Field label={fr ? "Titre cible" : "Target output fineness"}><Select value={fineness} onValueChange={setFineness}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="995">995.0 ‰</SelectItem><SelectItem value="9999">999.9 ‰</SelectItem></SelectContent></Select></Field>
               <Field label={fr ? "Délai (jours ouvrés)" : "Turnaround (business days)"}><Input type="number" value={turnaround} onChange={(event) => setTurnaround(event.target.value)} /></Field>
               <Field label={fr ? "Frais de raffinage" : "Refining fee"}><div className="flex gap-2"><Input type="number" step="0.01" value={fee} onChange={(event) => setFee(event.target.value)} /><Select value={feeUnit} onValueChange={(value) => setFeeUnit(value as "oz" | "g")}><SelectTrigger className="w-[150px]"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="oz">USD / fine oz</SelectItem><SelectItem value="g">USD / fine g</SelectItem></SelectContent></Select></div></Field>
-              <Field label={fr ? "Perte attendue (%)" : "Expected refining loss (%)"}><Input type="number" step="0.01" value={loss} onChange={(event) => setLoss(event.target.value)} /><p className="text-xs text-muted-foreground">US-R04</p></Field>
+              <Field label={fr ? "Perte attendue (%)" : "Expected refining loss (%)"}><Input type="number" step="0.01" value={loss} onChange={(event) => setLoss(event.target.value)} /><p className="text-xs text-muted-foreground"></p></Field>
               <Field label={fr ? "Or fin attendu en sortie" : "Expected outturn fine gold"}><Input readOnly value={selected ? `${fmt(outturnKg)} kg` : ""} className="bg-muted/50" /></Field>
             </div>
           </RefiningPanel>
@@ -160,11 +160,11 @@ export function RefiningOrderForm() {
         </TabsContent>
         <TabsContent value="trace" className="mt-4"><RefiningPanel icon={Box} title={fr ? "Chaîne de garde et de provenance" : "Custody & provenance chain"}><Timeline items={[
           { state: "done", title: "Purchase order accepted — GAC-TRK-MRUYZ7EK", meta: "21/07/2026 · Wolo · 50.000 kg doré, 88.50% assay" },
-          { state: "done", title: "Vault intake — DORE-2026-0421", meta: "BCC Vault Kinshasa · fine gold 44.250 kg (US-05)" },
-          { state: "current", title: "Refining order created — GAC-REF-2026-014", meta: fr ? "En attente d’approbation et d’expédition (US-R02)" : "Awaiting approval & dispatch (US-R02)" },
-          { state: "pending", title: fr ? "Expédition vers la raffinerie" : "Dispatch to refiner", meta: "Pending — seals, weights & transport docs (US-R03)" },
-          { state: "pending", title: "Outturn & reconciliation", meta: "Pending — refined bars vs fine gold in (US-R04)" },
-          { state: "pending", title: fr ? "Éligibilité et allocation aux réserves" : "Reserve eligibility & allocation", meta: "Pending — US-R05 / US-06" },
+          { state: "done", title: "Vault intake — DORE-2026-0421", meta: "BCC Vault Kinshasa · fine gold 44.250 kg" },
+          { state: "current", title: "Refining order created — GAC-REF-2026-014", meta: fr ? "En attente d’approbation et d’expédition" : "Awaiting approval & dispatch" },
+          { state: "pending", title: fr ? "Expédition vers la raffinerie" : "Dispatch to refiner", meta: "Pending — seals, weights & transport docs" },
+          { state: "pending", title: "Outturn & reconciliation", meta: "Pending — refined bars vs fine gold in" },
+          { state: "pending", title: fr ? "Éligibilité et allocation aux réserves" : "Reserve eligibility & allocation", meta: fr ? "En attente de classification" : "Pending classification" },
         ]} /></RefiningPanel></TabsContent>
       </Tabs>
 

@@ -124,7 +124,7 @@ export default function RMRefereeApprovalPage() {
         <div className="flex flex-1 flex-col overflow-hidden">
           <AppHeader
             title={language === "fr" ? "Approbation Arbitre Proposé — Gestionnaire Réserves" : "Proposed Referee Approval — Reserve Manager"}
-            subtitle={`${shipmentId} · US-05`}
+            subtitle={shipmentId}
           />
           <main className="flex-1 overflow-y-auto p-4 md:p-6">
             <div className="mx-auto max-w-3xl space-y-6">

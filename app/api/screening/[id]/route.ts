@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { sql, ensureTablesExist } from "@/lib/db";
 import crypto from "crypto";
 
-// US-01 Policy Configuration (externalized for configurability)
+//  Policy Configuration (externalized for configurability)
 const US01_POLICY = {
   version: "2026.1",
   weights: {
@@ -29,7 +29,7 @@ function generateAuditHash(data: object): string {
   return crypto.createHash("sha256").update(jsonString).digest("hex");
 }
 
-// US-01 Adverse Media Scoring
+//  Adverse Media Scoring
 function getAdverseMediaScore(hits: number): number {
   if (hits === 0) return 0;
   if (hits <= US01_POLICY.mediaThresholds.low.maxHits) return US01_POLICY.mediaThresholds.low.score;
@@ -37,7 +37,7 @@ function getAdverseMediaScore(hits: number): number {
   return US01_POLICY.mediaThresholds.high.score;
 }
 
-// US-01 Risk Classification
+//  Risk Classification
 function classifyRisk(score: number): {
   classification: "LOW" | "MEDIUM" | "HIGH" | "BLOCKED";
   status: "PENDING_STANDARD_REVIEW" | "PENDING_ENHANCED_REVIEW" | "PENDING_SENIOR_REVIEW" | "AUTOMATIC_REJECTION";
@@ -93,7 +93,7 @@ export async function POST(
     const now = new Date().toISOString();
 
     // ============================================
-    // US-01 PRELIMINARY COMPLIANCE SCORE CALCULATION
+    //  PRELIMINARY COMPLIANCE SCORE CALCULATION
     // ============================================
 
     // Step 1: Sanctions Gate (Blocking)
@@ -203,7 +203,7 @@ export async function POST(
     // Delete existing screening results
     await sql`DELETE FROM screening_results WHERE counterparty_id = ${id}`;
 
-    // Save US-01 Compliance Score with full audit trail
+    // Save  Compliance Score with full audit trail
     await sql`
       INSERT INTO screening_results (id, counterparty_id, check_type, result, details, checked_at)
       VALUES (
@@ -249,7 +249,7 @@ export async function POST(
       )
     `;
 
-    // Map US-01 classification to screening status
+    // Map  classification to screening status
     const screeningStatus = classification === "BLOCKED" ? "failed" :
                             classification === "LOW" ? "passed" : "manual_review";
 

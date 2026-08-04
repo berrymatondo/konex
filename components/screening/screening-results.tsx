@@ -53,7 +53,7 @@ export function ScreeningResults({
 }: ScreeningResultsProps) {
   const { t, language } = useLanguage();
   
-  // State for the 4 screening criteria (US-01 Compliance Score)
+  // State for the 4 screening criteria ( Compliance Score)
   const [sanctionsStatus, setSanctionsStatus] = useState<ClearStatusType>("clear");
   const [pepStatus, setPepStatus] = useState<ClearStatusType>("clear");
   const [adverseMediaHits, setAdverseMediaHits] = useState<number>(0);
@@ -62,14 +62,14 @@ export function ScreeningResults({
   const [saveSuccess, setSaveSuccess] = useState<boolean | null>(null);
   const [complianceNotes, setComplianceNotes] = useState<string>("");
 
-  // US-01 Policy Weights (externalized for configurability)
+  //  Policy Weights (externalized for configurability)
   const POLICY_WEIGHTS = {
     pep: 0.40,
     adverseMedia: 0.35,
     otherFactors: 0.25,
   };
 
-  // US-01 Adverse Media Scoring Thresholds
+  //  Adverse Media Scoring Thresholds
   const getAdverseMediaScore = (hits: number): number => {
     if (hits === 0) return 0;
     if (hits <= 2) return 30;
@@ -77,7 +77,7 @@ export function ScreeningResults({
     return 100; // 6+ hits
   };
 
-  // US-01 Preliminary Compliance Score Calculation
+  //  Preliminary Compliance Score Calculation
   const calculatePreliminaryScore = () => {
     // Sanctions Gate: Hit = 100 (auto-block)
     if (sanctionsStatus === "not_clear") {
@@ -107,7 +107,7 @@ export function ScreeningResults({
 
     const finalScore = Math.round(rawScore);
 
-    // Risk Classification Bands (US-01 spec)
+    // Risk Classification Bands ( spec)
     let classification: "LOW" | "MEDIUM" | "HIGH" | "BLOCKED";
     let status: "PENDING_STANDARD_REVIEW" | "PENDING_ENHANCED_REVIEW" | "PENDING_SENIOR_REVIEW" | "AUTOMATIC_REJECTION";
 
@@ -140,7 +140,7 @@ export function ScreeningResults({
 
   const preliminaryScore = calculatePreliminaryScore();
   
-  // Map US-01 classification to legacy riskLevel for backward compatibility
+  // Map  classification to legacy riskLevel for backward compatibility
   const riskLevel: RiskLevelType = 
     preliminaryScore.classification === "LOW" ? "low" :
     preliminaryScore.classification === "MEDIUM" ? "medium" : "high";
@@ -153,7 +153,7 @@ export function ScreeningResults({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          // US-01 Preliminary Compliance Score data
+          //  Preliminary Compliance Score data
           sanctionsStatus,
           pepStatus,
           adverseMediaHits,
@@ -216,7 +216,7 @@ export function ScreeningResults({
               setAdverseMediaHits(adverseResult.details.hits);
             }
             
-            // Load compliance officer notes from US-01 compliance score
+            // Load compliance officer notes from  compliance score
             const complianceScoreResult = results.find((r: { check_type: string }) => r.check_type === "us01_compliance_score");
             if (complianceScoreResult?.details?.compliance_officer_notes) {
               setComplianceNotes(complianceScoreResult.details.compliance_officer_notes);
@@ -244,7 +244,7 @@ export function ScreeningResults({
     loadScreeningData();
   }, [counterparty]);
 
-  // US-01 Screening Result based on Preliminary Compliance Score
+  //  Screening Result based on Preliminary Compliance Score
   type ScreeningResultType = "passed" | "failed" | "manual_review";
   
   const calculateScreeningResult = (): ScreeningResultType => {
@@ -395,12 +395,12 @@ export function ScreeningResults({
         </CardContent>
       </Card>
 
-      {/* US-01 Preliminary Compliance Score Panel */}
+      {/*  Preliminary Compliance Score Panel */}
       <Card className="border-2 border-primary/30">
         <CardHeader className="pb-2">
           <CardTitle className="flex items-center gap-2">
             <Shield className="h-5 w-5 text-primary" />
-            {language === "fr" ? "Score de Conformité Préliminaire (US-01)" : "Preliminary Compliance Score (US-01)"}
+            {language === "fr" ? "Score de Conformité Préliminaire" : "Preliminary Compliance Score"}
           </CardTitle>
           <CardDescription>
             {language === "fr" 
@@ -519,7 +519,7 @@ export function ScreeningResults({
                 : preliminaryScore.classification === "MEDIUM"
                 ? (language === "fr" ? "Revue renforcée par l'Officier de Conformité" : "Enhanced Review by Compliance Officer")
                 : preliminaryScore.classification === "HIGH"
-                ? (language === "fr" ? "Approbation Senior + Déclenchement EDD → Route vers US-02" : "Senior Approval + EDD Trigger → Route to US-02")
+                ? (language === "fr" ? "Approbation Senior + Déclenchement EDD → Gestion des risques" : "Senior Approval + EDD Trigger → Risk Management")
                 : (language === "fr" ? "Rejet automatique - Correspondance sanctions" : "Automatic Rejection - Sanctions Hit")}
             </p>
           </div>
@@ -619,7 +619,7 @@ export function ScreeningResults({
         </div>
       )}
 
-      {/* 4 Screening Criteria Boxes (US-01 Inputs) */}
+      {/* 4 Screening Criteria Boxes ( Inputs) */}
       <div className="grid gap-6 md:grid-cols-2">
         {/* Jurisdiction Risk Score Box (Other Factors - 25%) */}
         <div className="rounded-xl border border-slate-700/50 bg-gradient-to-br from-slate-900 to-slate-800 p-5">

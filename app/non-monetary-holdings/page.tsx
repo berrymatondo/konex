@@ -19,8 +19,8 @@ export default function NonMonetaryHoldingsPage() {
             title={isFrench ? "Détention d’or non monétaire" : "Non-monetary Gold Holding"}
             subtitle={
               isFrench
-                ? "Sous-livre US-R06, suivi et remédiation des avoirs non éligibles aux réserves"
-                : "US-R06 sub-ledger, monitoring and remediation of reserve-ineligible holdings"
+                ? "Sous-livre , suivi et remédiation des avoirs non éligibles aux réserves"
+                : " sub-ledger, monitoring and remediation of reserve-ineligible holdings"
             }
           />
           <main className="flex-1 overflow-y-auto p-4 md:p-6">

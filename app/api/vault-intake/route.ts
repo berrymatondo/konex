@@ -41,7 +41,7 @@ async function ensureReceptionTable() {
   await sql`ALTER TABLE vault_receptions ADD COLUMN IF NOT EXISTS validation_status text`;
   await sql`ALTER TABLE vault_receptions ADD COLUMN IF NOT EXISTS certificate_pathname text`;
   await sql`ALTER TABLE vault_receptions ADD COLUMN IF NOT EXISTS certificate_file_name text`;
-  // Section 1 — arrival details & per-seal verification (US-05 reference screens)
+  // Section 1 — arrival details & per-seal verification ( reference screens)
   await sql`ALTER TABLE vault_receptions ADD COLUMN IF NOT EXISTS arrival_date text`;
   await sql`ALTER TABLE vault_receptions ADD COLUMN IF NOT EXISTS arrival_time text`;
   await sql`ALTER TABLE vault_receptions ADD COLUMN IF NOT EXISTS received_by text`;

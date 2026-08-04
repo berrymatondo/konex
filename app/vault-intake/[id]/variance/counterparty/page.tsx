@@ -115,7 +115,7 @@ export default function CounterpartyVariancePortalPage() {
         <div className="flex flex-1 flex-col overflow-hidden">
           <AppHeader
             title={language === "fr" ? "Portail Contrepartie — Mise en Attente Écart de Poids" : "Counterparty Portal — Weight Variance Hold"}
-            subtitle={`${shipmentId} · US-05`}
+            subtitle={shipmentId}
           />
           <main className="flex-1 overflow-y-auto p-4 md:p-6">
             <div className="mx-auto max-w-3xl space-y-6">
@@ -210,8 +210,8 @@ export default function CounterpartyVariancePortalPage() {
                         selectedClass: "border-emerald-500 bg-emerald-100 ring-2 ring-emerald-500",
                         titleFr: "Accepter le Poids Ajusté",
                         titleEn: "Accept Adjusted Weight",
-                        descFr: `Accepter le règlement sur ${varianceDetails.vaultFineOz.toFixed(2)} oz fin. Le processus US-06 démarrera immédiatement.`,
-                        descEn: `Accept settlement on ${varianceDetails.vaultFineOz.toFixed(2)} fine oz. US-06 process will start immediately.`,
+                        descFr: `Accepter le règlement sur ${varianceDetails.vaultFineOz.toFixed(2)} oz fin. Le processus de règlement démarrera immédiatement.`,
+                        descEn: `Accept settlement on ${varianceDetails.vaultFineOz.toFixed(2)} fine oz. The settlement process will start immediately.`,
                         badge: null,
                       },
                       {

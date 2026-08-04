@@ -168,7 +168,7 @@ export default function SecurityOfficerResolutionPage() {
         <div className="flex flex-1 flex-col overflow-hidden">
           <AppHeader
             title={language === "fr" ? "Résolution Incident Scellé" : "Seal Mismatch — Security Officer Resolution"}
-            subtitle={`${shipmentId} · US-05 Escalation`}
+            subtitle={`${shipmentId} · Escalation`}
           />
           <main className="flex-1 overflow-y-auto p-4 md:p-6">
             <div className="mx-auto max-w-4xl space-y-6">

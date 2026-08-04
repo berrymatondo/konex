@@ -44,7 +44,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { generateDispatchPDF } from "@/lib/pdf-generator";
 
-// Document types for US-04
+// Document types for 
 const REQUIRED_DOCS = [
   { id: "export_license", name: { en: "Export License", fr: "Licence d'Exportation" }, icon: FileText },
   { id: "certificate_origin", name: { en: "Certificate of Origin", fr: "Certificat d'Origine" }, icon: Globe },
@@ -604,7 +604,7 @@ export default function DispatchDetailPage({ params }: { params: Promise<{ id: s
                 </CardHeader>
               </Card>
 
-              {/* Main Tabs - 4 Screens of US-04 */}
+              {/* Main Tabs - 4 Screens of  */}
               <Tabs value={activeTab} onValueChange={setActiveTab}>
                 <TabsList className="grid w-full grid-cols-4">
                   <TabsTrigger value="documents" className="text-xs sm:text-sm">

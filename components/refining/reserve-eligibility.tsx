@@ -25,17 +25,17 @@ const SCENARIOS: Record<ScenarioKey, { refiner: string; gates: Gate[] }> = {
   domestic: {
     refiner: "Kinshasa Refinery SA",
     gates: [
-      { title: "Output fineness ≥ 995‰", description: "All accepted bars meet the minimum monetary-gold fineness", evidence: "Verified assay · US-R04", value: "≥ 995‰", pass: true },
-      { title: "LBMA Good Delivery accredited refiner", description: "Produced by a refiner on the current LBMA GD list", evidence: "Counterparty record · US-R01", value: "Not accredited", pass: false },
-      { title: "Responsible sourcing verified", description: "OECD Due Diligence / LBMA Responsible Gold on file", evidence: "Counterparty record · US-R01", value: "On file", pass: true },
+      { title: "Output fineness ≥ 995‰", description: "All accepted bars meet the minimum monetary-gold fineness", evidence: "Verified assay", value: "≥ 995‰", pass: true },
+      { title: "LBMA Good Delivery accredited refiner", description: "Produced by a refiner on the current LBMA GD list", evidence: "Counterparty record", value: "Not accredited", pass: false },
+      { title: "Responsible sourcing verified", description: "OECD Due Diligence / LBMA Responsible Gold on file", evidence: "Counterparty record", value: "On file", pass: true },
     ],
   },
   export: {
     refiner: "Rand Refinery (South Africa)",
     gates: [
-      { title: "Output fineness ≥ 995‰", description: "All accepted bars meet the minimum monetary-gold fineness", evidence: "Verified assay · US-R04", value: "999.9‰", pass: true },
-      { title: "LBMA Good Delivery accredited refiner", description: "Produced by a refiner on the current LBMA GD list", evidence: "Counterparty record · US-R01", value: "GD accredited", pass: true },
-      { title: "Responsible sourcing verified", description: "OECD Due Diligence / LBMA Responsible Gold on file", evidence: "Counterparty record · US-R01", value: "On file", pass: true },
+      { title: "Output fineness ≥ 995‰", description: "All accepted bars meet the minimum monetary-gold fineness", evidence: "Verified assay", value: "999.9‰", pass: true },
+      { title: "LBMA Good Delivery accredited refiner", description: "Produced by a refiner on the current LBMA GD list", evidence: "Counterparty record", value: "GD accredited", pass: true },
+      { title: "Responsible sourcing verified", description: "OECD Due Diligence / LBMA Responsible Gold on file", evidence: "Counterparty record", value: "On file", pass: true },
     ],
   },
 };
@@ -57,7 +57,7 @@ export function ReserveEligibility() {
     if (decision === "returned") return { tone: "warning", title: fr ? "Classification retournée au rapprochement" : "Classification returned to reconciliation", description: note };
     if (decision === "rejected") return { tone: "danger", title: fr ? "Classification rejetée" : "Classification rejected", description: note };
     if (decision === "confirmed" && eligible) return { tone: "success", title: fr ? "Classé comme or monétaire — transmis à l’allocation des réserves" : "Classified as monetary gold — routed to reserve allocation", description: fr ? "Comptabilisé comme or monétaire conformément à l’IRFCL, section I.A." : "Booked as monetary gold under IRFCL Section I.A." };
-    if (decision === "confirmed") return { tone: "warning", title: fr ? "Classé comme or non monétaire — transmis au compte de détention" : "Classified as non-monetary gold — routed to holding", description: fr ? "Comptabilisé dans le sous-livre non monétaire pour remédiation (US-R06)." : "Booked to the non-monetary holding sub-ledger for remediation (US-R06)." };
+    if (decision === "confirmed") return { tone: "warning", title: fr ? "Classé comme or non monétaire — transmis au compte de détention" : "Classified as non-monetary gold — routed to holding", description: fr ? "Comptabilisé dans le sous-livre non monétaire pour remédiation." : "Booked to the non-monetary holding sub-ledger for remediation." };
     return { tone: "info", title: fr ? "Outturn rapproché — classification d’éligibilité aux réserves" : "Outturn reconciled — classify for reserve eligibility", description: fr ? "Le système a évalué les critères à partir de la contrepartie et de l’essai vérifié. Examinez les preuves et attestez la classification." : "The system evaluated the gates from the counterparty record and verified assay. Review the evidence and attest the classification." };
   }, [decision, eligible, fr, note]);
 
@@ -89,17 +89,17 @@ export function ReserveEligibility() {
         <div className="space-y-4">
           <RefiningPanel icon={PackageCheck} title={fr ? "Outturn rapproché à classifier" : "Reconciled outturn to classify"}><div className="grid gap-4 sm:grid-cols-3"><InfoCell label={fr ? "Raffinerie" : "Refiner"}>{current.refiner}</InfoCell><InfoCell label={fr ? "Lingots raffinés" : "Refined bars"}>3 · KRS-2026-1187/88/89</InfoCell><InfoCell label={fr ? "Or fin vérifié" : "Verified fine gold"}>44.054 kg · 1,416.36 oz</InfoCell></div></RefiningPanel>
 
-          <RefiningPanel icon={CheckCircle2} title={<span className="flex flex-wrap items-center gap-2">{fr ? "Critères d’éligibilité" : "Eligibility gates"}<StatusPill>US-R05 · {fr ? "évaluation automatique" : "rule-evaluated"}</StatusPill></span>}>
+          <RefiningPanel icon={CheckCircle2} title={<span className="flex flex-wrap items-center gap-2">{fr ? "Critères d’éligibilité" : "Eligibility gates"}<StatusPill> · {fr ? "évaluation automatique" : "rule-evaluated"}</StatusPill></span>}>
             <div className="mb-4 flex justify-end"><div className="inline-flex rounded-lg border bg-muted/30 p-1"><button type="button" disabled={locked} onClick={() => { setScenario("domestic"); setAttested(false); }} className={`rounded-md px-3 py-1.5 text-xs font-medium ${scenario === "domestic" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"}`}>{fr ? "Cet ordre" : "This order"}</button><button type="button" disabled={locked} onClick={() => { setScenario("export"); setAttested(false); }} className={`rounded-md px-3 py-1.5 text-xs font-medium ${scenario === "export" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"}`}>{fr ? "Aperçu : export via Rand Refinery" : "Preview: export via Rand Refinery"}</button></div></div>
             <div className="space-y-3">{current.gates.map((gate) => <GateRow key={gate.title} gate={gate} fr={fr} />)}</div>
           </RefiningPanel>
         </div>
 
         <RefiningPanel icon={ShieldCheck} title={fr ? "Classification déterminée" : "Determined classification"} className="xl:sticky xl:top-20">
-          <div className={`rounded-lg border p-5 ${eligible ? "border-emerald-500/40 bg-emerald-500/5" : "border-amber-500/40 bg-amber-500/5"}`}><p className="text-[11px] uppercase tracking-wide text-muted-foreground">{fr ? "Classification" : "Classification"}</p><p className={`mt-2 text-xl font-semibold ${eligible ? "text-emerald-500" : "text-amber-500"}`}>{eligible ? (fr ? "✓ Or monétaire" : "✓ Monetary gold") : (fr ? "Or non monétaire" : "Non-monetary gold")}</p><p className="mt-3 text-xs leading-5 text-muted-foreground">{eligible ? (fr ? "Tous les critères sont satisfaits. Comptabilisation comme actif de réserve et transmission à l’allocation des réserves (US-06)." : "All gates pass. Book as a reserve asset and route to reserve allocation (US-06).") : (fr ? `Échec : ${failedGates.map((gate) => gate.title).join(", ")}. Comptabilisation comme or non monétaire et transmission au sous-livre de détention (US-R06).` : `Fails: ${failedGates.map((gate) => gate.title).join(", ")}. Book as non-monetary gold and route to the holding sub-ledger (US-R06).`)}</p></div>
+          <div className={`rounded-lg border p-5 ${eligible ? "border-emerald-500/40 bg-emerald-500/5" : "border-amber-500/40 bg-amber-500/5"}`}><p className="text-[11px] uppercase tracking-wide text-muted-foreground">{fr ? "Classification" : "Classification"}</p><p className={`mt-2 text-xl font-semibold ${eligible ? "text-emerald-500" : "text-amber-500"}`}>{eligible ? (fr ? "✓ Or monétaire" : "✓ Monetary gold") : (fr ? "Or non monétaire" : "Non-monetary gold")}</p><p className="mt-3 text-xs leading-5 text-muted-foreground">{eligible ? (fr ? "Tous les critères sont satisfaits. Comptabilisation comme actif de réserve et transmission à l’allocation des réserves." : "All gates pass. Book as a reserve asset and route to reserve allocation.") : (fr ? `Échec : ${failedGates.map((gate) => gate.title).join(", ")}. Comptabilisation comme or non monétaire et transmission au sous-livre de détention.` : `Fails: ${failedGates.map((gate) => gate.title).join(", ")}. Book as non-monetary gold and route to the holding sub-ledger.`)}</p></div>
 
           <div className="my-5 border-t" />
-          <label className="flex cursor-pointer items-start gap-3"><Checkbox className="mt-0.5" checked={attested} disabled={locked} onCheckedChange={(checked) => setAttested(Boolean(checked))} /><span className="text-xs leading-5">{fr ? "J’ai examiné les preuves : accréditation (US-R01), essai vérifié (US-R04) et certifications d’approvisionnement, et j’atteste cette classification." : "I reviewed the gate evidence — accreditation (US-R01), verified assay (US-R04), and sourcing certifications — and attest this classification."}</span></label>
+          <label className="flex cursor-pointer items-start gap-3"><Checkbox className="mt-0.5" checked={attested} disabled={locked} onCheckedChange={(checked) => setAttested(Boolean(checked))} /><span className="text-xs leading-5">{fr ? "J’ai examiné les preuves : accréditation, essai vérifié et certifications d’approvisionnement, et j’atteste cette classification." : "I reviewed the gate evidence — accreditation, verified assay, and sourcing certifications — and attest this classification."}</span></label>
           <Label htmlFor="classification-note" className="mt-5">{fr ? "Note de classification" : "Classification note"}</Label><Textarea id="classification-note" className="mt-2" value={note} disabled={locked} onChange={(event) => setNote(event.target.value)} placeholder={fr ? "Facultative pour confirmer · obligatoire pour retourner ou rejeter" : "Optional for confirm · required to return or reject"} />
           {error && <p className="mt-2 text-xs text-destructive">{error}</p>}
 
@@ -123,7 +123,7 @@ export function ReserveEligibility() {
             </Button>
           )}
 
-          <p className="mt-4 rounded-lg border bg-muted/30 p-3 text-[11px] leading-4 text-muted-foreground">{eligible ? (fr ? "La classification découle automatiquement des preuves. Le gestionnaire des réserves l’atteste ; il ne s’agit pas d’un choix discrétionnaire." : "Classification is rule-determined from evidence. The Reserve Manager attests; it is not discretionary.") : (fr ? "La classification ne peut pas devenir monétaire tant qu’un critère échoue. La remédiation US-R06 exige un nouveau raffinage accrédité ou l’obtention de l’accréditation." : "Classification cannot be monetary while any gate fails. US-R06 remediation requires accredited re-refining or accreditation.")}</p>
+          <p className="mt-4 rounded-lg border bg-muted/30 p-3 text-[11px] leading-4 text-muted-foreground">{eligible ? (fr ? "La classification découle automatiquement des preuves. Le gestionnaire des réserves l’atteste ; il ne s’agit pas d’un choix discrétionnaire." : "Classification is rule-determined from evidence. The Reserve Manager attests; it is not discretionary.") : (fr ? "La classification ne peut pas devenir monétaire tant qu’un critère échoue. La remédiation exige un nouveau raffinage accrédité ou l’obtention de l’accréditation." : "Classification cannot be monetary while any gate fails. Remediation requires accredited re-refining or accreditation.")}</p>
         </RefiningPanel>
       </div>
     </div>

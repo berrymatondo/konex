@@ -30,7 +30,7 @@ export const translations = {
 
     // Navigation
     nav: {
-      main: "Main",
+      main: "Pilotage",
       operations: "Operations",
       system: "System",
       dashboard: "Dashboard",
@@ -260,7 +260,7 @@ status: {
 
     // Navigation
     nav: {
-      main: "Principal",
+      main: "Pilotage",
       operations: "Opérations",
       system: "Système",
       dashboard: "Tableau de bord",

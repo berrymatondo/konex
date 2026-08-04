@@ -380,8 +380,7 @@ export function OnboardingForm() {
             <FormSection
               icon={Factory}
               title={fr ? "Raffinage et accréditation" : "Refining & accreditation"}
-              description={fr ? "Ces données déterminent l’éligibilité de l’or raffiné aux réserves (US-R05)." : "These fields drive reserve eligibility of gold refined by this counterparty (US-R05)."}
-              badge="US-R01"
+              description={fr ? "Ces données déterminent l’éligibilité de l’or raffiné aux réserves." : "These fields drive reserve eligibility of gold refined by this counterparty."}
             >
               <div className="grid gap-4 md:grid-cols-2">
                 <Field label="LBMA Good Delivery status" required>
@@ -440,7 +439,7 @@ export function OnboardingForm() {
               />
 
               <div className="rounded-lg border border-l-4 border-l-primary bg-muted/40 p-4 text-sm">
-                <p className="text-muted-foreground"><strong className="text-foreground">{fr ? "Éligibilité aux réserves (US-R05)." : "Reserve eligibility (US-R05)."}</strong> {fr ? "L’or peut être classé comme or monétaire si la raffinerie est LBMA Good Delivery, si le titre est ≥ 995 ‰ et si une certification d’approvisionnement responsable est détenue." : "Gold can be classified as monetary gold when the refiner is LBMA Good Delivery accredited, fineness is ≥ 995 ‰, and a responsible-sourcing certification is held."}</p>
+                <p className="text-muted-foreground"><strong className="text-foreground">{fr ? "Éligibilité aux réserves." : "Reserve eligibility."}</strong> {fr ? "L’or peut être classé comme or monétaire si la raffinerie est LBMA Good Delivery, si le titre est ≥ 995 ‰ et si une certification d’approvisionnement responsable est détenue." : "Gold can be classified as monetary gold when the refiner is LBMA Good Delivery accredited, fineness is ≥ 995 ‰, and a responsible-sourcing certification is held."}</p>
                 <div className="mt-3 flex flex-wrap items-center gap-2">
                   {!refineryInputsReady ? (
                     <><Badge variant="outline" className="border-amber-500/50 text-amber-500">{fr ? "En attente" : "Awaiting inputs"}</Badge><span className="text-muted-foreground">{fr ? "Complétez les champs pour lancer l’évaluation." : "Complete the fields to evaluate."}</span></>
@@ -541,11 +540,11 @@ export function OnboardingForm() {
 }
 
 function FormSection({ icon: Icon, title, description, required, badge, children }: { icon: typeof Building2; title: string; description?: string; required?: boolean; badge?: string; children: ReactNode }) {
-  return <section className="py-6 first:pt-0 last:pb-0"><div className="mb-4 flex items-center gap-2"><Icon className="h-4 w-4 text-primary" /><h3 className="text-sm font-semibold">{title}{required && <span className="ml-1 text-primary">*</span>}</h3>{badge && <Badge variant="outline" className="ml-1 border-amber-500/50 text-amber-500">{badge}</Badge>}</div>{description && <p className="-mt-2 mb-4 text-sm text-muted-foreground">{description}</p>}{children}</section>;
+  return <section className="py-6 first:pt-0 last:pb-0"><div className="mb-4 flex items-center gap-2"><Icon className="h-4 w-4 text-primary" /><h3 className="text-sm font-semibold">{title}{required && <span className="ml-1 text-destructive">*</span>}</h3>{badge && <Badge variant="outline" className="ml-1 border-amber-500/50 text-amber-500">{badge}</Badge>}</div>{description && <p className="-mt-2 mb-4 text-sm text-muted-foreground">{description}</p>}{children}</section>;
 }
 
 function Field({ label, required, className = "", children }: { label: string; required?: boolean; className?: string; children: ReactNode }) {
-  return <div className={`space-y-2 ${className}`}><Label>{label}{required && <span className="ml-1 text-primary">*</span>}</Label>{children}</div>;
+  return <div className={`space-y-2 ${className}`}><Label>{label}{required && <span className="ml-1 text-destructive">*</span>}</Label>{children}</div>;
 }
 
 function TypeCard({ selected, icon: Icon, title, description, onClick }: { selected: boolean; icon: typeof Building2; title: string; description: string; onClick: () => void }) {
@@ -553,5 +552,5 @@ function TypeCard({ selected, icon: Icon, title, description, onClick }: { selec
 }
 
 function ChoiceList({ title, required, options, values, onToggle }: { title: string; required?: boolean; options: [string, string][]; values: string[]; onToggle: (value: string) => void }) {
-  return <div className="mt-5"><Label>{title}{required && <span className="ml-1 text-primary">*</span>}</Label><div className="mt-2 space-y-2">{options.map(([value, label]) => <div key={value} className="flex items-center gap-3"><Checkbox id={value} checked={values.includes(value)} onCheckedChange={() => onToggle(value)} /><Label htmlFor={value} className="font-normal">{label}</Label></div>)}</div></div>;
+  return <div className="mt-5"><Label>{title}{required && <span className="ml-1 text-destructive">*</span>}</Label><div className="mt-2 space-y-2">{options.map(([value, label]) => <div key={value} className="flex items-center gap-3"><Checkbox id={value} checked={values.includes(value)} onCheckedChange={() => onToggle(value)} /><Label htmlFor={value} className="font-normal">{label}</Label></div>)}</div></div>;
 }

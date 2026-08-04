@@ -87,7 +87,7 @@ export async function POST(request: Request) {
       notes,
     } = body;
 
-    // Calculate overall score per US-02 algorithm:
+    // Calculate overall score per  algorithm:
     // Country Risk (30%), Source Type (25%), UBO/PEP (20%), Volume/History (15%), Feed Confidence (10%)
     let rawScore = 
       (countryRiskScore || 0) * 0.30 + 
@@ -96,14 +96,14 @@ export async function POST(request: Request) {
       (volumeRiskScore || 0) * 0.15 +
       50 * 0.10; // Feed confidence assumed 50%
     
-    // Add bonuses per US-02 algorithm
+    // Add bonuses per  algorithm
     if (mercuryFlag) rawScore += 15;
     if (isCAHRA) rawScore += 20;
     
     const overallScore = Math.min(100, Math.round(rawScore));
     
     const riskTier = calculateRiskTier(overallScore);
-    // EDD required for HIGH/CRITICAL or ASM/Mercury exposure per US-02
+    // EDD required for HIGH/CRITICAL or ASM/Mercury exposure per 
     const eddRequired = riskTier === "high" || riskTier === "critical" || mercuryFlag || clientEddRequired;
 
     const assessmentId = generateId("ra");

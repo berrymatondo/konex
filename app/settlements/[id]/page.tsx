@@ -68,6 +68,12 @@ const LBMA_RATES = {
   PM: { rate: 2351.20, timestamp: "2026-05-14T15:00:00Z" },
 };
 
+async function createSettlementAuditHash(payload: Record<string, unknown>) {
+  const bytes = new TextEncoder().encode(JSON.stringify(payload));
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
 // Mock settlement data
 const mockSettlements: Record<string, {
   id: string;
@@ -162,7 +168,7 @@ const mockSettlements: Record<string, {
     approver2: { name: "Jean-Pierre Martin", role: "Treasury Director", approved: true, timestamp: "2026-05-12T11:30:00Z" },
     settlementId: "SETT-2026-4482",
     reserveAccountId: "CB-RESERVE-001",
-    auditHash: "a3b2c0d4e5f67890bcda15b8a3d4e5f6...7890abcd",
+    auditHash: "a3b2c0d4e5f67890bcda15b8a3d4e5f61234567890abcdef1234567890abcd",
     valuationDate: "2026-05-12",
   },
 };
@@ -354,8 +360,15 @@ export default function SettlementDetailPage({ params }: { params: Promise<{ id:
     if (otp1.length === 6 && otp2.length === 6) {
       setApprovalStatus("processing");
 
-      const newAuditHash = `a3b2c0d4e5f6...${Math.random().toString(36).substring(7)}`;
       const paymentReference = `PAY-${Date.now()}`;
+      const executedAt = new Date().toISOString();
+      const newAuditHash = await createSettlementAuditHash({
+        settlementId: settlement.settlementId || resolvedParams.id,
+        poReference: settlement.poReference,
+        pureAuWeightKg: settlement.pureAuWeightKg,
+        paymentReference,
+        executedAt,
+      });
 
       try {
         // Persist final status to DB — this is the critical step
@@ -365,6 +378,7 @@ export default function SettlementDetailPage({ params }: { params: Promise<{ id:
           body: JSON.stringify({
             status: "allocated",
             paymentReference,
+            auditHash: newAuditHash,
             notes: `Règlement exécuté. Hash d'audit: ${newAuditHash}`,
           }),
         });
@@ -404,6 +418,60 @@ export default function SettlementDetailPage({ params }: { params: Promise<{ id:
       }));
       setActiveTab("allocation");
     }
+  };
+
+  const handleDownloadAllocationCertificate = async () => {
+    const troyOunces = settlement.pureAuWeightKg * 32.1507;
+    const pricePerOz = 2650;
+    const grossValue = troyOunces * pricePerOz;
+    const totalDeductions = settlement.logisticsCost + settlement.insuranceCost + settlement.assayFees + settlement.withholdingTax;
+    const netPayable = grossValue - totalDeductions;
+    const settlementId = settlement.settlementId || resolvedParams.id;
+    let auditHash = settlement.auditHash;
+
+    if (!auditHash) {
+      auditHash = await createSettlementAuditHash({
+        settlementId,
+        poReference: settlement.poReference,
+        pureAuWeightKg: settlement.pureAuWeightKg,
+        netPayable,
+        currency: settlement.currency,
+      });
+
+      const response = await fetch(`/api/settlements/${resolvedParams.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ auditHash }),
+      });
+      if (!response.ok) {
+        alert(language === "fr" ? "Impossible d’enregistrer le hash d’audit." : "Unable to save the audit hash.");
+        return;
+      }
+      setSettlement((previous) => ({ ...previous, auditHash }));
+    }
+
+    generateAllocationCertificatePDF({
+      settlementId,
+      poReference: settlement.poReference,
+      counterpartyName: settlement.counterparty.name,
+      counterpartyIban: settlement.counterparty.iban,
+      counterpartySwift: settlement.counterparty.swift,
+      counterpartyJurisdiction: settlement.counterparty.jurisdiction,
+      netWeightKg: settlement.netWeightKg,
+      purity: settlement.purity,
+      pureAuWeightKg: settlement.pureAuWeightKg,
+      pricePerOz,
+      totalGrossValue: grossValue,
+      totalDeductions,
+      netPayable,
+      currency: settlement.currency,
+      reserveAccountId: settlement.reserveAccountId || "CB-RESERVE-001",
+      auditHash,
+      valuationDate: settlement.valuationDate || new Date().toISOString().split("T")[0],
+    }, {
+      title: language === "fr" ? "Certificat d'Allocation" : "Allocation Certificate",
+      filename: `CERT-${settlement.settlementId || settlement.poReference}.pdf`,
+    });
   };
 
   const handleViewAuditTrail = async () => {
@@ -458,7 +526,7 @@ export default function SettlementDetailPage({ params }: { params: Promise<{ id:
         <div className="flex flex-1 flex-col overflow-hidden">
           <AppHeader
             title={`${language === "fr" ? "Règlement" : "Settlement"} - ${settlement.poReference}`}
-            subtitle={language === "fr" ? "Valorisation, règlement et allocation US-06" : "Valuation, Settlement & Allocation US-06"}
+            subtitle={language === "fr" ? "Valorisation, règlement et allocation" : "Valuation, Settlement & Allocation"}
           />
           <main className="flex-1 overflow-y-auto p-4 md:p-6">
             {isLoadingSettlement ? (
@@ -1079,7 +1147,7 @@ export default function SettlementDetailPage({ params }: { params: Promise<{ id:
                       <CardContent>
                         <div className="flex items-center gap-2">
                           <code className="flex-1 bg-muted p-3 rounded font-mono text-sm overflow-hidden text-ellipsis">
-                            {settlement.auditHash || "a3b2c0d4e5f6...7890abcd"}
+                            {settlement.auditHash || "—"}
                           </code>
                           <Button variant="ghost" size="icon">
                             <Copy className="h-4 w-4" />
@@ -1128,36 +1196,7 @@ export default function SettlementDetailPage({ params }: { params: Promise<{ id:
                     )}
                     <Button
                       className="min-w-[220px]"
-                      onClick={() => {
-                        const troyOunces = settlement.pureAuWeightKg * 32.1507;
-                        const pricePerOz = 2650; // Current fixing price
-                        const grossValue = troyOunces * pricePerOz;
-                        const totalDeductions = settlement.logisticsCost + settlement.insuranceCost + settlement.assayFees + settlement.withholdingTax;
-                        const netPayable = grossValue - totalDeductions;
-                        
-                        generateAllocationCertificatePDF({
-                          settlementId: settlement.settlementId || `SETT-${new Date().getFullYear()}-${Math.floor(Math.random() * 9999)}`,
-                          poReference: settlement.poReference,
-                          counterpartyName: settlement.counterparty.name,
-                          counterpartyIban: settlement.counterparty.iban,
-                          counterpartySwift: settlement.counterparty.swift,
-                          counterpartyJurisdiction: settlement.counterparty.jurisdiction,
-                          netWeightKg: settlement.netWeightKg,
-                          purity: settlement.purity,
-                          pureAuWeightKg: settlement.pureAuWeightKg,
-                          pricePerOz: pricePerOz,
-                          totalGrossValue: grossValue,
-                          totalDeductions: totalDeductions,
-                          netPayable: netPayable,
-                          currency: settlement.currency,
-                          reserveAccountId: settlement.reserveAccountId || "CB-RESERVE-001",
-                          auditHash: settlement.auditHash || "pending...",
-                          valuationDate: settlement.valuationDate || new Date().toISOString().split("T")[0],
-                        }, {
-                          title: language === "fr" ? "Certificat d'Allocation" : "Allocation Certificate",
-                          filename: `CERT-${settlement.settlementId || settlement.poReference}.pdf`,
-                        });
-                      }}
+                      onClick={handleDownloadAllocationCertificate}
                     >
                       <Download className="mr-2 h-4 w-4" />
                       {language === "fr" ? "Télécharger Certificat d'Allocation" : "Download Allocation Certificate"}

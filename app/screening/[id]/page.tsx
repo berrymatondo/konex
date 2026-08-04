@@ -77,13 +77,13 @@ export default function ScreeningPage() {
       return;
     }
     
-    // US-01: On approval, transition to PENDING_RISK_REVIEW for US-02 risk tier assignment
+    // : On approval, transition to PENDING_RISK_REVIEW for  risk tier assignment
     await fetch(`/api/counterparties/${counterpartyId}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ...counterparty, status: "pending_risk_review" }),
     });
-    // Route to US-02 Risk Management for comprehensive risk tier assignment
+    // Route to  Risk Management for comprehensive risk tier assignment
     router.push("/risk-management?new=" + counterpartyId);
   };
 

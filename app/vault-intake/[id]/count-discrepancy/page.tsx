@@ -160,7 +160,7 @@ export default function CountDiscrepancyPage() {
         <div className="flex flex-1 flex-col overflow-hidden">
           <AppHeader
             title={language === "fr" ? "Discordance Comptage Barres — Gestionnaire Coffre" : "Bar Count Discrepancy — Vault Manager"}
-            subtitle={`${shipmentId} · US-05 Escalation`}
+            subtitle={`${shipmentId} · Escalation`}
           />
           <main className="flex-1 overflow-y-auto p-4 md:p-6">
             <div className="mx-auto max-w-4xl space-y-6">

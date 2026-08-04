@@ -235,7 +235,7 @@ export default function VaultIntakePage() {
         <div className="flex flex-1 flex-col overflow-hidden">
           <AppHeader
             title={language === "fr" ? "Réception Coffre" : "Vault Intake"}
-            subtitle={language === "fr" ? "Réception physique et vérification des expéditions d'or (US-05)" : "Physical receipt and verification of gold shipments (US-05)"}
+            subtitle={language === "fr" ? "Réception physique et vérification des expéditions d'or" : "Physical receipt and verification of gold shipments"}
           />
           <main className="flex-1 overflow-y-auto p-4 md:p-6">
             <div className="mx-auto max-w-7xl space-y-6">
@@ -303,7 +303,7 @@ export default function VaultIntakePage() {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Warehouse className="h-5 w-5" />
-                    {language === "fr" ? "Workflow US-05: Réception Coffre & Essai" : "US-05 Workflow: Vault Intake & Assay"}
+                    {language === "fr" ? "Réception Coffre & Essai" : "Vault Intake & Assay"}
                   </CardTitle>
                   <CardDescription>
                     {language === "fr"

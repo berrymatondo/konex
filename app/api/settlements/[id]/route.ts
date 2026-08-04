@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { createHash } from "crypto";
 import { sql, ensureTablesExist, createAuditLog } from "@/lib/db";
 
 export async function GET(
@@ -34,7 +35,25 @@ export async function GET(
       );
     }
 
-    return NextResponse.json(result[0]);
+    let settlement = result[0];
+    if (!settlement.audit_hash) {
+      const auditHash = createHash("sha256")
+        .update(JSON.stringify({
+          id: settlement.id,
+          reference: settlement.settlement_reference,
+          purchaseOrderId: settlement.purchase_order_id,
+          fineGoldWeightKg: settlement.fine_gold_weight_kg,
+          totalAmount: settlement.total_amount,
+          currency: settlement.currency,
+          initiatedAt: settlement.initiated_at,
+        }))
+        .digest("hex");
+
+      await sql`UPDATE settlements SET audit_hash = ${auditHash} WHERE id = ${id}`;
+      settlement = { ...settlement, audit_hash: auditHash };
+    }
+
+    return NextResponse.json(settlement);
   } catch (error) {
     console.error("Error fetching settlement:", error);
     return NextResponse.json(
@@ -52,7 +71,7 @@ export async function PUT(
     await ensureTablesExist();
     const { id } = await params;
     const body = await request.json();
-    const { status, paymentReference, notes, deductions } = body;
+    const { status, paymentReference, notes, deductions, auditHash } = body;
 
     // Get current settlement for audit
     const current = await sql`SELECT * FROM settlements WHERE id = ${id}`;
@@ -73,6 +92,7 @@ export async function PUT(
         status        = COALESCE(${status ?? null}, status),
         bank_reference = COALESCE(${paymentReference ?? null}, bank_reference),
         notes         = COALESCE(${notes ?? null}, notes),
+        audit_hash    = COALESCE(${auditHash ?? null}, audit_hash),
         logistics_cost = COALESCE(${deductions?.logisticsCost ?? null}, logistics_cost),
         insurance_cost = COALESCE(${deductions?.insuranceCost ?? null}, insurance_cost),
         assay_fees = COALESCE(${deductions?.assayFees ?? null}, assay_fees),
@@ -90,7 +110,7 @@ export async function PUT(
       action: `settlement_${status || 'updated'}`,
       previousStatus,
       newStatus: status || previousStatus,
-      details: { bankReference: paymentReference, notes, deductions },
+      details: { bankReference: paymentReference, notes, deductions, auditHash },
       performedBy: 'finance_officer',
     });
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, use } from "react";
+import { useEffect, useState, use } from "react";
 import { useRouter } from "next/navigation";
 import useSWR from "swr";
 import { AppSidebar } from "@/components/app-sidebar";
@@ -32,6 +32,21 @@ import Link from "next/link";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
+type GoldSourceType = "ASM" | "LSM" | "RECYCLED";
+
+const SOURCE_RISK_SCORES: Record<GoldSourceType, number> = {
+  ASM: 80,
+  LSM: 40,
+  RECYCLED: 20,
+};
+
+function normalizeGoldSourceType(value: unknown): GoldSourceType | null {
+  const normalized = String(value ?? "").trim().toUpperCase();
+  if (normalized === "ASM" || normalized === "LSM") return normalized;
+  if (normalized === "RECYCLED" || normalized === "RECYCLÉ" || normalized === "RECYCLE") return "RECYCLED";
+  return null;
+}
+
 function calculateRiskTier(score: number): { tier: string; color: string; bgColor: string } {
   if (score >= 80) return { tier: "critical", color: "text-red-600", bgColor: "bg-red-100 dark:bg-red-900/30" };
   if (score >= 60) return { tier: "high", color: "text-orange-500", bgColor: "bg-orange-100 dark:bg-orange-900/30" };
@@ -52,7 +67,7 @@ export default function RiskAssessmentPage({ params }: { params: Promise<{ id: s
     pep: 30,
     volume: 25,
   });
-  const [sourceType, setSourceType] = useState<"ASM" | "LSM" | "RECYCLED">("LSM");
+  const [sourceType, setSourceType] = useState<GoldSourceType | null>(null);
   const [isCAHRA, setIsCAHRA] = useState(false);
   const [notes, setNotes] = useState("");
   const [acknowledged, setAcknowledged] = useState(false);
@@ -60,11 +75,28 @@ export default function RiskAssessmentPage({ params }: { params: Promise<{ id: s
   const [mercuryAcknowledged, setMercuryAcknowledged] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Flags based on US-02 requirements
+  const registeredSourceType = Array.isArray(counterparty?.goldSourceTypes)
+    ? (counterparty.goldSourceTypes as unknown[])
+        .map(normalizeGoldSourceType)
+        .find((value: GoldSourceType | null): value is GoldSourceType => value !== null) ?? null
+    : null;
+
+  useEffect(() => {
+    if (!counterparty) return;
+    setSourceType(registeredSourceType);
+    if (registeredSourceType) {
+      setScores((previous) => ({
+        ...previous,
+        source: SOURCE_RISK_SCORES[registeredSourceType],
+      }));
+    }
+  }, [counterparty?.id, registeredSourceType]);
+
+  // Flags based on  requirements
   const mercuryFlag = sourceType === "ASM";
   const cahraFlag = isCAHRA;
 
-  // Calculate weighted overall score according to US-02 algorithm
+  // Calculate weighted overall score according to  algorithm
   // Country Risk (30%), Source Type (25%), UBO/PEP (20%), Transaction History (15%), Feed Confidence (10%)
   let rawScore = 
     scores.country * 0.30 + 
@@ -73,18 +105,18 @@ export default function RiskAssessmentPage({ params }: { params: Promise<{ id: s
     scores.volume * 0.15 +
     50 * 0.10; // Feed confidence assumed 50% for now
   
-  // Add bonuses per US-02 algorithm
+  // Add bonuses per  algorithm
   if (mercuryFlag) rawScore += 15;
   if (cahraFlag) rawScore += 20;
   
   const overallScore = Math.min(100, Math.round(rawScore));
   const riskResult = calculateRiskTier(overallScore);
   
-  // EDD required for HIGH or CRITICAL per US-02
+  // EDD required for HIGH or CRITICAL per 
   const eddRequired = riskResult.tier === "high" || riskResult.tier === "critical" || mercuryFlag;
   
   // All acknowledgments required for submission
-  const allAcknowledged = acknowledged && (!eddRequired || eddAcknowledged) && (!mercuryFlag || mercuryAcknowledged);
+  const allAcknowledged = sourceType !== null && acknowledged && (!eddRequired || eddAcknowledged) && (!mercuryFlag || mercuryAcknowledged);
 
   // Validate counterparty has all required fields before activation (Issue #7)
   const validateCounterpartyForActivation = () => {
@@ -293,7 +325,7 @@ export default function RiskAssessmentPage({ params }: { params: Promise<{ id: s
                       <Button 
                         variant={sourceType === "ASM" ? "default" : "outline"} 
                         size="sm"
-                        onClick={() => { setSourceType("ASM"); setScores({ ...scores, source: 80 }); }}
+                        onClick={() => { setSourceType("ASM"); setScores({ ...scores, source: SOURCE_RISK_SCORES.ASM }); }}
                         className={sourceType === "ASM" ? "bg-red-600 hover:bg-red-700" : ""}
                       >
                         ASM (80)
@@ -301,14 +333,14 @@ export default function RiskAssessmentPage({ params }: { params: Promise<{ id: s
                       <Button 
                         variant={sourceType === "LSM" ? "default" : "outline"} 
                         size="sm"
-                        onClick={() => { setSourceType("LSM"); setScores({ ...scores, source: 40 }); }}
+                        onClick={() => { setSourceType("LSM"); setScores({ ...scores, source: SOURCE_RISK_SCORES.LSM }); }}
                       >
                         LSM (40)
                       </Button>
                       <Button 
                         variant={sourceType === "RECYCLED" ? "default" : "outline"} 
                         size="sm"
-                        onClick={() => { setSourceType("RECYCLED"); setScores({ ...scores, source: 20 }); }}
+                        onClick={() => { setSourceType("RECYCLED"); setScores({ ...scores, source: SOURCE_RISK_SCORES.RECYCLED }); }}
                       >
                         {language === "fr" ? "Recyclé (20)" : "Recycled (20)"}
                       </Button>
@@ -504,7 +536,7 @@ export default function RiskAssessmentPage({ params }: { params: Promise<{ id: s
                       </Alert>
                     )}
 
-                    {/* Policy Acknowledgments - US-02 Screen 3 */}
+                    {/* Policy Acknowledgments -  Screen 3 */}
                     <div className="space-y-4 pt-4 border-t">
                       <p className="font-semibold text-sm">
                         {language === "fr" ? "Reconnaissances obligatoires" : "Mandatory Acknowledgments"}

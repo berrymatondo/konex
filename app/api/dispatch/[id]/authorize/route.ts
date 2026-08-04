@@ -79,7 +79,7 @@ export async function POST(
     });
 
     // Log audit entry
-    console.log(`[US-04] Dispatch authorized: ${dispatchId}, PO: ${id}, Tracking: ${trackingId}, Hash: ${authorizationHash.substring(0, 16)}...`);
+    console.log(`[] Dispatch authorized: ${dispatchId}, PO: ${id}, Tracking: ${trackingId}, Hash: ${authorizationHash.substring(0, 16)}...`);
 
     const result = {
       dispatchId,

@@ -93,7 +93,7 @@ export default function NewPurchaseOrderPage() {
 
   const { data: counterparties = [] } = useSWR<Counterparty[]>("/api/counterparties", fetcher);
 
-  // US-03: Only show APPROVED counterparties with completed EDD (if high risk).
+  // : Only show APPROVED counterparties with completed EDD (if high risk).
   const approvedEntities = counterparties.filter(
     (c) =>
       (c.status === "approved" || c.status === "active") &&

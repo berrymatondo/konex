@@ -174,7 +174,7 @@ function getLabState(lab: (typeof LABS)[number]): EquipmentState {
 // ─── Per-bar record shared by the weighing (§3) and assay (§4) steps ─────────
 interface BarRecord {
   serial: string;
-  manifestWeightKg: number | null; // declared at dispatch (US-04 manifest), null if no manifest detail
+  manifestWeightKg: number | null; // declared at dispatch ( manifest), null if no manifest detail
   vaultGrossWeightKg: string; // entered in §3
   manifestFineness: number | null; // declared at dispatch — stands in for a "reference certificate"
   vaultFineness: string; // entered in §4
@@ -471,7 +471,7 @@ export default function VaultIntakeDetailPage() {
     lbmaCompliant: true,
   });
 
-  // ─── Load existing PO data (+ US-04 manifest + saved reception) ──────────
+  // ─── Load existing PO data (+  manifest + saved reception) ──────────
   useEffect(() => {
     (async () => {
       try {
@@ -909,7 +909,7 @@ export default function VaultIntakeDetailPage() {
         <div className="flex flex-1 flex-col overflow-hidden">
           <AppHeader
             title={language === "fr" ? "Validation Réception Coffre" : "Vault Intake Validation"}
-            subtitle={`${poDisplayReference} — ${language === "fr" ? "Workflow US-05" : "US-05 Workflow"}`}
+            subtitle={`${poDisplayReference} — ${language === "fr" ? "Réception coffre" : "Vault Intake"}`}
           />
           <main className="flex-1 overflow-y-auto p-4 md:p-6">
             <div className="mx-auto max-w-5xl space-y-6">

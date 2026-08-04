@@ -166,7 +166,7 @@ export default function RefereeAppointmentPage() {
         <div className="flex flex-1 flex-col overflow-hidden">
           <AppHeader
             title={language === "fr" ? "Arbitre Indépendant — Nomination & Résultats" : "Independent Referee — Appointment & Results"}
-            subtitle={`${shipmentId} · US-05`}
+            subtitle={shipmentId}
           />
           <main className="flex-1 overflow-y-auto p-4 md:p-6">
             <div className="mx-auto max-w-4xl space-y-6">

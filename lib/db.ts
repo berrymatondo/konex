@@ -141,7 +141,8 @@ export async function ensureTablesExist() {
           logistics_cost DECIMAL(10,2),
           insurance_cost DECIMAL(10,2),
           assay_fees DECIMAL(10,2),
-          withholding_tax DECIMAL(10,2)
+          withholding_tax DECIMAL(10,2),
+          audit_hash TEXT
         )
       `;
       
@@ -268,7 +269,7 @@ export async function ensureTablesExist() {
       )
     `;
 
-    // Risk Management tables (US-02)
+    // Risk Management tables
     await sql`
       CREATE TABLE IF NOT EXISTS risk_assessments (
         id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
@@ -318,7 +319,7 @@ export async function ensureTablesExist() {
       )
     `;
 
-    // Purchase Order tables (US-03)
+    // Purchase Order tables
     await sql`
       CREATE TABLE IF NOT EXISTS purchase_orders (
         id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
@@ -359,7 +360,8 @@ export async function ensureTablesExist() {
             ADD COLUMN IF NOT EXISTS logistics_cost DECIMAL(10,2),
             ADD COLUMN IF NOT EXISTS insurance_cost DECIMAL(10,2),
             ADD COLUMN IF NOT EXISTS assay_fees DECIMAL(10,2),
-            ADD COLUMN IF NOT EXISTS withholding_tax DECIMAL(10,2);
+            ADD COLUMN IF NOT EXISTS withholding_tax DECIMAL(10,2),
+            ADD COLUMN IF NOT EXISTS audit_hash TEXT;
         END IF;
       END $$
     `;

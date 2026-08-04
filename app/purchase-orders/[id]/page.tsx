@@ -2836,8 +2836,8 @@ export default function PurchaseOrderDetailPage() {
                                 </AlertTitle>
                                 <AlertDescription>
                                   {language === "fr"
-                                    ? "L'expédition est en cours. La réception au coffre déclenchera le processus d'essai (US-04)"
-                                    : "Shipment is in progress. Vault receipt will trigger the assay process (US-04)"}
+                                    ? "L'expédition est en cours. La réception au coffre déclenchera le processus d'essai"
+                                    : "Shipment is in progress. Vault receipt will trigger the assay process"}
                                 </AlertDescription>
                               </Alert>
                             )}

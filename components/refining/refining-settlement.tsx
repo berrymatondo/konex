@@ -100,8 +100,8 @@ export function RefiningSettlement() {
         tone: "success" as const,
         title: fr ? "Instruction de règlement transmise à la Trésorerie" : "Settlement instruction issued to Treasury",
         description: fr
-          ? "Les frais ont été rapprochés et incorporés au coût du lot US-R06. Le paiement suit désormais les contrôles propres à la Trésorerie."
-          : "Charges were reconciled and capitalised into the US-R06 lot cost basis. Payment now proceeds under Treasury controls.",
+          ? "Les frais ont été rapprochés et incorporés au coût du lot . Le paiement suit désormais les contrôles propres à la Trésorerie."
+          : "Charges were reconciled and capitalised into the  lot cost basis. Payment now proceeds under Treasury controls.",
       }
     : decision === "queried"
       ? {
@@ -136,13 +136,13 @@ export function RefiningSettlement() {
 
       <WorkflowStepper active={decision === "issued" ? 3 : 2} labels={fr ? ["Outturn accepté", "Facture reçue", "Rapprochée", "Instruction transmise", "Payée (Trésorerie)"] : ["Outturn accepted", "Invoice received", "Reconciled", "Settlement instructed", "Paid (Treasury)"]} />
 
-      <RefiningPanel icon={FileText} title={<span className="flex flex-wrap items-center gap-2">{fr ? "Conditions convenues" : "Agreed terms"}<StatusPill>{fr ? "depuis l’ordre US-R02" : "from order US-R02"}</StatusPill></span>}>
+      <RefiningPanel icon={FileText} title={<span className="flex flex-wrap items-center gap-2">{fr ? "Conditions convenues" : "Agreed terms"}<StatusPill>{fr ? "Ordre de raffinage" : "Refining order"}</StatusPill></span>}>
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4"><InfoCell label={fr ? "Base des frais" : "Fee basis"}>{fr ? "Par once fine (intrant)" : "Per fine ounce (input)"}</InfoCell><InfoCell label={fr ? "Taux convenu" : "Agreed rate"}>14.50 USD/oz</InfoCell><InfoCell label={fr ? "Base d’or fin" : "Fine gold basis"}>1,422.67 oz</InfoCell><InfoCell label={fr ? "Frais de raffinage convenus" : "Agreed refining fee"}>{money(AGREED_FEE)}</InfoCell></div>
         <div className="my-4 border-t" />
         <div className="grid gap-4 sm:grid-cols-3"><InfoCell label={fr ? "Plafond des frais accessoires" : "Ancillary allowance (cap)"}>{money(ANCILLARY_CAP)}</InfoCell><InfoCell label={fr ? "Devise" : "Currency"}>USD</InfoCell><InfoCell label={fr ? "Conditions de paiement" : "Payment terms"}>T+2 {fr ? "après facture" : "from invoice"}</InfoCell></div>
       </RefiningPanel>
 
-      <RefiningPanel icon={FileText} title={fr ? "Facture de la raffinerie" : "Refiner invoice"} badge="US-R07">
+      <RefiningPanel icon={FileText} title={fr ? "Facture de la raffinerie" : "Refiner invoice"}>
         <div className="mb-4 grid gap-4 sm:grid-cols-2"><Field label={fr ? "Numéro de facture" : "Invoice number"}><Input value={invoiceNumber} disabled={locked} onChange={(event) => setInvoiceNumber(event.target.value)} /></Field><Field label={fr ? "Date de facture" : "Invoice date"}><Input type="date" value={invoiceDate} disabled={locked} onChange={(event) => setInvoiceDate(event.target.value)} /></Field></div>
         <div className="overflow-x-auto rounded-lg border"><table className="w-full min-w-[720px] text-sm"><thead className="bg-muted/50 text-left text-xs text-muted-foreground"><tr><th className="px-4 py-3 font-medium">{fr ? "Frais" : "Charge"}</th><th className="px-4 py-3 font-medium">{fr ? "Taux (USD/oz)" : "Rate (USD/oz)"}</th><th className="px-4 py-3 font-medium">{fr ? "Quantité (oz)" : "Qty (oz)"}</th><th className="px-4 py-3 text-right font-medium">{fr ? "Montant (USD)" : "Amount (USD)"}</th></tr></thead><tbody>
           <tr className="border-t"><td className="px-4 py-3">{fr ? "Frais de raffinage" : "Refining fee"}</td><td className="px-4 py-3"><Input className="w-32" type="number" step="0.01" value={feeRate} disabled={locked} onChange={(event) => setFeeRate(event.target.value)} /></td><td className="px-4 py-3"><Input className="w-32" type="number" step="0.01" value={feeQuantity} disabled={locked} onChange={(event) => setFeeQuantity(event.target.value)} /></td><td className="px-4 py-3 text-right font-medium">{money(calculation.refiningFee)}</td></tr>
@@ -166,7 +166,7 @@ export function RefiningSettlement() {
           <SummaryLine label={fr ? "Or fin vérifié (outturn)" : "Verified fine gold (outturn)"} value={`${OUTTURN_OZ.toLocaleString("en-US")} oz`} />
           <SummaryLine label={fr ? "Ajout au coût de revient" : "Added to cost basis"} value={`${calculation.landedPerOz.toFixed(2)} USD/oz`} />
           <div className="mt-3 flex items-center justify-between border-t pt-4 text-sm font-semibold"><span>{fr ? "Valeur de l’or + frais" : "Gold value + charges"}</span><span className="text-primary">{money(Math.round(calculation.landedTotal), 0)}</span></div>
-          <p className="mt-4 rounded-lg border bg-muted/30 p-3 text-xs leading-5 text-muted-foreground">{fr ? "Les frais sont incorporés au coût du lot. Ce lot étant non monétaire (US-R05), le coût complet est porté dans le sous-livre US-R06 ; pour l’or monétaire, il alimenterait le coût des réserves." : "Charges are capitalised into the lot cost basis. As this lot is non-monetary (US-R05), landed cost is carried in US-R06; for monetary gold it would feed the reserve cost basis."}</p>
+          <p className="mt-4 rounded-lg border bg-muted/30 p-3 text-xs leading-5 text-muted-foreground">{fr ? "Les frais sont incorporés au coût du lot. Ce lot étant non monétaire, le coût complet est porté dans le sous-livre  ; pour l’or monétaire, il alimenterait le coût des réserves." : "Charges are capitalised into the lot cost basis. As this lot is non-monetary, landed cost is carried in ; for monetary gold it would feed the reserve cost basis."}</p>
         </RefiningPanel>
       </div>
 

@@ -2134,23 +2134,23 @@ export function generateCahierDesChargesPDF(data: CahierDesChargesData): void {
 
 La plateforme couvre l'ensemble du cycle de vie de l'acquisition d'or:
 - Enrolement des contreparties avec verification KYC/AML
-- Scoring de conformite preliminaire automatise (US-01)
-- Workflow de diligence raisonnable base sur le risque (US-02)
-- Gestion des bons de commande avec double approbation (US-03)
-- Validation pre-expedition et dispatch (US-04)
-- Reception en coffre-fort et verification d'essai (US-05)
-- Traitement des reglements (US-06)
+- Scoring de conformite preliminaire automatise
+- Workflow de diligence raisonnable base sur le risque
+- Gestion des bons de commande avec double approbation
+- Validation pre-expedition et dispatch
+- Reception en coffre-fort et verification d'essai
+- Traitement des reglements
 - Piste d'audit complete et reporting reglementaire`
     : `Konex is a comprehensive compliance and trading platform designed for central banks to manage gold purchases from artisanal and large-scale mining operations. It implements LBMA Responsible Gold Guidance (RGG) standards and ensures full regulatory compliance.
 
 The platform covers the complete gold acquisition lifecycle:
 - Counterparty onboarding with KYC/AML verification
-- Automated preliminary compliance scoring (US-01)
-- Risk-based due diligence workflow (US-02)
-- Purchase order management with dual approval (US-03)
-- Pre-shipment validation and dispatch (US-04)
-- Vault receipt and assay verification (US-05)
-- Settlement processing (US-06)
+- Automated preliminary compliance scoring
+- Risk-based due diligence workflow
+- Purchase order management with dual approval
+- Pre-shipment validation and dispatch
+- Vault receipt and assay verification
+- Settlement processing
 - Complete audit trail and regulatory reporting`;
 
   const summaryLines = doc.splitTextToSize(summaryText, contentWidth);
