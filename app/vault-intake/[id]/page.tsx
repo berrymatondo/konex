@@ -187,10 +187,17 @@ interface ManifestBar {
 }
 
 interface ManifestInfo {
+  id: string | null;
+  reference: string | null;
+  status: string | null;
+  shipmentDate: string | null;
+  expectedArrivalDate: string | null;
   sealPrimaryDeclared: string | null;
   sealSecondaryDeclared: string | null;
   totalBars: number | null;
   carrier: string | null;
+  waybillNumber: string | null;
+  departureLocation: string | null;
   totalGrossWeightKg: number | null;
   totalFineOz: number | null;
   poFineOz: number | null;
@@ -319,11 +326,25 @@ export default function VaultIntakeDetailPage() {
         const res = await fetch("/api/dispatch");
         if (res.ok) {
           const data = await res.json();
-          setShippedPOs(
-            (Array.isArray(data) ? data : []).filter(
-              (d: { status: string }) => d.status === "in_transit" || d.status === "dispatched"
-            )
-          );
+          const eligiblePOs = (Array.isArray(data) ? data : [])
+              .filter((d: { status: string }) => d.status === "in_transit" || d.status === "dispatched")
+              .map((d: {
+                id: string;
+                poId?: string;
+                trackingId?: string | null;
+                counterpartyName: string;
+                estimatedWeight: number;
+              }) => ({
+                // /api/dispatch exposes the database id as `id`; its `poId` is a display reference.
+                poId: d.id,
+                trackingId: d.trackingId || d.poId || null,
+                counterpartyName: d.counterpartyName,
+                estimatedWeight: d.estimatedWeight,
+              }));
+          setShippedPOs((previous) => [
+            ...eligiblePOs,
+            ...previous.filter((po) => !eligiblePOs.some((eligible: { poId: string }) => eligible.poId === po.poId)),
+          ]);
         }
       } catch { /**/ }
     })();
@@ -463,17 +484,18 @@ export default function VaultIntakeDetailPage() {
         setReceivedByDefault(data.receivedByDefault || "");
         const r = data.reception;
 
-        const resolvedGrossWeightKg = r?.grossWeightKg ?? data.grossWeightKg ?? null;
+        const resolvedGrossWeightKg = r?.grossWeightKg ?? m?.totalGrossWeightKg ?? data.grossWeightKg ?? null;
         setIntakeForm((prev) => ({
           ...prev,
-          poReference: r?.selectedPoId ?? (data.poReference || prev.poReference),
+          // The selector stores the PO id; the readable PO/tracking reference is only its label.
+          poReference: r?.selectedPoId ?? data.id ?? prev.poReference,
           trackingId: data.trackingId || prev.trackingId,
           grossWeightKg: resolvedGrossWeightKg != null ? String(resolvedGrossWeightKg) : prev.grossWeightKg,
           // No saved net weight yet (fresh intake) — default it to the real gross weight
           // instead of leaving it blank/stale, so it's never wildly out of scale with it.
           netWeightKg: r?.netWeightKg != null
             ? String(r.netWeightKg)
-            : resolvedGrossWeightKg != null ? String(resolvedGrossWeightKg) : prev.netWeightKg,
+            : prev.netWeightKg,
           arrivalDate: r?.arrivalDate ?? prev.arrivalDate,
           arrivalTime: r?.arrivalTime ?? prev.arrivalTime,
           carrierRepPresent: r?.carrierRepPresent ?? prev.carrierRepPresent,
@@ -499,7 +521,8 @@ export default function VaultIntakeDetailPage() {
 
         setBarCount({
           expected: r?.barCountExpected ?? m?.totalBars ?? 0,
-          received: r?.barCountReceived ?? m?.totalBars ?? 0,
+          // The manifest provides the expected count; the physical count must be observed.
+          received: r?.barCountReceived ?? 0,
         });
 
         setSecureTransfer((prev) => ({
@@ -602,7 +625,7 @@ export default function VaultIntakeDetailPage() {
   const buildReceptionPayload = () => ({
     poId: intakeId,
     selectedPoId: intakeForm.poReference || intakeId,
-    poReference: intakeForm.poReference,
+    poReference: (intakeData?.poReference as string | undefined) || intakeForm.trackingId || intakeForm.poReference,
     trackingId: intakeForm.trackingId,
     counterpartyName:
       shippedPOs.find((po) => po.poId === intakeForm.poReference)?.counterpartyName ||
@@ -862,6 +885,23 @@ export default function VaultIntakeDetailPage() {
   };
 
   // ─── Render ───────────────────────────────────────────────────────────────
+  const poDisplayReference = (intakeData?.poReference as string | undefined) || intakeForm.trackingId || intakeForm.poReference;
+  const counterparty = intakeData?.counterparty as {
+    name?: string;
+    registrationNumber?: string | null;
+    country?: string | null;
+    contact?: string | null;
+    email?: string | null;
+    phone?: string | null;
+  } | undefined;
+  const formatKnownDate = (value: string | null | undefined) => {
+    if (!value) return "—";
+    const date = new Date(value);
+    return Number.isNaN(date.getTime())
+      ? value
+      : date.toLocaleDateString(language === "fr" ? "fr-FR" : "en-GB");
+  };
+
   return (
     <SidebarProvider>
       <div className="flex h-screen">
@@ -869,7 +909,7 @@ export default function VaultIntakeDetailPage() {
         <div className="flex flex-1 flex-col overflow-hidden">
           <AppHeader
             title={language === "fr" ? "Validation Réception Coffre" : "Vault Intake Validation"}
-            subtitle={`${intakeForm.poReference} — ${language === "fr" ? "Workflow US-05" : "US-05 Workflow"}`}
+            subtitle={`${poDisplayReference} — ${language === "fr" ? "Workflow US-05" : "US-05 Workflow"}`}
           />
           <main className="flex-1 overflow-y-auto p-4 md:p-6">
             <div className="mx-auto max-w-5xl space-y-6">
@@ -883,7 +923,7 @@ export default function VaultIntakeDetailPage() {
                       {language === "fr" ? "Résumé Bon de Commande" : "Purchase Order Summary"}
                     </div>
                     {intakeForm.poReference && (
-                      <span className="text-sm font-mono text-muted-foreground">{intakeForm.poReference}</span>
+                      <span className="text-sm font-mono text-muted-foreground">{poDisplayReference}</span>
                     )}
                   </CardTitle>
                 </CardHeader>
@@ -892,7 +932,7 @@ export default function VaultIntakeDetailPage() {
                     <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                       <div className="space-y-1">
                         <p className="text-xs font-medium text-muted-foreground">{language === "fr" ? "Bon de Commande" : "PO ID"}</p>
-                        <p className="text-sm font-mono font-semibold">{intakeForm.poReference}</p>
+                        <p className="text-sm font-mono font-semibold">{poDisplayReference}</p>
                       </div>
                       <div className="space-y-1">
                         <p className="text-xs font-medium text-muted-foreground">Tracking ID</p>
@@ -991,14 +1031,7 @@ export default function VaultIntakeDetailPage() {
                         <Select
                           value={intakeForm.poReference}
                           onValueChange={(v) => {
-                            const sel = shippedPOs.find((po) => po.poId === v);
-                            setIntakeForm({
-                              ...intakeForm,
-                              poReference: v,
-                              trackingId: sel?.trackingId || intakeForm.trackingId,
-                              grossWeightKg: sel ? String(sel.estimatedWeight) : intakeForm.grossWeightKg,
-                              netWeightKg: sel ? String(sel.estimatedWeight) : intakeForm.netWeightKg,
-                            });
+                            if (v !== intakeId) router.push(`/vault-intake/${v}`);
                           }}
                         >
                           <SelectTrigger className="font-mono">
@@ -1012,12 +1045,56 @@ export default function VaultIntakeDetailPage() {
                             ) : (
                               shippedPOs.map((po) => (
                                 <SelectItem key={po.poId} value={po.poId} className="font-mono">
-                                  {po.poId}{po.trackingId ? ` · ${po.trackingId}` : ""} — {po.counterpartyName}
+                                  {po.trackingId || po.poId} — {po.counterpartyName}
                                 </SelectItem>
                               ))
                             )}
                           </SelectContent>
                         </Select>
+                      </div>
+
+                      {/* Values already known from the PO, counterparty and validated manifest. */}
+                      <div className="rounded-lg border bg-muted/20 p-4 space-y-3">
+                        <div className="flex items-center justify-between gap-3">
+                          <div>
+                            <p className="text-sm font-semibold">
+                              {language === "fr" ? "Données préremplies du système" : "System prefilled data"}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {language === "fr"
+                                ? "Informations déclarées avant l’arrivée, à contrôler physiquement ci-dessous."
+                                : "Information declared before arrival, to be physically checked below."}
+                            </p>
+                          </div>
+                          <Badge variant="secondary">{language === "fr" ? "Lecture seule" : "Read only"}</Badge>
+                        </div>
+                        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                          {[
+                            { label: language === "fr" ? "PO expédié" : "Shipped PO", value: poDisplayReference },
+                            { label: language === "fr" ? "Contrepartie" : "Counterparty", value: counterparty?.name || selectedPOInfo.counterpartyName },
+                            { label: language === "fr" ? "Immatriculation" : "Registration", value: counterparty?.registrationNumber },
+                            { label: language === "fr" ? "Pays" : "Country", value: counterparty?.country },
+                            { label: language === "fr" ? "Référence manifeste" : "Manifest reference", value: manifest?.reference },
+                            { label: language === "fr" ? "Lettre de voiture / AWB" : "Waybill / AWB", value: manifest?.waybillNumber },
+                            { label: language === "fr" ? "Date d’expédition" : "Shipment date", value: formatKnownDate(manifest?.shipmentDate) },
+                            { label: language === "fr" ? "Arrivée prévue" : "Expected arrival", value: formatKnownDate(manifest?.expectedArrivalDate) },
+                            { label: language === "fr" ? "Transporteur" : "Carrier", value: manifest?.carrier },
+                            { label: language === "fr" ? "Lieu de départ" : "Departure location", value: manifest?.departureLocation },
+                            { label: language === "fr" ? "Coffre de destination" : "Destination vault", value: manifest?.destinationVault || (intakeData?.vaultLocation as string | undefined) },
+                            { label: language === "fr" ? "Poids brut déclaré" : "Declared gross weight", value: manifest?.totalGrossWeightKg != null ? `${manifest.totalGrossWeightKg} kg` : null },
+                          ].map((item) => (
+                            <div key={item.label} className="space-y-1">
+                              <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{item.label}</p>
+                              <p className="text-sm font-medium break-words">{item.value || "—"}</p>
+                            </div>
+                          ))}
+                        </div>
+                        {(counterparty?.contact || counterparty?.email || counterparty?.phone) && (
+                          <p className="border-t pt-3 text-xs text-muted-foreground">
+                            <span className="font-medium text-foreground">{language === "fr" ? "Contact contrepartie : " : "Counterparty contact: "}</span>
+                            {[counterparty.contact, counterparty.email, counterparty.phone].filter(Boolean).join(" · ")}
+                          </p>
+                        )}
                       </div>
 
                       {/* Arrival details */}

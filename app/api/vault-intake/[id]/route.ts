@@ -21,7 +21,12 @@ export async function GET(
         po.delivery_vault_id,
         po.counterparty_id,
         po.created_at,
-        c.legal_name as counterparty_name
+        c.legal_name as counterparty_name,
+        c.registration_number as counterparty_registration_number,
+        c.country_of_incorporation as counterparty_country,
+        c.primary_contact as counterparty_contact,
+        c.primary_email as counterparty_email,
+        c.primary_phone as counterparty_phone
       FROM purchase_orders po
       LEFT JOIN counterparties c ON po.counterparty_id = c.id
       WHERE po.id = ${id}
@@ -38,8 +43,10 @@ export async function GET(
     let manifest: Record<string, unknown> | null = null;
     try {
       const manifestRows = await sql`
-        SELECT seal_number, seal_number_secondary, total_bars, carrier,
-               total_gross_weight_kg, total_fine_oz, po_fine_oz, bars_json, destination_vault
+        SELECT id, manifest_reference, status, shipment_date, expected_arrival_date,
+               seal_number, seal_number_secondary, total_bars, carrier, waybill_number,
+               departure_location, total_gross_weight_kg, total_fine_oz, po_fine_oz,
+               bars_json, destination_vault
         FROM counterparty_manifests
         WHERE purchase_order_id = ${id} AND status != 'draft'
         ORDER BY attempt_number DESC
@@ -75,7 +82,7 @@ export async function GET(
                bar_records, declaration_measurements, declaration_assay, declaration_compliance,
                updated_at
         FROM vault_receptions
-        WHERE po_id = ${id}
+        WHERE po_id = ${id} OR selected_po_id = ${id}
         ORDER BY created_at DESC
         LIMIT 1
       `;
@@ -91,6 +98,15 @@ export async function GET(
       trackingId: po.tracking_id || `TRK-${String(po.id).slice(0, 6)}`,
       counterpartyId: po.counterparty_id,
       counterpartyName: po.counterparty_name || "Unknown",
+      counterparty: {
+        id: po.counterparty_id,
+        name: po.counterparty_name || "Unknown",
+        registrationNumber: po.counterparty_registration_number ?? null,
+        country: po.counterparty_country ?? null,
+        contact: po.counterparty_contact ?? null,
+        email: po.counterparty_email ?? null,
+        phone: po.counterparty_phone ?? null,
+      },
       grossWeightKg: parseFloat(String(po.estimated_weight_kg || 0)),
       status: po.status,
       poValue: parseFloat(String(po.total_estimated_value || 0)),
@@ -99,10 +115,17 @@ export async function GET(
       // Declared-at-dispatch manifest (US-04) — authoritative "manifest" reference values
       manifest: manifest
         ? {
+            id: manifest.id ?? null,
+            reference: manifest.manifest_reference ?? null,
+            status: manifest.status ?? null,
+            shipmentDate: manifest.shipment_date ?? null,
+            expectedArrivalDate: manifest.expected_arrival_date ?? null,
             sealPrimaryDeclared: manifest.seal_number ?? null,
             sealSecondaryDeclared: manifest.seal_number_secondary ?? null,
             totalBars: manifest.total_bars ?? null,
             carrier: manifest.carrier ?? null,
+            waybillNumber: manifest.waybill_number ?? null,
+            departureLocation: manifest.departure_location ?? null,
             totalGrossWeightKg: manifest.total_gross_weight_kg != null ? parseFloat(String(manifest.total_gross_weight_kg)) : null,
             totalFineOz: manifest.total_fine_oz != null ? parseFloat(String(manifest.total_fine_oz)) : null,
             poFineOz: manifest.po_fine_oz != null ? parseFloat(String(manifest.po_fine_oz)) : null,

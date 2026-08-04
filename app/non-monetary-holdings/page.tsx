@@ -3,7 +3,7 @@
 import { AppHeader } from "@/components/app-header"
 import { AppSidebar } from "@/components/app-sidebar"
 import { NonMonetaryHoldings } from "@/components/refining/non-monetary-holdings"
-import { SidebarProvider } from "@/components/ui/sidebar"
+import { SidebarProvider } from "@/components/sidebar-provider"
 import { useLanguage } from "@/lib/i18n/language-context"
 
 export default function NonMonetaryHoldingsPage() {
@@ -12,7 +12,7 @@ export default function NonMonetaryHoldingsPage() {
 
   return (
     <SidebarProvider>
-      <div className="flex h-screen w-full overflow-hidden bg-slate-50">
+      <div className="flex h-screen w-full overflow-hidden bg-background">
         <AppSidebar />
         <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
           <AppHeader

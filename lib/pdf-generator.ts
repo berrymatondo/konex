@@ -421,27 +421,27 @@ export function generateAllocationCertificatePDF(data: AllocationCertificateData
   doc.setFontSize(6);
   doc.text("CERTIFIED", pageWidth - 36, 41);
   
-  let yPos = 65;
+  let yPos = 60;
   
   // Settlement Reference Section
   doc.setFillColor(241, 245, 249);
-  doc.roundedRect(20, yPos, pageWidth - 40, 25, 3, 3, "F");
+  doc.roundedRect(20, yPos, pageWidth - 40, 22, 3, 3, "F");
   
   doc.setTextColor(100, 116, 139);
   doc.setFontSize(9);
-  doc.text("SETTLEMENT REFERENCE", 25, yPos + 8);
+  doc.text("SETTLEMENT REFERENCE", 25, yPos + 7);
   
   doc.setTextColor(30, 41, 59);
   doc.setFontSize(16);
   doc.setFont("helvetica", "bold");
-  doc.text(data.settlementId, 25, yPos + 18);
+  doc.text(data.settlementId, 25, yPos + 16);
   
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(100, 116, 139);
-  doc.text(`PO Reference: ${data.poReference}`, pageWidth - 80, yPos + 15);
+  doc.text(`PO Reference: ${data.poReference}`, pageWidth - 80, yPos + 14);
   
-  yPos += 35;
+  yPos += 29;
   
   // Counterparty Section
   doc.setTextColor(30, 41, 59);
@@ -449,11 +449,11 @@ export function generateAllocationCertificatePDF(data: AllocationCertificateData
   doc.setFontSize(11);
   doc.text("COUNTERPARTY DETAILS", 20, yPos);
   
-  yPos += 8;
+  yPos += 6;
   doc.setDrawColor(226, 232, 240);
   doc.line(20, yPos, pageWidth - 20, yPos);
   
-  yPos += 10;
+  yPos += 7;
   doc.setFont("helvetica", "normal");
   doc.setFontSize(10);
   
@@ -469,10 +469,10 @@ export function generateAllocationCertificatePDF(data: AllocationCertificateData
     doc.text(label, 25, yPos);
     doc.setTextColor(30, 41, 59);
     doc.text(value || "N/A", 70, yPos);
-    yPos += 7;
+    yPos += 6;
   });
   
-  yPos += 10;
+  yPos += 5;
   
   // Gold Allocation Section
   doc.setTextColor(30, 41, 59);
@@ -480,47 +480,47 @@ export function generateAllocationCertificatePDF(data: AllocationCertificateData
   doc.setFontSize(11);
   doc.text("GOLD ALLOCATION", 20, yPos);
   
-  yPos += 8;
+  yPos += 6;
   doc.setDrawColor(226, 232, 240);
   doc.line(20, yPos, pageWidth - 20, yPos);
   
-  yPos += 10;
+  yPos += 7;
   
   // Gold details box
   doc.setFillColor(254, 249, 195);
-  doc.roundedRect(20, yPos, pageWidth - 40, 35, 3, 3, "F");
+  doc.roundedRect(20, yPos, pageWidth - 40, 30, 3, 3, "F");
   
   doc.setFont("helvetica", "normal");
   doc.setFontSize(10);
   
   doc.setTextColor(100, 116, 139);
-  doc.text("Net Weight:", 25, yPos + 10);
+  doc.text("Net Weight:", 25, yPos + 8);
   doc.setTextColor(30, 41, 59);
   doc.setFont("helvetica", "bold");
-  doc.text(`${data.netWeightKg.toFixed(3)} kg`, 70, yPos + 10);
+  doc.text(`${data.netWeightKg.toFixed(3)} kg`, 70, yPos + 8);
   
   doc.setFont("helvetica", "normal");
   doc.setTextColor(100, 116, 139);
-  doc.text("Purity:", 25, yPos + 20);
+  doc.text("Purity:", 25, yPos + 17);
   doc.setTextColor(30, 41, 59);
   doc.setFont("helvetica", "bold");
-  doc.text(`${data.purity.toFixed(2)}%`, 70, yPos + 20);
+  doc.text(`${data.purity.toFixed(2)}%`, 70, yPos + 17);
   
   doc.setFont("helvetica", "normal");
   doc.setTextColor(100, 116, 139);
-  doc.text("Pure Au Weight:", 25, yPos + 30);
+  doc.text("Pure Au Weight:", 25, yPos + 26);
   doc.setTextColor(234, 179, 8);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(12);
-  doc.text(`${data.pureAuWeightKg.toFixed(3)} kg`, 70, yPos + 30);
+  doc.text(`${data.pureAuWeightKg.toFixed(3)} kg`, 70, yPos + 26);
   
   const troyOunces = data.pureAuWeightKg * 32.1507;
   doc.setFontSize(9);
   doc.setTextColor(100, 116, 139);
   doc.setFont("helvetica", "normal");
-  doc.text(`(${troyOunces.toFixed(2)} troy oz)`, 110, yPos + 30);
+  doc.text(`(${troyOunces.toFixed(2)} troy oz)`, 110, yPos + 26);
   
-  yPos += 45;
+  yPos += 37;
   
   // Financial Summary Section
   doc.setTextColor(30, 41, 59);
@@ -528,11 +528,11 @@ export function generateAllocationCertificatePDF(data: AllocationCertificateData
   doc.setFontSize(11);
   doc.text("FINANCIAL SUMMARY", 20, yPos);
   
-  yPos += 8;
+  yPos += 6;
   doc.setDrawColor(226, 232, 240);
   doc.line(20, yPos, pageWidth - 20, yPos);
   
-  yPos += 10;
+  yPos += 7;
   doc.setFont("helvetica", "normal");
   doc.setFontSize(10);
   
@@ -547,34 +547,28 @@ export function generateAllocationCertificatePDF(data: AllocationCertificateData
     doc.text(label, 25, yPos);
     doc.setTextColor(30, 41, 59);
     doc.text(value, 100, yPos);
-    yPos += 7;
+    yPos += 6;
   });
   
   // Net Payable highlight
-  yPos += 5;
+  yPos += 3;
   doc.setFillColor(16, 185, 129);
-  doc.roundedRect(20, yPos, pageWidth - 40, 15, 3, 3, "F");
+  doc.roundedRect(20, yPos, pageWidth - 40, 13, 3, 3, "F");
   
   doc.setTextColor(255, 255, 255);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(11);
-  doc.text("NET PAYABLE:", 25, yPos + 10);
+  doc.text("NET PAYABLE:", 25, yPos + 9);
   doc.setFontSize(14);
-  doc.text(`${data.currency} ${formatNumber(data.netPayable)}`, 100, yPos + 10);
+  doc.text(`${data.currency} ${formatNumber(data.netPayable)}`, 100, yPos + 9);
   
-  yPos += 25;
+  yPos += 18;
   
-  // Audit Trail Section
-  doc.setTextColor(30, 41, 59);
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(11);
-  doc.text("AUDIT TRAIL", 20, yPos);
-  
-  yPos += 8;
+  // Allocation traceability details (heading intentionally omitted).
   doc.setDrawColor(226, 232, 240);
   doc.line(20, yPos, pageWidth - 20, yPos);
   
-  yPos += 10;
+  yPos += 6;
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
   
@@ -584,14 +578,14 @@ export function generateAllocationCertificatePDF(data: AllocationCertificateData
   doc.setFont("helvetica", "bold");
   doc.text(data.reserveAccountId, 80, yPos);
   
-  yPos += 8;
+  yPos += 6;
   doc.setFont("helvetica", "normal");
   doc.setTextColor(100, 116, 139);
   doc.text("Valuation Date:", 25, yPos);
   doc.setTextColor(30, 41, 59);
   doc.text(data.valuationDate, 80, yPos);
   
-  yPos += 8;
+  yPos += 6;
   doc.setTextColor(100, 116, 139);
   doc.text("Audit Hash:", 25, yPos);
   doc.setTextColor(30, 41, 59);
@@ -599,7 +593,7 @@ export function generateAllocationCertificatePDF(data: AllocationCertificateData
   doc.text(data.auditHash, 80, yPos);
   
   // Footer with signatures
-  const certFooterY = pageHeight - 35;
+  const certFooterY = pageHeight - 20;
   
   doc.setDrawColor(226, 232, 240);
   doc.line(20, certFooterY - 15, pageWidth - 20, certFooterY - 15);

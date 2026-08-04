@@ -29,7 +29,6 @@ import Link from "next/link";
 import {
   Warehouse,
   Search,
-  Plus,
   CheckCircle2,
   Clock,
   AlertTriangle,
@@ -363,12 +362,6 @@ export default function VaultIntakePage() {
                     </SelectContent>
                   </Select>
                 </div>
-                <Link href="/vault-intake/new">
-                  <Button>
-                    <Plus className="mr-2 h-4 w-4" />
-                    {language === "fr" ? "Nouvelle Réception" : "New Intake"}
-                  </Button>
-                </Link>
               </div>
 
               {/* Table */}
