@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useLanguage } from "@/lib/i18n/language-context";
+import { authClient } from "@/lib/auth-client";
 import { InfoCell, OZ_PER_KG, RefiningPanel, StatusPill, Timeline, WorkflowStepper } from "./refining-shared";
 
 interface RefiningOrderDetail {
@@ -33,7 +34,18 @@ interface RefiningOrderDetail {
   inputFineGoldKg: number;
   expectedOutturnKg: number;
   goldPricePerOz: number;
+  createdByName: string | null;
+  createdByRole: string | null;
   createdAt: string;
+  approvals: Array<{
+    id: string;
+    approverId: string;
+    approverName: string;
+    approverRole: string;
+    decision: "approved" | "returned" | "rejected";
+    note: string | null;
+    decidedAt: string;
+  }>;
 }
 
 const TIERS = [
@@ -53,6 +65,7 @@ type Decision = "approved" | "returned" | "rejected" | null;
 export function RefiningOrderApproval() {
   const router = useRouter();
   const params = useParams<{ id: string }>();
+  const { data: session } = authClient.useSession();
   const { language } = useLanguage();
   const fr = language === "fr";
   const [previewValue, setPreviewValue] = useState("actual");
@@ -62,9 +75,10 @@ export function RefiningOrderApproval() {
   const [error, setError] = useState("");
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState("");
+  const [decisionSaving, setDecisionSaving] = useState(false);
   const { data: access } = useSWR<{ isAdmin?: boolean }>("/api/access/me", (url: string) => fetch(url).then((response) => response.json()));
   const orderReference = typeof params.id === "string" ? params.id : "GAC-REF-2026-014";
-  const { data: order, error: orderError, isLoading: orderLoading } = useSWR<RefiningOrderDetail>(
+  const { data: order, error: orderError, isLoading: orderLoading, mutate: mutateOrder } = useSWR<RefiningOrderDetail>(
     `/api/refining-orders/${encodeURIComponent(orderReference)}`,
     (url: string) => fetch(url).then(async (response) => {
       const result = await response.json();
@@ -82,27 +96,88 @@ export function RefiningOrderApproval() {
   const value = previewValue === "actual" ? actualValue : Number(previewValue);
   const tier = TIERS.find((candidate) => value <= candidate.max) ?? TIERS[2];
   const required = APPROVERS.slice(0, tier.count);
-  const youRequired = required.some((approver) => approver.you);
+  const currentUserId = session?.user?.id;
+  const currentUserAlreadyApproved = Boolean(currentUserId && order?.approvals.some((approval) => approval.approverId === currentUserId && approval.decision === "approved"));
+  const approvedCount = Math.min(required.length, order?.approvals.filter((approval) => approval.decision === "approved").length ?? 0);
+  const youRequired = Boolean(currentUserId && !currentUserAlreadyApproved && approvedCount < required.length);
   const allChecked = checks.every(Boolean);
-  const approvedCount = required.filter((approver) => approver.approved || (approver.you && decision === "approved")).length;
-  const fullyApproved = decision === "approved" && approvedCount === required.length;
+  const fullyApproved = approvedCount === required.length;
+  const approvedRecords = order?.approvals.filter((approval) => approval.decision === "approved") ?? [];
+  const approvalSlots = required.map((template, index) => {
+    const recorded = approvedRecords[index];
+    const isNext = !recorded && index === approvedRecords.length;
+    return {
+      initials: recorded
+        ? recorded.approverName.split(/\s+/).map((part) => part[0]).slice(0, 2).join("").toUpperCase()
+        : template.initials,
+      name: recorded?.approverName || (isNext && session?.user?.name ? session.user.name : template.name),
+      role: recorded?.approverRole.replaceAll("_", " ") || template.role,
+      approved: Boolean(recorded),
+      you: Boolean(isNext && youRequired),
+      when: recorded?.decidedAt || "",
+    };
+  });
 
   const banner = useMemo(() => {
     if (decision === "returned") return { tone: "warning", title: fr ? "Retourné au Trade Manager pour modification" : "Returned to the Trade Manager for changes", description: note };
     if (decision === "rejected") return { tone: "danger", title: fr ? "Ordre rejeté" : "Order rejected", description: note };
     if (decision === "approved" && fullyApproved) return { tone: "success", title: fr ? "Approuvé — libéré pour expédition" : "Approved — released for dispatch", description: fr ? "Toutes les approbations sont enregistrées. L’ordre est transmis au responsable Coffre & Essai." : "All approvals are recorded. The order is now with the Vault & Assay Officer." };
     if (decision === "approved") return { tone: "info", title: fr ? "Votre approbation est enregistrée" : "Your approval is recorded", description: fr ? "Une approbation supplémentaire est requise avant l’expédition." : "An additional approval is required before dispatch." };
-    return { tone: "warning", title: fr ? "Approbation de l’ordre requise" : "Order approval required", description: fr ? `Aucune approbation n’est encore enregistrée. Ce circuit requiert ${required.length} signature${required.length > 1 ? "s" : ""}.` : `No approval has been recorded yet. This route requires ${required.length} signature${required.length > 1 ? "s" : ""}.` };
-  }, [decision, fr, fullyApproved, note, required.length]);
+    return { tone: "warning", title: fr ? "Approbation de l’ordre requise" : "Order approval required", description: fr ? `${approvedCount} approbation${approvedCount > 1 ? "s" : ""} enregistrée${approvedCount > 1 ? "s" : ""} sur ${required.length} requise${required.length > 1 ? "s" : ""}.` : `${approvedCount} of ${required.length} required approval${required.length > 1 ? "s" : ""} recorded.` };
+  }, [approvedCount, decision, fr, fullyApproved, note, required.length]);
 
-  const makeDecision = (next: Exclude<Decision, null>) => {
+  const makeDecision = async (next: Exclude<Decision, null>) => {
     if ((next === "returned" || next === "rejected") && !note.trim()) {
       setError(fr ? "Une note de décision est obligatoire pour retourner ou rejeter l’ordre." : "A decision note is required to return or reject the order.");
       return;
     }
     setError("");
-    setDecision(next);
+    setDecisionSaving(true);
+    try {
+      const response = await fetch(`/api/refining-orders/${encodeURIComponent(orderReference)}/approval`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ decision: next, note }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Unable to record decision");
+      setDecision(next);
+      await mutateOrder();
+    } catch (decisionError) {
+      setError(decisionError instanceof Error ? decisionError.message : (fr ? "Échec de l’enregistrement." : "Unable to record decision."));
+    } finally {
+      setDecisionSaving(false);
+    }
   };
+
+  const historyItems = [
+    {
+      state: "done" as const,
+      title: fr ? "Ordre créé et soumis" : "Order created & submitted",
+      meta: order
+        ? `${new Date(order.createdAt).toLocaleString(fr ? "fr-FR" : "en-GB")} · ${order.createdByName || "Bullion Desk"}${order.createdByRole ? ` · ${order.createdByRole.replaceAll("_", " ")}` : ""}`
+        : "—",
+    },
+    ...(order?.approvals.map((approval) => ({
+      state: approval.decision === "approved" ? "done" as const : "current" as const,
+      title: approval.decision === "approved"
+        ? `${fr ? "Approbation" : "Approval"} — ${approval.approverName}`
+        : approval.decision === "returned"
+          ? `${fr ? "Ordre retourné" : "Order returned"} — ${approval.approverName}`
+          : `${fr ? "Ordre rejeté" : "Order rejected"} — ${approval.approverName}`,
+      meta: `${new Date(approval.decidedAt).toLocaleString(fr ? "fr-FR" : "en-GB")} · ${approval.approverRole.replaceAll("_", " ")}${approval.note ? ` · ${approval.note}` : ""}`,
+    })) ?? []),
+    ...Array.from({ length: Math.max(0, required.length - approvedCount) }, (_, index) => ({
+      state: index === 0 ? "current" as const : "pending" as const,
+      title: fr ? `Approbation ${approvedCount + index + 1} attendue` : `Approval ${approvedCount + index + 1} pending`,
+      meta: fr ? "En attente de décision" : "Awaiting decision",
+    })),
+    {
+      state: fullyApproved ? "current" as const : "pending" as const,
+      title: fr ? "Expédition par le responsable Coffre & Essai" : "Dispatch by Vault & Assay Officer",
+      meta: fullyApproved ? (fr ? "Prêt pour expédition" : "Ready for dispatch") : (fr ? "En attente d’approbation" : "Pending approval"),
+    },
+  ];
 
   const deleteOrder = async () => {
     setDeleting(true);
@@ -140,7 +215,7 @@ export function RefiningOrderApproval() {
         <TabsContent value="review" className="mt-4">
           <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_380px]">
             <div className="space-y-4">
-              <RefiningPanel icon={PackageCheck} title={fr ? "Ce que vous approuvez" : "What you are approving"}><div className="grid gap-4 sm:grid-cols-2"><InfoCell label="Source PO"><span className="text-primary">{order?.purchaseOrderReference || "—"}</span></InfoCell><InfoCell label={fr ? "Lot doré" : "Doré lot"}>{order?.lotReference || "—"}{order?.counterpartyName ? ` · ${order.counterpartyName}` : ""}</InfoCell><InfoCell label={fr ? "Poids brut" : "Gross weight"}>{order ? `${order.inputGrossWeightKg.toFixed(3)} kg · ${(order.inputGrossWeightKg > 0 ? order.inputFineGoldKg / order.inputGrossWeightKg * 100 : 0).toFixed(2)}%` : "—"}</InfoCell><InfoCell label={fr ? "Teneur en or fin" : "Fine gold content"}>{order ? `${order.inputFineGoldKg.toFixed(3)} kg · ${(order.inputFineGoldKg * OZ_PER_KG).toLocaleString("en-US", { maximumFractionDigits: 2 })} oz` : "—"}</InfoCell></div></RefiningPanel>
+              <RefiningPanel icon={PackageCheck} title={fr ? "Ce que vous approuvez" : "What you are approving"}><div className="grid gap-4 sm:grid-cols-2"><InfoCell label="Source PO"><span className="text-primary">{order?.purchaseOrderReference || "—"}</span></InfoCell><InfoCell label={fr ? "Lot doré" : "Doré lot"}>{order?.counterpartyName ? `${order.counterpartyName}` : ""}</InfoCell><InfoCell label={fr ? "Poids brut" : "Gross weight"}>{order ? `${order.inputGrossWeightKg.toFixed(3)} kg · ${(order.inputGrossWeightKg > 0 ? order.inputFineGoldKg / order.inputGrossWeightKg * 100 : 0).toFixed(2)}%` : "—"}</InfoCell><InfoCell label={fr ? "Teneur en or fin" : "Fine gold content"}>{order ? `${order.inputFineGoldKg.toFixed(3)} kg · ${(order.inputFineGoldKg * OZ_PER_KG).toLocaleString("en-US", { maximumFractionDigits: 2 })} oz` : "—"}</InfoCell></div></RefiningPanel>
 
               <RefiningPanel icon={Factory} title={fr ? "Raffinerie et conditions" : "Refiner & refining terms"}><div className="grid gap-4 sm:grid-cols-2"><InfoCell label={fr ? "Raffinerie" : "Refiner"}>{order?.refineryName || "—"}</InfoCell><InfoCell label="LBMA Good Delivery"><StatusPill tone={order?.lbmaGoodDeliveryStatus === "accredited" ? "success" : "warning"}>{order?.lbmaGoodDeliveryStatus === "accredited" ? (fr ? "Accréditée" : "Accredited") : (fr ? "Non accréditée" : "Not accredited")}</StatusPill></InfoCell><InfoCell label={fr ? "Canal" : "Refining channel"}>{order?.lbmaGoodDeliveryStatus === "accredited" ? (fr ? "Export vers une raffinerie accréditée" : "Export to an accredited refinery") : (fr ? "Export vers une raffinerie non accréditée" : "Export to a non-accredited refinery")}</InfoCell><InfoCell label={fr ? "Base de rendement" : "Yield basis"}>{fr ? "Rendement sur teneur en or fin essayée" : "Outturn on assayed fine content"}</InfoCell><InfoCell label={fr ? "Titre cible" : "Target fineness"}>{order ? `${order.targetFineness} ‰` : "—"}</InfoCell><InfoCell label={fr ? "Perte attendue" : "Expected loss"}>{order ? `${order.expectedLossPercent.toFixed(2)} % · −${(order.inputFineGoldKg - order.expectedOutturnKg).toFixed(3)} kg` : "—"}</InfoCell><InfoCell label={fr ? "Outturn attendu" : "Expected outturn"}>{order ? `${order.expectedOutturnKg.toFixed(3)} kg fine` : "—"}</InfoCell><InfoCell label={fr ? "Délai" : "Turnaround"}>{order ? `${order.turnaroundDays} ${fr ? "jours ouvrés" : "business days"}` : "—"}</InfoCell><InfoCell label={fr ? "Frais" : "Refining fee"}>{order ? `${order.fee.toFixed(2)} USD/${order.feeUnit}` : "—"}</InfoCell><InfoCell label={fr ? "Total des frais" : "Total refining charge"}><span className="text-primary">{order ? `${Math.round(totalCharge).toLocaleString("en-US")} USD` : "—"}</span></InfoCell></div></RefiningPanel>
 
@@ -154,7 +229,7 @@ export function RefiningOrderApproval() {
             </div>
 
             <RefiningPanel icon={ShieldCheck} title={`${fr ? "Approbations" : "Approvals"} · ${approvedCount} / ${required.length}`} className="xl:sticky xl:top-20">
-              <div className="space-y-3">{required.map((approver) => { const approved = approver.approved || (approver.you && decision === "approved"); return <div key={approver.name} className="flex items-center gap-3 rounded-lg border p-3"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold text-primary">{approver.initials}</span><div className="min-w-0 flex-1"><p className="text-sm font-medium">{approver.name}{approver.you && <span className="font-normal text-muted-foreground"> ({fr ? "vous" : "you"})</span>}</p><p className="truncate text-[11px] text-muted-foreground">{approver.role}</p></div>{approved ? <StatusPill tone="success">{fr ? "Approuvé" : "Approved"}</StatusPill> : approver.you ? <StatusPill tone="warning">{fr ? "Votre décision" : "Your decision"}</StatusPill> : <StatusPill>{fr ? "En attente" : "Pending"}</StatusPill>}</div>; })}</div>
+              <div className="space-y-3">{approvalSlots.map((approver, index) => <div key={`${index}-${approver.name}`} className="flex items-center gap-3 rounded-lg border p-3"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold text-primary">{approver.initials}</span><div className="min-w-0 flex-1"><p className="text-sm font-medium">{approver.name}{approver.you && <span className="font-normal text-muted-foreground"> ({fr ? "vous" : "you"})</span>}</p><p className="truncate text-[11px] text-muted-foreground">{approver.role}</p>{approver.when && <p className="text-[10px] text-muted-foreground">{new Date(approver.when).toLocaleString(fr ? "fr-FR" : "en-GB")}</p>}</div>{approver.approved ? <StatusPill tone="success">{fr ? "Approuvé" : "Approved"}</StatusPill> : approver.you ? <StatusPill tone="warning">{fr ? "Votre décision" : "Your decision"}</StatusPill> : <StatusPill>{fr ? "En attente" : "Pending"}</StatusPill>}</div>)}</div>
 
               {!youRequired && <div className="mt-4 rounded-lg border bg-muted/30 p-3 text-xs text-muted-foreground">{fr ? "Aucune action n’est requise de votre part pour ce palier." : "No action is required from you at this tier."}</div>}
 
@@ -172,17 +247,12 @@ export function RefiningOrderApproval() {
               <Label htmlFor="decision-note">{fr ? "Note de décision" : "Decision note"}</Label>
               <Textarea id="decision-note" className="mt-2" value={note} disabled={decision !== null} onChange={(event) => setNote(event.target.value)} placeholder={fr ? "Facultative pour approuver · obligatoire pour retourner ou rejeter" : "Optional for approval · required when returning or rejecting"} />
               {error && <p className="mt-2 text-xs text-destructive">{error}</p>}
-              <div className="mt-4 space-y-2"><Button className="w-full" disabled={!allChecked || !youRequired || decision !== null} onClick={() => makeDecision("approved")}><CheckCircle2 className="mr-2 h-4 w-4" />{fr ? "Approuver et libérer pour expédition" : "Approve & release for dispatch"}</Button><div className="grid grid-cols-2 gap-2"><Button variant="outline" disabled={decision !== null} onClick={() => makeDecision("returned")}>{fr ? "Retourner" : "Return for changes"}</Button><Button variant="destructive" disabled={decision !== null} onClick={() => makeDecision("rejected")}>{fr ? "Rejeter" : "Reject"}</Button></div></div>
+              <div className="mt-4 space-y-2"><Button className="w-full" disabled={!allChecked || !youRequired || decision !== null || decisionSaving} onClick={() => makeDecision("approved")}><CheckCircle2 className="mr-2 h-4 w-4" />{decisionSaving ? (fr ? "Enregistrement…" : "Saving…") : (fr ? "Approuver et libérer pour expédition" : "Approve & release for dispatch")}</Button><div className="grid grid-cols-2 gap-2"><Button variant="outline" disabled={decision !== null || decisionSaving} onClick={() => makeDecision("returned")}>{fr ? "Retourner" : "Return for changes"}</Button><Button variant="destructive" disabled={decision !== null || decisionSaving} onClick={() => makeDecision("rejected")}>{fr ? "Rejeter" : "Reject"}</Button></div></div>
               <p className="mt-4 rounded-lg border bg-muted/30 p-3 text-[11px] text-muted-foreground">{fr ? "L’approbation complète le double contrôle. L’expédition  reste une étape distincte, effectuée par le responsable Coffre & Essai." : "Approval completes dual control. Dispatch  is a separate step performed by the Vault & Assay Officer."}</p>
             </RefiningPanel>
           </div>
         </TabsContent>
-        <TabsContent value="history" className="mt-4"><RefiningPanel icon={Clock3} title={fr ? "Piste d’approbation" : "Approval trail"}><Timeline items={[
-          { state: "done", title: fr ? "Ordre créé et soumis" : "Order created & submitted", meta: "22/07/2026 09:05 · Bullion Desk · Trade Manager" },
-          { state: "done", title: fr ? "Première approbation — Henri Bwana" : "First approval — Henri Bwana", meta: "22/07/2026 10:40 · Head of Bullion Operations · Terms in line with mandate" },
-          { state: decision === "approved" ? "done" : "current", title: fr ? "Deuxième approbation — Marie Kalala (vous)" : "Second approval — Marie Kalala (you)", meta: decision === "approved" ? (fr ? "Approuvé à l’instant" : "Approved just now") : decision === "returned" ? (fr ? "Ordre retourné" : "Order returned") : decision === "rejected" ? (fr ? "Ordre rejeté" : "Order rejected") : (fr ? "Votre décision est attendue · Reserve Risk Officer" : "Awaiting your decision · Reserve Risk Officer") },
-          { state: fullyApproved ? "current" : "pending", title: fr ? "Expédition par le responsable Coffre & Essai" : "Dispatch by Vault & Assay Officer", meta: fullyApproved ? (fr ? "Prêt pour expédition" : "Ready for dispatch") : (fr ? "En attente d’approbation" : "Pending approval") },
-        ]} /></RefiningPanel></TabsContent>
+        <TabsContent value="history" className="mt-4"><RefiningPanel icon={Clock3} title={fr ? "Piste d’approbation" : "Approval trail"}><Timeline items={historyItems} /></RefiningPanel></TabsContent>
       </Tabs>
     </div>
   );

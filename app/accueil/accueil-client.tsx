@@ -37,12 +37,12 @@ const STATS: Array<{ value: number; decimals: number; suffix: string; label: str
 ];
 
 const FEATURES = [
-  { icon: Layers, title: "Acquisition d'Or Brut", description: "Sourcing mondial auprès de fournisseurs agréés et certification de provenance." },
-  { icon: BadgeCheck, title: "Raffinage Certifié", description: "Partenariat avec les raffineurs accrédités LBMA pour garantir la pureté." },
-  { icon: Shield, title: "Certification LBMA", description: "Validation officielle conforme aux standards Good Delivery internationaux." },
-  { icon: Landmark, title: "Gestion des Réserves", description: "Suivi en temps réel des stocks et intégration comptable automatisée." },
-  { icon: BarChart3, title: "Analyse en Temps Réel", description: "Tableaux de bord avancés pour le monitoring des positions et risques." },
-  { icon: Lock, title: "Traçabilité Complète", description: "Audit trail complet de chaque once d'or, de l'acquisition à la réserve." },
+  { icon: Layers, title: "Pré-traitement et conformité", description: "Enrôlement des maisons de négoce et/ou raffinerie, collecte KYC et contrôles sanctions, PPE et LBC avant toute opération" },
+  { icon: BadgeCheck, title: "Acquisition Stratégique", description: "Pilotage des achats d’or auprès de fournisseurs agréés, dans le respect des exigences de provenance et de conformité." },
+  { icon: Shield, title: "Transformation en Or Monétaire", description: "Suivi du raffinage et de la conversion de l’or brut en actifs monétaires éligibles aux réserves officielles." },
+  { icon: Landmark, title: "Analyse Macroéconomique", description: "Évaluation de l’impact des opérations sur la liquidité, le taux de change, l’inflation et la politique monétaire." },
+  { icon: BarChart3, title: "Optimisation des Réserves", description: "Analyse, simulation et allocation stratégique pour renforcer la performance et la résilience des réserves internationales." },
+  { icon: Lock, title: "Conformité & Traçabilité", description: "Contrôle des opérations, piste d’audit complète et alignement avec les standards internationaux, notamment ceux de la LBMA." },
 ];
 
 // Scoped gold/slate theme override — only applies inside this page, the rest

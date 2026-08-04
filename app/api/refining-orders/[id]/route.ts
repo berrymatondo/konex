@@ -12,7 +12,7 @@ export async function GET(
     const { id } = await context.params;
     const rows = await sql`
       SELECT ro.*, po.tracking_id AS purchase_order_reference,
-             po.lbma_price_per_oz, seller.legal_name AS counterparty_name,
+             COALESCE(po.lbma_price_per_oz, 5050) AS lbma_price_per_oz, seller.legal_name AS counterparty_name,
              refinery.legal_name AS refinery_name,
              refinery.lbma_good_delivery_status,
              (
@@ -30,6 +30,19 @@ export async function GET(
     `;
     if (!rows.length) return NextResponse.json({ error: "Refining order not found" }, { status: 404 });
     const row = rows[0];
+    const approvals = await sql`
+      SELECT id, approver_id, approver_name, approver_role, decision, note, decided_at
+      FROM refining_order_approvals
+      WHERE refining_order_id = ${row.id}
+      ORDER BY decided_at ASC
+    `;
+    let creatorName: string | null = null;
+    let creatorRole: string | null = null;
+    if (row.created_by) {
+      const creators = await sql`SELECT name, role FROM "user" WHERE id = ${row.created_by} LIMIT 1`;
+      creatorName = (creators[0]?.name as string | null) ?? null;
+      creatorRole = (creators[0]?.role as string | null) ?? null;
+    }
     return NextResponse.json({
       id: row.id,
       reference: row.reference,
@@ -48,7 +61,18 @@ export async function GET(
       inputFineGoldKg: Number(row.input_fine_gold_kg),
       expectedOutturnKg: Number(row.expected_outturn_kg),
       goldPricePerOz: Number(row.lbma_price_per_oz) || 0,
+      createdByName: creatorName,
+      createdByRole: creatorRole,
       createdAt: row.created_at,
+      approvals: approvals.map((approval) => ({
+        id: approval.id,
+        approverId: approval.approver_id,
+        approverName: approval.approver_name,
+        approverRole: approval.approver_role,
+        decision: approval.decision,
+        note: approval.note,
+        decidedAt: approval.decided_at,
+      })),
     });
   } catch (error) {
     console.error("Error fetching refining order:", error);

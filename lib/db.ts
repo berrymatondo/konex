@@ -24,6 +24,19 @@ export async function ensureRefiningOrdersTable() {
       updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
     )
   `;
+  await sql`
+    CREATE TABLE IF NOT EXISTS refining_order_approvals (
+      id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+      refining_order_id TEXT NOT NULL REFERENCES refining_orders(id) ON DELETE CASCADE,
+      approver_id TEXT NOT NULL,
+      approver_name TEXT NOT NULL,
+      approver_role TEXT NOT NULL,
+      decision TEXT NOT NULL,
+      note TEXT,
+      decided_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE (refining_order_id, approver_id)
+    )
+  `;
 }
 
 // Auto-initialize database tables if they don't exist

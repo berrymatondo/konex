@@ -66,6 +66,7 @@ export async function POST(request: Request) {
     if (!refinery.length) return NextResponse.json({ error: "Invalid refinery" }, { status: 400 });
 
     let rows;
+    const requestedStatus = body.submitForApproval ? "pending_approval" : "draft";
     if (body.id) {
       rows = await sql`
         UPDATE refining_orders SET
@@ -75,7 +76,7 @@ export async function POST(request: Request) {
           expected_loss_percent = ${Number(body.expectedLossPercent)},
           input_gross_weight_kg = ${Number(body.inputGrossWeightKg)},
           input_fine_gold_kg = ${Number(body.inputFineGoldKg)},
-          expected_outturn_kg = ${Number(body.expectedOutturnKg)}, updated_at = CURRENT_TIMESTAMP
+          expected_outturn_kg = ${Number(body.expectedOutturnKg)}, status = ${requestedStatus}, updated_at = CURRENT_TIMESTAMP
         WHERE id = ${body.id} RETURNING *
       `;
       if (!rows.length) return NextResponse.json({ error: "Refining order not found" }, { status: 404 });
@@ -84,12 +85,12 @@ export async function POST(request: Request) {
         INSERT INTO refining_orders (
           reference, purchase_order_id, refinery_id, target_fineness, turnaround_days,
           fee, fee_unit, expected_loss_percent, input_gross_weight_kg,
-          input_fine_gold_kg, expected_outturn_kg, created_by
+          input_fine_gold_kg, expected_outturn_kg, created_by, status
         ) VALUES (
           ${reference()}, ${body.purchaseOrderId}, ${body.refineryId}, ${body.targetFineness},
           ${Number(body.turnaroundDays)}, ${Number(body.fee)}, ${body.feeUnit},
           ${Number(body.expectedLossPercent)}, ${Number(body.inputGrossWeightKg)},
-          ${Number(body.inputFineGoldKg)}, ${Number(body.expectedOutturnKg)}, ${user.id}
+          ${Number(body.inputFineGoldKg)}, ${Number(body.expectedOutturnKg)}, ${user.id}, ${requestedStatus}
         ) RETURNING *
       `;
     }

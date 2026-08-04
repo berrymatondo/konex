@@ -238,7 +238,8 @@ export function RefiningOrderForm() {
     setOrderCreatedAt(null);
   };
 
-  const saveDraft = async () => {
+  const saveDraft = async (submitForApprovalInput: unknown = false) => {
+    const submitForApproval = submitForApprovalInput === true;
     if (!selected) {
       setPickerOpen(true);
       return null;
@@ -266,6 +267,7 @@ export function RefiningOrderForm() {
           inputGrossWeightKg: selected.gross,
           inputFineGoldKg: fineKg,
           expectedOutturnKg: outturnKg,
+          submitForApproval,
         }),
       });
       const result = await response.json();
@@ -286,7 +288,7 @@ export function RefiningOrderForm() {
   };
 
   const submit = async () => {
-    const order = await saveDraft();
+    const order = await saveDraft(true);
     if (order) router.push(`/refining-orders/${order.reference}/approval`);
   };
 
