@@ -39,6 +39,7 @@ import {
   Truck,
   Calculator,
   ShieldCheck,
+  Factory,
 } from "lucide-react";
 import { useLanguage } from "@/lib/i18n/language-context";
 import { authClient } from "@/lib/auth-client";
@@ -54,12 +55,15 @@ interface Counterparty {
   riskLevel: string | null;
   screeningStatus: string | null;
   countryOfIncorporation: string;
+  counterpartyType?: "trading_house" | "refinery";
+  lbmaGoodDeliveryStatus?: string | null;
+  maxOutputFineness?: string | null;
 }
 
 const INCOTERMS = ["EXW", "FCA", "CPT", "CIP", "DAP", "DPU", "DDP"];
 const GOLD_TYPES = [
   { value: "dore_bars", label: { en: "Doré Bars", fr: "Doré" } },
-  { value: "refined_bars", label: { en: "Refined Bars", fr: "Lingots Raffinés" } },
+  { value: "refined_bars", label: { en: "Refined Bars", fr: "Lingots d’or raffinés" } },
   { value: "gold_dust", label: { en: "Gold Dust", fr: "Poudre d'Or" } },
   { value: "scrap_gold", label: { en: "Scrap Gold", fr: "Or de Récupération" } },
 ];
@@ -90,11 +94,13 @@ export default function NewPurchaseOrderPage() {
   const { data: counterparties = [] } = useSWR<Counterparty[]>("/api/counterparties", fetcher);
 
   // US-03: Only show APPROVED counterparties with completed EDD (if high risk).
-  const approvedCounterparties = counterparties.filter(
+  const approvedEntities = counterparties.filter(
     (c) =>
       (c.status === "approved" || c.status === "active") &&
       !(c.riskLevel === "high" && c.screeningStatus !== "passed")
   );
+  const approvedCounterparties = approvedEntities.filter((c) => c.counterpartyType !== "refinery");
+  const approvedRefineries = approvedEntities.filter((c) => c.counterpartyType === "refinery");
 
   const [formData, setFormData] = useState({
     counterpartyId: "",
@@ -102,6 +108,8 @@ export default function NewPurchaseOrderPage() {
     tolerancePercent: "5",
     goldType: "dore_bars",
     assayRange: "85-92",
+    declaredFinenessPromille: "995",
+    sourceRefinerId: "",
     incoterms: "DAP",
     // Payment conditions (desired terms captured for negotiation)
     currency: "Mixte",
@@ -173,6 +181,12 @@ export default function NewPurchaseOrderPage() {
   };
 
   const selectedCounterparty = counterparties.find((c) => c.id === formData.counterpartyId);
+  const selectedRefinery = approvedRefineries.find((c) => c.id === formData.sourceRefinerId);
+  const isRefinedBars = formData.goldType === "refined_bars";
+  const declaredFinenessPromille = parseFloat(formData.declaredFinenessPromille) || 0;
+  const refinerIsGoodDelivery = selectedRefinery?.lbmaGoodDeliveryStatus === "accredited";
+  const maySkipRefining = Boolean(isRefinedBars && refinerIsGoodDelivery && declaredFinenessPromille >= 995);
+  const expectedRefiningRequired = !maySkipRefining;
 
   // LBMA fixing selection based on London time (PM after ~14:30 local).
   const now = new Date();
@@ -187,18 +201,23 @@ export default function NewPurchaseOrderPage() {
   const weightOz = (weightKg * 1000) / OZ_TO_GRAM;
 
   const bounds = ASSAY_BOUNDS[formData.assayRange] || ASSAY_BOUNDS["85-92"];
-  const purityFactor = bounds.central;
+  const purityFactor = isRefinedBars
+    ? Math.min(Math.max(declaredFinenessPromille / 1000, 0), 1)
+    : bounds.central;
   const fineWeightKg = weightKg * purityFactor;
   const fineWeightOz = (fineWeightKg * 1000) / OZ_TO_GRAM;
 
-  const valuationLow = weightOz * bounds.low * currentLbmaPrice;
-  const valuationCentral = weightOz * bounds.central * currentLbmaPrice;
-  const valuationHigh = weightOz * bounds.high * currentLbmaPrice;
+  const valuationLow = weightOz * (isRefinedBars ? purityFactor : bounds.low) * currentLbmaPrice;
+  const valuationCentral = weightOz * purityFactor * currentLbmaPrice;
+  const valuationHigh = weightOz * (isRefinedBars ? purityFactor : bounds.high) * currentLbmaPrice;
 
   const premiumDiscount = parseFloat(formData.premiumDiscount) || 0;
   const logisticsCost = parseFloat(formData.logisticsCost) || 0;
   const assayFee = parseFloat(formData.assayFee) || 0;
-  const totalValue = valuationCentral + premiumDiscount - logisticsCost - assayFee;
+  const refiningAllowance = expectedRefiningRequired
+    ? fineWeightOz * 14.5 + valuationCentral * 0.005
+    : 0;
+  const totalValue = valuationCentral + premiumDiscount - logisticsCost - assayFee - refiningAllowance;
 
   // Last comparable operation (indicative reference data).
   const lastNegotiatedPrice = currentLbmaPrice - 4.4;
@@ -224,6 +243,9 @@ export default function NewPurchaseOrderPage() {
         missingFields.push(language === "fr" ? "Quantité cible" : "Target Quantity");
       }
       if (!formData.goldType) missingFields.push(language === "fr" ? "Type d'or" : "Gold Type");
+      if (isRefinedBars && declaredFinenessPromille <= 0) {
+        missingFields.push(language === "fr" ? "Titre déclaré" : "Declared Fineness");
+      }
       if (!formData.deliveryVaultId)
         missingFields.push(language === "fr" ? "Coffre de destination" : "Delivery Vault");
       if (!formData.deliveryWindowStart)
@@ -259,7 +281,7 @@ export default function NewPurchaseOrderPage() {
           counterpartyId: formData.counterpartyId,
           estimatedWeightKg: weight,
           goldType: formData.goldType || null,
-          assayRange: formData.assayRange || null,
+          assayRange: isRefinedBars ? null : formData.assayRange || null,
           incoterms: formData.incoterms || null,
           deliveryVaultId: formData.deliveryVaultId || null,
           expectedDispatchDate: formData.deliveryWindowStart || null,
@@ -281,6 +303,9 @@ export default function NewPurchaseOrderPage() {
           paymentTerm: formData.paymentTerm || null,
           prepaymentPercent: formData.prepayment ? parseFloat(formData.prepayment) : null,
           cdfFxBasis: formData.cdfFxBasis || null,
+          sourceRefinerId: isRefinedBars ? formData.sourceRefinerId || null : null,
+          declaredFinenessPromille: isRefinedBars ? declaredFinenessPromille : null,
+          expectedRefiningRequired,
         }),
       });
 
@@ -396,6 +421,11 @@ export default function NewPurchaseOrderPage() {
                               ))}
                             </SelectContent>
                           </Select>
+                          <p className="text-xs text-muted-foreground">
+                            {language === "fr"
+                              ? "La contrepartie est le vendeur auquel la BCC achète l’or. La raffinerie source des lingots est renseignée séparément."
+                              : "The counterparty is the seller from whom BCC buys the gold. The bars’ source refiner is recorded separately."}
+                          </p>
                         </div>
                         {selectedCounterparty && (
                           <div className="flex items-center gap-2 pb-1">
@@ -498,22 +528,24 @@ export default function NewPurchaseOrderPage() {
                             </SelectContent>
                           </Select>
                         </div>
-                        <div className="space-y-2">
-                          <Label>{language === "fr" ? "Plage de pureté (%)" : "Assay Range (%)"}</Label>
-                          <Select
-                            value={formData.assayRange}
-                            onValueChange={(value) => setFormData({ ...formData, assayRange: value })}
-                          >
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="85-92">85 % – 92 %</SelectItem>
-                              <SelectItem value="92-99">92 % – 99 %</SelectItem>
-                              <SelectItem value="99.5+">99,5 %+</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
+                        {!isRefinedBars && (
+                          <div className="space-y-2">
+                            <Label>{language === "fr" ? "Plage de pureté (%)" : "Assay Range (%)"}</Label>
+                            <Select
+                              value={formData.assayRange}
+                              onValueChange={(value) => setFormData({ ...formData, assayRange: value })}
+                            >
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="85-92">85 % – 92 %</SelectItem>
+                                <SelectItem value="92-99">92 % – 99 %</SelectItem>
+                                <SelectItem value="99.5+">99,5 %+</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        )}
                         <div className="space-y-2">
                           <Label>
                             {language === "fr" ? "Incoterm" : "Incoterm"} <span className="text-destructive">*</span>
@@ -534,6 +566,96 @@ export default function NewPurchaseOrderPage() {
                             </SelectContent>
                           </Select>
                         </div>
+                      </div>
+
+                      {isRefinedBars && (
+                        <div className="grid gap-4 border-t pt-4 sm:grid-cols-3">
+                          <div className="space-y-2">
+                            <Label>
+                              {language === "fr" ? "Titre déclaré (‰)" : "Declared Fineness (‰)"}{" "}
+                              <span className="text-destructive">*</span>
+                            </Label>
+                            <Input
+                              type="number"
+                              min="0"
+                              max="1000"
+                              step="0.1"
+                              value={formData.declaredFinenessPromille}
+                              onChange={(e) => setFormData({ ...formData, declaredFinenessPromille: e.target.value })}
+                              placeholder="995.0"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label>{language === "fr" ? "Raffinerie source" : "Source Refiner"}</Label>
+                            <Select
+                              value={formData.sourceRefinerId}
+                              onValueChange={(value) => setFormData({ ...formData, sourceRefinerId: value })}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder={language === "fr" ? "Sélectionner une raffinerie..." : "Select a refiner..."} />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {approvedRefineries.length === 0 ? (
+                                  <div className="px-2 py-4 text-center text-sm text-muted-foreground">
+                                    {language === "fr" ? "Aucune raffinerie approuvée" : "No approved refinery"}
+                                  </div>
+                                ) : (
+                                  approvedRefineries.map((refinery) => (
+                                    <SelectItem key={refinery.id} value={refinery.id}>
+                                      {refinery.legalName}
+                                    </SelectItem>
+                                  ))
+                                )}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-2">
+                            <Label>{language === "fr" ? "Statut Good Delivery" : "Good Delivery Status"}</Label>
+                            <Input
+                              readOnly
+                              className="bg-muted/40"
+                              value={
+                                !selectedRefinery
+                                  ? "—"
+                                  : refinerIsGoodDelivery
+                                    ? language === "fr" ? "Accréditée LBMA GD" : "LBMA GD accredited"
+                                    : language === "fr" ? "Non accréditée" : "Not accredited"
+                              }
+                            />
+                            {selectedRefinery?.maxOutputFineness && (
+                              <p className="text-xs text-muted-foreground">
+                                {language === "fr" ? "Titre maximal déclaré" : "Declared maximum fineness"}: {selectedRefinery.maxOutputFineness} ‰
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      <div className={`rounded-lg border-l-4 p-4 ${maySkipRefining ? "border border-l-emerald-500 bg-emerald-500/5" : "border border-l-amber-500 bg-amber-500/5"}`}>
+                        <div className="flex flex-wrap items-center gap-2">
+                          {maySkipRefining ? <CheckCircle2 className="h-5 w-5 text-emerald-500" /> : <Factory className="h-5 w-5 text-amber-500" />}
+                          <p className="text-sm font-semibold">
+                            {maySkipRefining
+                              ? language === "fr" ? "Parcours prévu — raffinage potentiellement non requis" : "Expected route — refining may be skipped"
+                              : language === "fr" ? "Parcours prévu — raffinage requis" : "Expected route — refining required"}
+                          </p>
+                          <Badge variant="outline" className="text-[10px]">
+                            {language === "fr" ? "Provisoire · confirmé à la réception" : "Provisional · confirmed at intake"}
+                          </Badge>
+                        </div>
+                        <p className="mt-2 text-xs leading-5 text-muted-foreground">
+                          {maySkipRefining
+                            ? language === "fr"
+                              ? "Les lingots sont déclarés à au moins 995 ‰ et proviennent d’une raffinerie LBMA Good Delivery. Après confirmation du titre et de la provenance à la réception, ils pourront passer directement à l’éligibilité aux réserves."
+                              : "The bars are declared at or above 995‰ and originate from an LBMA Good Delivery refiner. Once fineness and provenance are confirmed at intake, they may proceed directly to reserve eligibility."
+                            : isRefinedBars
+                              ? language === "fr"
+                                ? "Le titre est inférieur à 995 ‰, la raffinerie n’est pas accréditée ou n’est pas encore sélectionnée. Un nouveau raffinage sera requis après la réception et l’essai."
+                                : "Fineness is below 995‰, the refiner is not accredited, or no refiner has been selected. Re-refining will be required after intake and assay."
+                              : language === "fr"
+                                ? "Cet or n’est pas éligible aux réserves en l’état. Après la réception et l’essai, un ordre de raffinage sera créé séparément."
+                                : "This gold is not reserve-eligible as-is. After intake and assay, a separate refining order will be created."}
+                        </p>
                       </div>
                     </CardContent>
                   </Card>
@@ -825,7 +947,12 @@ export default function NewPurchaseOrderPage() {
                       <div className="space-y-2 text-sm">
                         <MetricRow label={language === "fr" ? "Quantité cible" : "Target Quantity"} value={`${num(weightKg, 3)} kg`} />
                         <MetricRow label={language === "fr" ? "Tolérance" : "Tolerance"} value={`± ${num(tolerancePct, 1)} %`} />
-                        <MetricRow label={language === "fr" ? "Pureté centrale utilisée" : "Central Purity Used"} value={`${num(purityFactor * 100, 2)} %`} />
+                        <MetricRow
+                          label={isRefinedBars
+                            ? language === "fr" ? "Titre déclaré" : "Declared Fineness"
+                            : language === "fr" ? "Pureté centrale utilisée" : "Central Purity Used"}
+                          value={isRefinedBars ? `${num(declaredFinenessPromille, 1)} ‰` : `${num(purityFactor * 100, 2)} %`}
+                        />
                         <MetricRow
                           label={language === "fr" ? "Poids d'or fin estimé" : "Estimated Fine Gold Weight"}
                           value={`${num(fineWeightKg, 3)} kg · ${num(fineWeightOz, 2)} oz`}
@@ -854,14 +981,14 @@ export default function NewPurchaseOrderPage() {
                       </div>
 
                       {/* Valuation range */}
-                      <div className="rounded-lg border bg-muted/30 p-3">
+                      {!isRefinedBars && <div className="rounded-lg border bg-muted/30 p-3">
                         <span className="text-sm font-medium">{language === "fr" ? "Fourchette de valorisation" : "Valuation Range"}</span>
                         <div className="mt-2 space-y-1.5 text-sm">
                           <MetricRow label={`${language === "fr" ? "Hypothèse basse" : "Low"} · ${num(bounds.low * 100, 0)} %`} value={money(valuationLow)} />
                           <MetricRow label={`${language === "fr" ? "Hypothèse centrale" : "Central"} · ${num(bounds.central * 100, 1)} %`} value={money(valuationCentral)} />
                           <MetricRow label={`${language === "fr" ? "Hypothèse haute" : "High"} · ${num(bounds.high * 100, 0)} %`} value={money(valuationHigh)} />
                         </div>
-                      </div>
+                      </div>}
 
                       {/* Premium / logistics inputs */}
                       <div className="space-y-2 text-sm">
@@ -894,6 +1021,12 @@ export default function NewPurchaseOrderPage() {
                             onChange={(e) => setFormData({ ...formData, logisticsCost: e.target.value })}
                           />
                         </div>
+                        {expectedRefiningRequired && (
+                          <div className="flex items-center justify-between text-amber-600 dark:text-amber-400">
+                            <span>{language === "fr" ? "Provision de raffinage estimée" : "Estimated Refining Allowance"}</span>
+                            <span className="font-medium tabular-nums">− {money(refiningAllowance)}</span>
+                          </div>
+                        )}
                       </div>
 
                       <Separator />
@@ -902,12 +1035,18 @@ export default function NewPurchaseOrderPage() {
                       <div className="flex flex-col items-center justify-center rounded-lg bg-primary/10 p-4 text-center">
                         <span className="text-sm text-muted-foreground">{language === "fr" ? "Montant indicatif" : "Indicative Amount"}</span>
                         <span className="text-2xl font-bold">
-                          {weightKg > 0 ? `${money(valuationLow)} – ${num(valuationHigh / 1_000_000, 2)} M` : "—"}
+                          {weightKg > 0
+                            ? isRefinedBars ? money(totalValue) : `${money(valuationLow)} – ${num(valuationHigh / 1_000_000, 2)} M`
+                            : "—"}
                         </span>
                         <span className="mt-1 text-xs text-muted-foreground">
                           {language === "fr"
-                            ? "Estimation hors premium final et coûts logistiques confirmés"
-                            : "Estimate excludes final premium and confirmed logistics costs"}
+                            ? expectedRefiningRequired
+                              ? "Prix estimé net de la provision de raffinage ; la raffinerie sera réglée séparément"
+                              : "Aucune provision de raffinage, sous réserve de confirmation à la réception"
+                            : expectedRefiningRequired
+                              ? "Estimated price net of refining allowance; the refiner is paid separately"
+                              : "No refining allowance, subject to confirmation at intake"}
                         </span>
                       </div>
 
@@ -1017,9 +1156,9 @@ export default function NewPurchaseOrderPage() {
   );
 }
 
-function RefField({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
+function RefField({ label, value, mono, title }: { label: string; value: string; mono?: boolean; title?: string }) {
   return (
-    <div className="space-y-1">
+    <div className="space-y-1" title={title}>
       <p className="text-xs text-muted-foreground">{label}</p>
       <p className={`text-sm font-medium ${mono ? "font-mono" : ""}`}>{value}</p>
     </div>

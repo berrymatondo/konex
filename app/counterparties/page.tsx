@@ -56,6 +56,7 @@ import {
   Trash2,
   Shield,
   FileEdit,
+  Factory,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/lib/i18n/language-context";
@@ -69,6 +70,7 @@ interface Counterparty {
   goldSourceTypes: string[];
   status: string;
   riskLevel: string | null;
+  counterpartyType?: "trading_house" | "refinery";
   createdAt: string;
   updatedAt: string;
   ubos: Array<{ isPEP: boolean }>;
@@ -103,7 +105,7 @@ export default function CounterpartiesPage() {
     (url: string) => fetch(url).then((r) => r.json())
   );
   const isReadOnly = access?.role === "counterparty";
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const statusConfig = getStatusConfig(t);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -333,6 +335,21 @@ export default function CounterpartiesPage() {
                                 </DropdownMenu>
                               </div>
                               <div className="mt-4 flex flex-wrap items-center gap-2">
+                                <Badge
+                                  variant="outline"
+                                  className={cp.counterpartyType === "refinery"
+                                    ? "border-violet-500/50 bg-violet-500/10 text-violet-600 dark:text-violet-400"
+                                    : "border-sky-500/50 bg-sky-500/10 text-sky-600 dark:text-sky-400"}
+                                >
+                                  {cp.counterpartyType === "refinery" ? (
+                                    <Factory className="mr-1 h-3 w-3" />
+                                  ) : (
+                                    <Building2 className="mr-1 h-3 w-3" />
+                                  )}
+                                  {cp.counterpartyType === "refinery"
+                                    ? language === "fr" ? "Raffinerie" : "Refinery"
+                                    : language === "fr" ? "Contrepartie" : "Counterparty"}
+                                </Badge>
                                 <Badge variant="outline" className={cn(status.className)}>
                                   <StatusIcon className="mr-1 h-3 w-3" />
                                   {status.label}
@@ -369,6 +386,7 @@ export default function CounterpartiesPage() {
                         <TableHeader>
                           <TableRow>
                             <TableHead>{t.counterparties.title}</TableHead>
+                            <TableHead>{language === "fr" ? "Type d’identité" : "Identity Type"}</TableHead>
                             <TableHead>{t.common.country}</TableHead>
                             <TableHead>{t.counterparties.goldSourceTypes}</TableHead>
                             <TableHead>{t.counterparties.ubos}</TableHead>
@@ -395,6 +413,23 @@ export default function CounterpartiesPage() {
                                       {cp.registrationNumber}
                                     </p>
                                   </div>
+                                </TableCell>
+                                <TableCell>
+                                  <Badge
+                                    variant="outline"
+                                    className={cp.counterpartyType === "refinery"
+                                      ? "border-violet-500/50 bg-violet-500/10 text-violet-600 dark:text-violet-400"
+                                      : "border-sky-500/50 bg-sky-500/10 text-sky-600 dark:text-sky-400"}
+                                  >
+                                    {cp.counterpartyType === "refinery" ? (
+                                      <Factory className="mr-1 h-3 w-3" />
+                                    ) : (
+                                      <Building2 className="mr-1 h-3 w-3" />
+                                    )}
+                                    {cp.counterpartyType === "refinery"
+                                      ? language === "fr" ? "Raffinerie" : "Refinery"
+                                      : language === "fr" ? "Contrepartie" : "Counterparty"}
+                                  </Badge>
                                 </TableCell>
                                 <TableCell>{cp.countryOfIncorporation}</TableCell>
                                 <TableCell>

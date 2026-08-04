@@ -274,7 +274,7 @@ const FX_ROWS: FxRow[] = [
 const BONS_BCC: BonRow[] = [
   {
     maturity: "7 jours",
-    rate: 10.5,
+    rate: 13.5,
     varPb: 25,
     announced: 300,
     submissions: 612,
@@ -286,7 +286,7 @@ const BONS_BCC: BonRow[] = [
   },
   {
     maturity: "28 jours",
-    rate: 11.75,
+    rate: 13.5,
     varPb: 25,
     announced: 500,
     submissions: 1085,
@@ -298,7 +298,7 @@ const BONS_BCC: BonRow[] = [
   },
   {
     maturity: "84 jours",
-    rate: 12.5,
+    rate: 13.5,
     varPb: 20,
     announced: 700,
     submissions: 1564,
@@ -307,18 +307,6 @@ const BONS_BCC: BonRow[] = [
     satisfaction: 44.8,
     encours: 1987.4,
     nextAuction: "25/06/2026",
-  },
-  {
-    maturity: "182 jours",
-    rate: 13.25,
-    varPb: 15,
-    announced: 600,
-    submissions: 1023,
-    retained: 600,
-    btc: 1.71,
-    satisfaction: 58.7,
-    encours: 1102.5,
-    nextAuction: "30/06/2026",
   },
 ];
 

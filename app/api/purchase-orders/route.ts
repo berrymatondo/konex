@@ -96,6 +96,9 @@ export async function GET() {
           premiumDiscount: po.premium_discount,
           logisticsCost: po.logistics_cost,
           assayFee: po.assay_fee,
+          sourceRefinerId: po.source_refiner_id,
+          declaredFinenessPromille: po.declared_fineness_promille,
+          expectedRefiningRequired: po.expected_refining_required,
           totalEstimatedValue: po.total_estimated_value,
           currency: po.currency,
           priceLockExpiry: po.price_lock_expiry,
@@ -159,6 +162,8 @@ export async function POST(request: Request) {
       paymentTerm,
       prepaymentPercent,
       cdfFxBasis,
+      sourceRefinerId,
+      declaredFinenessPromille,
     } = body;
 
     // Validate required fields - for drafts, only counterpartyId is required
@@ -168,6 +173,28 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
+
+    let sourceRefinerIsGoodDelivery = false;
+    if (sourceRefinerId) {
+      const refinerRows = await sql`
+        SELECT id, lbma_good_delivery_status FROM counterparties
+        WHERE id = ${sourceRefinerId}
+          AND counterparty_type = 'refinery'
+          AND status IN ('approved', 'active')
+        LIMIT 1
+      `;
+      if (refinerRows.length === 0) {
+        return NextResponse.json({ error: "Invalid or unapproved source refiner" }, { status: 400 });
+      }
+      sourceRefinerIsGoodDelivery = refinerRows[0].lbma_good_delivery_status === "accredited";
+    }
+
+    if (declaredFinenessPromille != null && (declaredFinenessPromille <= 0 || declaredFinenessPromille > 1000)) {
+      return NextResponse.json({ error: "Declared fineness must be between 0 and 1000‰" }, { status: 400 });
+    }
+    const computedRefiningRequired = goldType === "refined_bars"
+      ? !(sourceRefinerIsGoodDelivery && Number(declaredFinenessPromille) >= 995)
+      : true;
     
     // For submitted orders, validate all required fields
     if (status === "submitted") {
@@ -177,6 +204,9 @@ export async function POST(request: Request) {
       if (!incoterms) missingFields.push("Incoterms");
       if (!deliveryVaultId) missingFields.push("Delivery Vault");
       if (!expectedDispatchDate) missingFields.push("Desired Delivery Window Start");
+      if (goldType === "refined_bars" && (!declaredFinenessPromille || declaredFinenessPromille <= 0)) {
+        missingFields.push("Declared Fineness");
+      }
       
       if (missingFields.length > 0) {
         return NextResponse.json(
@@ -204,7 +234,8 @@ export async function POST(request: Request) {
         total_estimated_value, currency, price_lock_expiry, tracking_id,
         created_by, submitted_at,
         tolerance_percent, delivery_window_end, payment_usd_cdf_split,
-        payment_timing, payment_term, prepayment_percent, cdf_fx_basis
+        payment_timing, payment_term, prepayment_percent, cdf_fx_basis,
+        source_refiner_id, declared_fineness_promille, expected_refining_required
       ) VALUES (
         ${poId}, ${counterpartyId}, ${status || 'draft'}, ${estimatedWeightKg}, ${goldType}, ${assayRange || null},
         ${incoterms}, ${deliveryVaultId}, ${expectedDispatchDate || null}, ${notes || null},
@@ -212,7 +243,8 @@ export async function POST(request: Request) {
         ${totalEstimatedValue || null}, ${currency || 'USD'}, ${priceLockExpiry || null}, ${trackingId},
         ${sessionUser?.id ?? null}, ${status === 'submitted' ? new Date().toISOString() : null},
         ${tolerancePercent ?? null}, ${deliveryWindowEnd || null}, ${paymentUsdCdfSplit || null},
-        ${paymentTiming || null}, ${paymentTerm || null}, ${prepaymentPercent ?? null}, ${cdfFxBasis || null}
+        ${paymentTiming || null}, ${paymentTerm || null}, ${prepaymentPercent ?? null}, ${cdfFxBasis || null},
+        ${sourceRefinerId || null}, ${declaredFinenessPromille ?? null}, ${computedRefiningRequired}
       )
     `;
 

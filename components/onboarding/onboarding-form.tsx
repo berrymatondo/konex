@@ -247,7 +247,9 @@ export function OnboardingForm() {
             fullName: ubo.name,
             nationality:
               jurisdictions.find((jurisdiction) => jurisdiction.code === ubo.nationality)?.name || ubo.nationality,
-            residenceCountry: ubo.residenceCountry,
+            residenceCountry:
+              jurisdictions.find((jurisdiction) => jurisdiction.code === ubo.residenceCountry)?.name ||
+              ubo.residenceCountry,
             ownershipPercent: Number.parseFloat(ubo.ownershipPercentage) || 0,
             isPEP: ubo.isPEP,
             pepDetails: ubo.position || undefined,
@@ -471,7 +473,20 @@ export function OnboardingForm() {
                   <Field label={fr ? "Nationalité" : "Nationality"} required>
                     <Select value={ubo.nationality} onValueChange={(value) => updateUbo(index, "nationality", value)}><SelectTrigger><SelectValue placeholder={fr ? "Sélectionner" : "Select nationality"} /></SelectTrigger><SelectContent>{jurisdictions.map((jurisdiction) => <SelectItem key={jurisdiction.code} value={jurisdiction.code}>{jurisdiction.name}</SelectItem>)}</SelectContent></Select>
                   </Field>
-                  <Field label={fr ? "Pays de résidence" : "Country"}><Input value={ubo.residenceCountry} onChange={(event) => updateUbo(index, "residenceCountry", event.target.value)} placeholder={fr ? "Pays de résidence" : "Country of residence"} /></Field>
+                  <Field label={fr ? "Pays de résidence" : "Country of residence"}>
+                    <Select value={ubo.residenceCountry} onValueChange={(value) => updateUbo(index, "residenceCountry", value)}>
+                      <SelectTrigger>
+                        <SelectValue placeholder={fr ? "Sélectionner le pays de résidence" : "Select country of residence"} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {jurisdictions.map((jurisdiction) => (
+                          <SelectItem key={jurisdiction.code} value={jurisdiction.code}>
+                            {jurisdiction.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </Field>
                   <Field label={fr ? "Participation (%)" : "Ownership %"} required><Input type="number" min="0" max="100" value={ubo.ownershipPercentage} onChange={(event) => updateUbo(index, "ownershipPercentage", event.target.value)} placeholder="0" /></Field>
                   <Field label={fr ? "Fonction / rôle PEP" : "PEP Position / Role"}><Input value={ubo.position} onChange={(event) => updateUbo(index, "position", event.target.value)} disabled={!ubo.isPEP} placeholder={fr ? "Le cas échéant" : "If applicable"} /></Field>
                   <div className="flex items-end gap-3 pb-1">

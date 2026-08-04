@@ -479,7 +479,10 @@ export async function ensurePurchaseOrderTermsColumns() {
       ADD COLUMN IF NOT EXISTS payment_term text,
       ADD COLUMN IF NOT EXISTS prepayment_percent numeric,
       ADD COLUMN IF NOT EXISTS cdf_fx_basis text,
-      ADD COLUMN IF NOT EXISTS assay_fee numeric DEFAULT 0
+      ADD COLUMN IF NOT EXISTS assay_fee numeric DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS source_refiner_id text REFERENCES counterparties(id) ON DELETE SET NULL,
+      ADD COLUMN IF NOT EXISTS declared_fineness_promille numeric,
+      ADD COLUMN IF NOT EXISTS expected_refining_required boolean
   `;
   poTermsColumnsReady = true;
 }
@@ -577,6 +580,9 @@ export interface PurchaseOrder {
   premium_discount: number;
   logistics_cost: number;
   assay_fee: number;
+  source_refiner_id: string | null;
+  declared_fineness_promille: number | null;
+  expected_refining_required: boolean | null;
   total_estimated_value: number | null;
   currency: string;
   price_lock_expiry: string | null;

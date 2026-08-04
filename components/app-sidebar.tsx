@@ -82,11 +82,12 @@ function NavItem({ href, icon: Icon, title, isActive, isCollapsed, onClick }: Na
     <Link
       href={href}
       onClick={onClick}
+      aria-current={isActive ? "page" : undefined}
       className={cn(
-        "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+        "relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
         isCollapsed && "justify-center px-2",
         isActive
-          ? "bg-sidebar-accent text-sidebar-primary"
+          ? "bg-sidebar-accent text-sidebar-primary shadow-sm before:absolute before:left-0 before:h-6 before:w-1 before:rounded-r-full before:bg-sidebar-primary"
           : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground"
       )}
     >
@@ -161,6 +162,8 @@ function SidebarContent({ isCollapsed, onNavClick }: { isCollapsed: boolean; onN
   // Until access is known, hide every link (instead of showing them all) so a
   // restricted profile never sees pages it shouldn't, even for a frame.
   const canSee = (href: string) => Boolean(allowedPaths && allowedPaths.includes(href));
+  const isPathActive = (href: string) =>
+    href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`);
 
   const mainNavItems = [
     { title: t.nav.dashboard, href: "/", icon: LayoutDashboard },
@@ -234,7 +237,7 @@ function SidebarContent({ isCollapsed, onNavClick }: { isCollapsed: boolean; onN
                     href={item.href}
                     icon={item.icon}
                     title={item.title}
-                    isActive={pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href))}
+                    isActive={isPathActive(item.href)}
                     isCollapsed={isCollapsed}
                     onClick={onNavClick}
                   />
@@ -257,7 +260,7 @@ function SidebarContent({ isCollapsed, onNavClick }: { isCollapsed: boolean; onN
                       href={item.href}
                       icon={item.icon}
                       title={item.title}
-                      isActive={pathname === item.href || pathname.startsWith(item.href + "/")}
+                      isActive={isPathActive(item.href)}
                       isCollapsed={isCollapsed}
                       onClick={onNavClick}
                     />
@@ -280,7 +283,7 @@ function SidebarContent({ isCollapsed, onNavClick }: { isCollapsed: boolean; onN
                     href={item.href}
                     icon={item.icon}
                     title={item.title}
-                    isActive={pathname === item.href}
+                    isActive={isPathActive(item.href)}
                     isCollapsed={isCollapsed}
                     onClick={onNavClick}
                   />
@@ -302,7 +305,7 @@ function SidebarContent({ isCollapsed, onNavClick }: { isCollapsed: boolean; onN
                     href={item.href}
                     icon={item.icon}
                     title={item.title}
-                    isActive={pathname === item.href}
+                    isActive={isPathActive(item.href)}
                     isCollapsed={isCollapsed}
                     onClick={onNavClick}
                   />
@@ -325,7 +328,7 @@ function SidebarContent({ isCollapsed, onNavClick }: { isCollapsed: boolean; onN
                       href={item.href}
                       icon={item.icon}
                       title={item.title}
-                      isActive={pathname === item.href || pathname.startsWith(item.href + "/")}
+                      isActive={isPathActive(item.href)}
                       isCollapsed={isCollapsed}
                       onClick={onNavClick}
                     />
