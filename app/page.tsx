@@ -106,7 +106,7 @@ const TICKERS: MarketTicker[] = [
     unit: "USD/oz",
     change: 18.4,
     changePct: 0.79,
-    time: "09:30",
+    time: "17:30",
     sparkline: [2280, 2295, 2310, 2290, 2305, 2325, 2318, 2330, 2340, 2346],
   },
   {
@@ -117,7 +117,7 @@ const TICKERS: MarketTicker[] = [
     unit: "USD/ton",
     change: -54.5,
     changePct: -0.56,
-    time: "09:30",
+    time: "17:30",
     sparkline: [9820, 9810, 9830, 9800, 9780, 9760, 9775, 9755, 9745, 9742],
   },
   {
@@ -128,7 +128,7 @@ const TICKERS: MarketTicker[] = [
     unit: "USD/bbl",
     change: 0.62,
     changePct: 0.74,
-    time: "09:30",
+    time: "17:30",
     sparkline: [83.0, 83.4, 83.2, 83.7, 83.5, 84.0, 83.8, 84.1, 84.2, 84.32],
   },
   {
@@ -139,7 +139,7 @@ const TICKERS: MarketTicker[] = [
     unit: "%",
     change: 0.07,
     changePct: 1.66,
-    time: "09:30",
+    time: "17:30",
     sparkline: [4.1, 4.12, 4.18, 4.15, 4.2, 4.22, 4.19, 4.24, 4.26, 4.28],
   },
   {
@@ -150,7 +150,7 @@ const TICKERS: MarketTicker[] = [
     unit: "",
     change: 0.18,
     changePct: 0.17,
-    time: "09:30",
+    time: "17:30",
     sparkline: [
       103.5, 103.6, 103.8, 103.7, 104.0, 103.9, 104.1, 104.0, 104.15, 104.21,
     ],
@@ -163,7 +163,7 @@ const TICKERS: MarketTicker[] = [
     unit: "",
     change: 12.5,
     changePct: 0.43,
-    time: "09:30",
+    time: "17:30",
     sparkline: [2220, 2225, 2230, 2228, 2235, 2240, 2242, 2248, 2253, 2257],
   },
   {
@@ -174,7 +174,7 @@ const TICKERS: MarketTicker[] = [
     unit: "",
     change: -0.48,
     changePct: -2.98,
-    time: "09:30",
+    time: "17:30",
     sparkline: [17.0, 16.8, 16.5, 16.3, 16.1, 16.2, 16.0, 15.9, 15.7, 15.62],
   },
   {
@@ -185,7 +185,7 @@ const TICKERS: MarketTicker[] = [
     unit: "",
     change: -1.25,
     changePct: -1.17,
-    time: "09:30",
+    time: "17:30",
     sparkline: [
       108, 107.5, 107.0, 106.8, 106.5, 106.2, 106.0, 105.8, 105.5, 105.34,
     ],
@@ -351,7 +351,13 @@ const LIQUIDITY_KPIS: LiquidityKpi[] = [
 
 const COMMODITY_ROWS: CommodityRow[] = [
   { label: "Gold (XAU/USD)", level: 4072.03, levelDec: 2, d1: 0.79, m1: 4.12 },
-  { label: "Copper (LME 3M)", level: 13824.42, levelDec: 2, d1: -0.56, m1: 2.35 },
+  {
+    label: "Copper (LME 3M)",
+    level: 13824.42,
+    levelDec: 2,
+    d1: -0.56,
+    m1: 2.35,
+  },
   { label: "Brent (ICE)", level: 84.32, levelDec: 2, d1: 0.74, m1: -1.22 },
   {
     label: "Bloomberg Commodity Index",
@@ -441,7 +447,7 @@ const ALERTS: Alert[] = [
   {
     level: "critical",
     text: "Hausse rapide des rendements UST 10Y (+7 pb)",
-    time: "09:30",
+    time: "17:30",
   },
   {
     level: "critical",
@@ -613,7 +619,7 @@ const TICKER_STATIC: TickerItem[] = [
     id: "eb2031",
     label: "DRC, 9.5% 04/37",
     value: 104.73,
-    changePct: +0.37  ,
+    changePct: +0.37,
     unit: "",
     isin: "XS3344646958",
   },
@@ -788,7 +794,7 @@ export default function DashboardPage() {
             <div className="mx-auto max-w-[1600px] space-y-4">
               {/* Status bar */}
               <div className="flex items-center justify-between text-xs text-muted-foreground">
-                <span>Dernière mise à jour : 19/06/2026 09:30</span>
+                <span>Dernière mise à jour : 04/08/2026 17:30</span>
                 <span className="flex items-center gap-1.5 text-success font-medium">
                   <span className="h-2 w-2 rounded-full bg-success animate-pulse inline-block" />
                   Données à jour
@@ -807,7 +813,7 @@ export default function DashboardPage() {
                   },
                   {
                     id: "copper-tk",
-                    label: "Cuivre LME",
+                    label: "Copper LME",
                     value: liveCopper,
                     changePct: -0.56,
                     unit: "USD/t",

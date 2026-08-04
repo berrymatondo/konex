@@ -2,8 +2,11 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, CheckCircle2, Clock3, Factory, Filter, PackageCheck, ShieldAlert, ShieldCheck, XCircle } from "lucide-react";
+import { useParams, useRouter } from "next/navigation";
+import useSWR from "swr";
+import { ArrowLeft, CheckCircle2, Clock3, Factory, Filter, PackageCheck, ShieldAlert, ShieldCheck, Trash2, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -12,9 +15,26 @@ import { Textarea } from "@/components/ui/textarea";
 import { useLanguage } from "@/lib/i18n/language-context";
 import { InfoCell, OZ_PER_KG, RefiningPanel, StatusPill, Timeline, WorkflowStepper } from "./refining-shared";
 
-const FINE_KG = 44.25;
-const PRICE = 2351.2;
-const ACTUAL_VALUE = FINE_KG * OZ_PER_KG * PRICE;
+interface RefiningOrderDetail {
+  id: string;
+  reference: string;
+  status: string;
+  purchaseOrderReference: string | null;
+  lotReference: string | null;
+  counterpartyName: string | null;
+  refineryName: string | null;
+  lbmaGoodDeliveryStatus: string | null;
+  targetFineness: string;
+  turnaroundDays: number;
+  fee: number;
+  feeUnit: "oz" | "g";
+  expectedLossPercent: number;
+  inputGrossWeightKg: number;
+  inputFineGoldKg: number;
+  expectedOutturnKg: number;
+  goldPricePerOz: number;
+  createdAt: string;
+}
 
 const TIERS = [
   { name: "Tier 1", label: "≤ 500,000 USD", max: 500_000, count: 1 },
@@ -23,14 +43,16 @@ const TIERS = [
 ];
 
 const APPROVERS = [
-  { initials: "HB", name: "Henri Bwana", role: "Head of Bullion Operations · Authorising Officer", approved: true, you: false, when: "22/07 · 10:40" },
-  { initials: "MK", name: "Marie Kalala", role: "Reserve Risk Officer", approved: false, you: true, when: "" },
-  { initials: "JM", name: "Jeanne Mbala", role: "Deputy Governor", approved: false, you: false, when: "" },
+  { initials: "BO", name: "Bullion Operations", role: "Head of Bullion Operations · Authorising Officer", approved: false, you: true, when: "" },
+  { initials: "RR", name: "Reserve Risk", role: "Reserve Risk Officer", approved: false, you: false, when: "" },
+  { initials: "DG", name: "Deputy Governor", role: "Deputy Governor", approved: false, you: false, when: "" },
 ];
 
 type Decision = "approved" | "returned" | "rejected" | null;
 
 export function RefiningOrderApproval() {
+  const router = useRouter();
+  const params = useParams<{ id: string }>();
   const { language } = useLanguage();
   const fr = language === "fr";
   const [previewValue, setPreviewValue] = useState("actual");
@@ -38,8 +60,26 @@ export function RefiningOrderApproval() {
   const [note, setNote] = useState("");
   const [decision, setDecision] = useState<Decision>(null);
   const [error, setError] = useState("");
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
+  const { data: access } = useSWR<{ isAdmin?: boolean }>("/api/access/me", (url: string) => fetch(url).then((response) => response.json()));
+  const orderReference = typeof params.id === "string" ? params.id : "GAC-REF-2026-014";
+  const { data: order, error: orderError, isLoading: orderLoading } = useSWR<RefiningOrderDetail>(
+    `/api/refining-orders/${encodeURIComponent(orderReference)}`,
+    (url: string) => fetch(url).then(async (response) => {
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Unable to load refining order");
+      return result;
+    }),
+  );
 
-  const value = previewValue === "actual" ? ACTUAL_VALUE : Number(previewValue);
+  const actualValue = order ? order.expectedOutturnKg * OZ_PER_KG * order.goldPricePerOz : 0;
+  const totalCharge = order
+    ? order.feeUnit === "oz"
+      ? order.fee * order.inputFineGoldKg * OZ_PER_KG
+      : order.fee * order.inputFineGoldKg * 1000
+    : 0;
+  const value = previewValue === "actual" ? actualValue : Number(previewValue);
   const tier = TIERS.find((candidate) => value <= candidate.max) ?? TIERS[2];
   const required = APPROVERS.slice(0, tier.count);
   const youRequired = required.some((approver) => approver.you);
@@ -52,8 +92,8 @@ export function RefiningOrderApproval() {
     if (decision === "rejected") return { tone: "danger", title: fr ? "Ordre rejeté" : "Order rejected", description: note };
     if (decision === "approved" && fullyApproved) return { tone: "success", title: fr ? "Approuvé — libéré pour expédition" : "Approved — released for dispatch", description: fr ? "Toutes les approbations sont enregistrées. L’ordre est transmis au responsable Coffre & Essai." : "All approvals are recorded. The order is now with the Vault & Assay Officer." };
     if (decision === "approved") return { tone: "info", title: fr ? "Votre approbation est enregistrée" : "Your approval is recorded", description: fr ? "Une approbation supplémentaire est requise avant l’expédition." : "An additional approval is required before dispatch." };
-    return { tone: "warning", title: fr ? "Votre approbation est requise — deuxième des deux signatures" : "Awaiting your approval — second of two required", description: fr ? "La première signature est enregistrée. Votre approbation complète le double contrôle et libère l’ordre pour expédition." : "The first approver has signed off. Your approval completes dual control and releases the order for dispatch." };
-  }, [decision, fr, fullyApproved, note]);
+    return { tone: "warning", title: fr ? "Approbation de l’ordre requise" : "Order approval required", description: fr ? `Aucune approbation n’est encore enregistrée. Ce circuit requiert ${required.length} signature${required.length > 1 ? "s" : ""}.` : `No approval has been recorded yet. This route requires ${required.length} signature${required.length > 1 ? "s" : ""}.` };
+  }, [decision, fr, fullyApproved, note, required.length]);
 
   const makeDecision = (next: Exclude<Decision, null>) => {
     if ((next === "returned" || next === "rejected") && !note.trim()) {
@@ -64,32 +104,50 @@ export function RefiningOrderApproval() {
     setDecision(next);
   };
 
+  const deleteOrder = async () => {
+    setDeleting(true);
+    setDeleteError("");
+    try {
+      const response = await fetch(`/api/refining-orders/${encodeURIComponent(orderReference)}`, { method: "DELETE" });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Unable to delete refining order");
+      router.push("/refining-orders");
+      router.refresh();
+    } catch (deleteFailure) {
+      setDeleteError(deleteFailure instanceof Error ? deleteFailure.message : (fr ? "Échec de la suppression." : "Delete failed."));
+      setDeleting(false);
+    }
+  };
+
   return (
     <div className="space-y-5">
-      <Link href="/approval-queue" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="h-4 w-4" />{fr ? "Retour à la file d’approbation" : "Back to approval queue"}</Link>
+      <Link href="/refining-orders" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="h-4 w-4" />{fr ? "Retour à la liste des ordres de raffinage" : "Back to the refining orders list"}</Link>
+
+      {orderLoading && <div className="rounded-lg border p-4 text-sm text-muted-foreground">{fr ? "Chargement de l’ordre…" : "Loading refining order…"}</div>}
+      {orderError && <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">{fr ? "Impossible de charger les données de cet ordre." : "Unable to load this refining order."}</div>}
 
       <div className={`flex gap-3 rounded-lg border border-l-4 p-4 ${banner.tone === "success" ? "border-l-emerald-500 bg-emerald-500/5" : banner.tone === "danger" ? "border-l-destructive bg-destructive/5" : banner.tone === "info" ? "border-l-sky-500 bg-sky-500/5" : "border-l-amber-500 bg-amber-500/5"}`}>
         {banner.tone === "success" ? <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-500" /> : banner.tone === "danger" ? <XCircle className="mt-0.5 h-5 w-5 shrink-0 text-destructive" /> : <ShieldAlert className="mt-0.5 h-5 w-5 shrink-0 text-amber-500" />}
         <div><p className="text-sm font-semibold">{banner.title}</p><p className="mt-1 text-xs text-muted-foreground">{banner.description}</p></div>
       </div>
 
-      <div><div className="flex flex-wrap items-center gap-2"><h1 className="font-mono text-xl font-semibold">GAC-REF-2026-014</h1><StatusPill tone={decision === "approved" ? "success" : decision === "rejected" ? "danger" : "warning"}>{decision === "approved" ? (fr ? "Approuvé" : "Approved") : decision === "returned" ? (fr ? "Retourné" : "Returned") : decision === "rejected" ? (fr ? "Rejeté" : "Rejected") : (fr ? "Approbation en attente" : "Pending approval")}</StatusPill><StatusPill>{tier.count === 1 ? (fr ? "Approbation simple" : "Single approval") : tier.count === 2 ? (fr ? "Double approbation" : "Dual approval") : (fr ? "Triple approbation" : "Triple approval")}</StatusPill></div><p className="mt-1 text-xs text-muted-foreground">Bullion Desk · Trade Manager · 22/07/2026 09:05 · PO GAC-TRK-MRUYZ7EK · Lot DORE-2026-0421</p></div>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"><div><div className="flex flex-wrap items-center gap-2"><h1 className="font-mono text-xl font-semibold">{order?.reference || orderReference}</h1><StatusPill tone={decision === "approved" ? "success" : decision === "rejected" ? "danger" : "warning"}>{decision === "approved" ? (fr ? "Approuvé" : "Approved") : decision === "returned" ? (fr ? "Retourné" : "Returned") : decision === "rejected" ? (fr ? "Rejeté" : "Rejected") : (fr ? "Approbation en attente" : "Pending approval")}</StatusPill><StatusPill>{tier.count === 1 ? (fr ? "Approbation simple" : "Single approval") : tier.count === 2 ? (fr ? "Double approbation" : "Dual approval") : (fr ? "Triple approbation" : "Triple approval")}</StatusPill></div><p className="mt-1 text-xs text-muted-foreground">Bullion Desk · Trade Manager{order?.createdAt ? ` · ${new Date(order.createdAt).toLocaleString(fr ? "fr-FR" : "en-GB")}` : ""}{order?.purchaseOrderReference ? ` · PO ${order.purchaseOrderReference}` : ""}{order?.lotReference ? ` · Lot ${order.lotReference}` : ""}</p>{deleteError && <p className="mt-2 text-xs text-destructive">{deleteError}</p>}</div>{access?.isAdmin && <AlertDialog><AlertDialogTrigger asChild><Button variant="destructive" size="sm" disabled={deleting}><Trash2 className="mr-2 h-4 w-4" />{fr ? "Supprimer l’ordre" : "Delete order"}</Button></AlertDialogTrigger><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>{fr ? "Supprimer cet ordre de raffinage ?" : "Delete this refining order?"}</AlertDialogTitle><AlertDialogDescription>{fr ? `L’ordre ${orderReference} sera supprimé définitivement. Cette action est irréversible.` : `Order ${orderReference} will be permanently deleted. This action cannot be undone.`}</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>{fr ? "Annuler" : "Cancel"}</AlertDialogCancel><AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={deleteOrder}>{deleting ? (fr ? "Suppression…" : "Deleting…") : (fr ? "Supprimer définitivement" : "Delete permanently")}</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>}</div>
 
-      <WorkflowStepper active={fullyApproved ? 2 : 1} hrefs={["/refining-orders", "/refining-orders/GAC-REF-2026-014/approval", "/refining-orders/GAC-REF-2026-014/dispatch", undefined, undefined, "/refining-orders/GAC-REF-2026-014/reserve-eligibility"]} labels={fr ? ["Brouillon", "Approbation", "Expédition", "En raffinage", "Outturn", "Classification"] : ["Draft", "Approval", "Dispatch", "In refining", "Outturn", "Classification"]} />
+      <WorkflowStepper active={fullyApproved ? 2 : 1} hrefs={["/refining-orders", `/refining-orders/${orderReference}/approval`, `/refining-orders/${orderReference}/dispatch`, undefined, undefined, `/refining-orders/${orderReference}/reserve-eligibility`]} labels={fr ? ["Brouillon", "Approbation", "Expédition", "En raffinage", "Outturn", "Classification"] : ["Draft", "Approval", "Dispatch", "In refining", "Outturn", "Classification"]} />
 
       <Tabs defaultValue="review">
         <TabsList><TabsTrigger value="review">{fr ? "Examen de l’ordre" : "Order review"}</TabsTrigger><TabsTrigger value="history">{fr ? "Historique d’approbation" : "Approval history"}</TabsTrigger></TabsList>
         <TabsContent value="review" className="mt-4">
           <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_380px]">
             <div className="space-y-4">
-              <RefiningPanel icon={PackageCheck} title={fr ? "Ce que vous approuvez" : "What you are approving"}><div className="grid gap-4 sm:grid-cols-2"><InfoCell label="Source PO"><span className="text-primary">GAC-TRK-MRUYZ7EK</span></InfoCell><InfoCell label={fr ? "Lot doré" : "Doré lot"}>DORE-2026-0421 · Wolo</InfoCell><InfoCell label={fr ? "Poids brut" : "Gross weight"}>50.000 kg · 88.50%</InfoCell><InfoCell label={fr ? "Teneur en or fin" : "Fine gold content"}>44.250 kg · 1,422.67 oz</InfoCell></div></RefiningPanel>
+              <RefiningPanel icon={PackageCheck} title={fr ? "Ce que vous approuvez" : "What you are approving"}><div className="grid gap-4 sm:grid-cols-2"><InfoCell label="Source PO"><span className="text-primary">{order?.purchaseOrderReference || "—"}</span></InfoCell><InfoCell label={fr ? "Lot doré" : "Doré lot"}>{order?.lotReference || "—"}{order?.counterpartyName ? ` · ${order.counterpartyName}` : ""}</InfoCell><InfoCell label={fr ? "Poids brut" : "Gross weight"}>{order ? `${order.inputGrossWeightKg.toFixed(3)} kg · ${(order.inputGrossWeightKg > 0 ? order.inputFineGoldKg / order.inputGrossWeightKg * 100 : 0).toFixed(2)}%` : "—"}</InfoCell><InfoCell label={fr ? "Teneur en or fin" : "Fine gold content"}>{order ? `${order.inputFineGoldKg.toFixed(3)} kg · ${(order.inputFineGoldKg * OZ_PER_KG).toLocaleString("en-US", { maximumFractionDigits: 2 })} oz` : "—"}</InfoCell></div></RefiningPanel>
 
-              <RefiningPanel icon={Factory} title={fr ? "Raffinerie et conditions" : "Refiner & refining terms"}><div className="grid gap-4 sm:grid-cols-2"><InfoCell label={fr ? "Raffinerie" : "Refiner"}>Kinshasa Refinery SA</InfoCell><InfoCell label="LBMA Good Delivery"><StatusPill tone="warning">{fr ? "Demande en cours" : "Application in progress"}</StatusPill></InfoCell><InfoCell label={fr ? "Canal" : "Refining channel"}>{fr ? "Raffinage à façon national" : "Domestic toll refining"}</InfoCell><InfoCell label={fr ? "Base de rendement" : "Yield basis"}>Outturn on assayed fine content</InfoCell><InfoCell label={fr ? "Titre cible" : "Target fineness"}>995.0 ‰</InfoCell><InfoCell label={fr ? "Perte attendue" : "Expected loss"}>0.50 % · −0.221 kg</InfoCell><InfoCell label={fr ? "Outturn attendu" : "Expected outturn"}>44.029 kg fine</InfoCell><InfoCell label={fr ? "Délai" : "Turnaround"}>10 {fr ? "jours ouvrés" : "business days"}</InfoCell><InfoCell label={fr ? "Frais" : "Refining fee"}>14.50 USD/oz</InfoCell><InfoCell label={fr ? "Total des frais" : "Total refining charge"}><span className="text-primary">20,629 USD</span></InfoCell></div></RefiningPanel>
+              <RefiningPanel icon={Factory} title={fr ? "Raffinerie et conditions" : "Refiner & refining terms"}><div className="grid gap-4 sm:grid-cols-2"><InfoCell label={fr ? "Raffinerie" : "Refiner"}>{order?.refineryName || "—"}</InfoCell><InfoCell label="LBMA Good Delivery"><StatusPill tone={order?.lbmaGoodDeliveryStatus === "accredited" ? "success" : "warning"}>{order?.lbmaGoodDeliveryStatus === "accredited" ? (fr ? "Accréditée" : "Accredited") : (fr ? "Non accréditée" : "Not accredited")}</StatusPill></InfoCell><InfoCell label={fr ? "Canal" : "Refining channel"}>{order?.lbmaGoodDeliveryStatus === "accredited" ? (fr ? "Export vers une raffinerie accréditée" : "Export to an accredited refinery") : (fr ? "Export vers une raffinerie non accréditée" : "Export to a non-accredited refinery")}</InfoCell><InfoCell label={fr ? "Base de rendement" : "Yield basis"}>{fr ? "Rendement sur teneur en or fin essayée" : "Outturn on assayed fine content"}</InfoCell><InfoCell label={fr ? "Titre cible" : "Target fineness"}>{order ? `${order.targetFineness} ‰` : "—"}</InfoCell><InfoCell label={fr ? "Perte attendue" : "Expected loss"}>{order ? `${order.expectedLossPercent.toFixed(2)} % · −${(order.inputFineGoldKg - order.expectedOutturnKg).toFixed(3)} kg` : "—"}</InfoCell><InfoCell label={fr ? "Outturn attendu" : "Expected outturn"}>{order ? `${order.expectedOutturnKg.toFixed(3)} kg fine` : "—"}</InfoCell><InfoCell label={fr ? "Délai" : "Turnaround"}>{order ? `${order.turnaroundDays} ${fr ? "jours ouvrés" : "business days"}` : "—"}</InfoCell><InfoCell label={fr ? "Frais" : "Refining fee"}>{order ? `${order.fee.toFixed(2)} USD/${order.feeUnit}` : "—"}</InfoCell><InfoCell label={fr ? "Total des frais" : "Total refining charge"}><span className="text-primary">{order ? `${Math.round(totalCharge).toLocaleString("en-US")} USD` : "—"}</span></InfoCell></div></RefiningPanel>
 
               <RefiningPanel icon={ShieldAlert} title={fr ? "Traitement en réserves" : "Reserve-treatment flag"}><div className="rounded-lg border border-l-4 border-l-amber-500 bg-amber-500/5 p-4 text-sm text-muted-foreground"><strong className="text-foreground">{fr ? "Cet ordre produit de l’or non monétaire." : "This order produces non-monetary gold."}</strong> {fr ? "La raffinerie n’étant pas LBMA Good Delivery, l’outturn sera détenu comme or non monétaire jusqu’à un nouveau raffinage ou une accréditation." : "The refiner is not LBMA Good Delivery accredited, so outturn will be held as non-monetary gold pending re-refining or accreditation."}<p className="mt-3 border-t pt-3">{fr ? "Si des lingots éligibles sont requis, retournez l’ordre au Trade Manager pour choisir le canal export. Sinon, confirmez ce traitement dans la liste de validation." : "If reserve-eligible bullion is required, return the order to switch to the export channel. Otherwise confirm this outcome in the checklist."}</p></div></RefiningPanel>
 
               <RefiningPanel icon={Filter} title={<span className="flex w-full flex-wrap items-center gap-2">{fr ? "Circuit d’approbation" : "Approval routing"}<Select value={previewValue} onValueChange={setPreviewValue} disabled={decision !== null}><SelectTrigger className="ml-auto h-8 w-[190px] text-xs"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="actual">{fr ? "Cet ordre" : "This order"}</SelectItem><SelectItem value="250000">Preview · 250k USD</SelectItem><SelectItem value="3345182">Preview · 3.35M USD</SelectItem><SelectItem value="8500000">Preview · 8.5M USD</SelectItem></SelectContent></Select></span>}>
-                <div className="mb-4 grid gap-4 sm:grid-cols-2"><InfoCell label={fr ? "Valeur de l’envoi" : "Consignment value"}>{Math.round(value).toLocaleString("en-US")} USD{previewValue !== "actual" && " (preview)"}</InfoCell><InfoCell label={fr ? "Dépense de raffinage" : "Refining charge"}>20,629 USD</InfoCell><InfoCell className="sm:col-span-2" label={fr ? "Palier applicable" : "Matched tier"}><StatusPill tone="info">{tier.name}</StatusPill> · {tier.count} {fr ? "approbateur(s) requis" : "approver(s) required"}</InfoCell></div>
+                <div className="mb-4 grid gap-4 sm:grid-cols-2"><InfoCell label={fr ? "Valeur de l’envoi" : "Consignment value"}>{order && order.goldPricePerOz > 0 ? `${Math.round(value).toLocaleString("en-US")} USD${previewValue !== "actual" ? " (preview)" : ""}` : (fr ? "Prix de référence indisponible" : "Reference price unavailable")}</InfoCell><InfoCell label={fr ? "Dépense de raffinage" : "Refining charge"}>{order ? `${Math.round(totalCharge).toLocaleString("en-US")} USD` : "—"}</InfoCell><InfoCell className="sm:col-span-2" label={fr ? "Palier applicable" : "Matched tier"}><StatusPill tone="info">{tier.name}</StatusPill> · {tier.count} {fr ? "approbateur(s) requis" : "approver(s) required"}</InfoCell></div>
                 <div className="overflow-hidden rounded-lg border"><table className="w-full text-sm"><thead className="bg-muted/50 text-left text-xs text-muted-foreground"><tr><th className="px-3 py-2 font-medium">Tier</th><th className="px-3 py-2 font-medium">{fr ? "Valeur de l’envoi" : "Consignment value"}</th><th className="px-3 py-2 font-medium">{fr ? "Approbateurs" : "Approvers"}</th></tr></thead><tbody>{TIERS.map((candidate) => <tr key={candidate.name} className={`border-t ${candidate.name === tier.name ? "bg-primary/10" : ""}`}><td className={`px-3 py-2 ${candidate.name === tier.name ? "font-semibold text-primary" : ""}`}>{candidate.name}{candidate.name === tier.name && " ◄"}</td><td className="px-3 py-2 text-muted-foreground">{candidate.label}</td><td className="px-3 py-2">{candidate.count}</td></tr>)}</tbody></table></div>
                 <p className="mt-3 text-xs text-muted-foreground">{fr ? "Le routage repose sur la valeur de marché de l’or sortant de garde, et non sur les seuls frais de raffinage." : "Routing is based on the market value of gold leaving custody, not the refining fee."}</p>
               </RefiningPanel>
@@ -104,8 +162,8 @@ export function RefiningOrderApproval() {
               <p className="mb-3 text-sm font-semibold">{fr ? "Liste de validation" : "Validation checklist"}</p>
               <div className="space-y-3">{[
                 [fr ? "KYC et onboarding de la raffinerie à jour" : "Refiner KYC & onboarding current", ""],
-                [fr ? "L’or fin correspond au lot livré" : "Fine gold matches the delivered lot", "44.250 kg · DORE-2026-0421"],
-                [fr ? "Frais dans le tarif approuvé" : "Refining fee within approved tariff", "20,629 USD"],
+                [fr ? "L’or fin correspond au lot livré" : "Fine gold matches the delivered lot", order ? `${order.inputFineGoldKg.toFixed(3)} kg${order.lotReference ? ` · ${order.lotReference}` : ""}` : "—"],
+                [fr ? "Frais dans le tarif approuvé" : "Refining fee within approved tariff", order ? `${Math.round(totalCharge).toLocaleString("en-US")} USD` : "—"],
                 [fr ? "Traitement en réserves examiné" : "Reserve-treatment outcome reviewed", ""],
                 [fr ? "Séparation des tâches respectée" : "Segregation of duties respected", fr ? "L’approbateur n’est pas le créateur" : "Approver is not the maker"],
               ].map(([title, subtitle], index) => <label key={title} className="flex cursor-pointer items-start gap-3"><Checkbox className="mt-0.5" checked={checks[index]} disabled={decision !== null} onCheckedChange={(checked) => setChecks((previous) => previous.map((value, current) => current === index ? Boolean(checked) : value))} /><span><span className="block text-xs font-medium">{title}</span><span className="block text-[11px] text-muted-foreground">{subtitle}</span></span></label>)}</div>
