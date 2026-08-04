@@ -29,6 +29,7 @@ import {
   Sliders,
   PieChart,
   Activity,
+  Factory,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import useSWR from "swr";
@@ -176,10 +177,12 @@ function SidebarContent({ isCollapsed, onNavClick }: { isCollapsed: boolean; onN
     { title: language === "fr" ? "Calibration" : "Calibration", href: "/calibration", icon: Sliders },
     { title: language === "fr" ? "Gestion des réserves" : "Reserve Management", href: "/gestion-reserves", icon: PieChart },
     { title: language === "fr" ? "Impact Macro" : "Macro Impact", href: "/impact-macro", icon: Activity },
+    { title: language === "fr" ? "Or non monétaire" : "Non-monetary Gold", href: "/non-monetary-holdings", icon: Package },
   ].filter((item) => canSee(item.href));
 
   const operationsNavItems = [
     { title: t.nav.purchaseOrders, href: "/purchase-orders", icon: Package },
+    { title: language === "fr" ? "Ordres de raffinage" : "Refining Orders", href: "/refining-orders", icon: Factory },
     { title: language === "fr" ? "File Manifestes" : "Manifest Queue", href: "/manifest-queue", icon: Inbox },
     { title: language === "fr" ? "Cycle de vie PO" : "PO Lifecycle", href: "/po-lifecycle", icon: GitMerge },
 { title: language === "fr" ? "Réception Coffre" : "Vault Intake", href: "/vault-intake", icon: Warehouse },

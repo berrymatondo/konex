@@ -32,6 +32,8 @@ export const PAGES: AppPage[] = [
 
   // Operations
   { key: "purchase-orders", path: "/purchase-orders", labelFr: "Ordres d'achat", labelEn: "Purchase Orders", group: "operations" },
+  { key: "refining-orders", path: "/refining-orders", labelFr: "Ordres de raffinage", labelEn: "Refining Orders", group: "operations" },
+  { key: "non-monetary-holdings", path: "/non-monetary-holdings", labelFr: "Détention d’or non monétaire", labelEn: "Non-monetary Gold Holding", group: "operations" },
   { key: "manifest-queue", path: "/manifest-queue", labelFr: "File Manifestes", labelEn: "Manifest Queue", group: "operations" },
   { key: "po-lifecycle", path: "/po-lifecycle", labelFr: "Cycle de vie PO", labelEn: "PO Lifecycle", group: "operations" },
   { key: "dispatch", path: "/dispatch", labelFr: "Expédition", labelEn: "Dispatch", group: "operations" },

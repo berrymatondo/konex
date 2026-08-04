@@ -34,6 +34,8 @@ export async function ensureTablesExist() {
           IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'counterparties' AND column_name = 'screening_status') THEN
             ALTER TABLE counterparties ADD COLUMN screening_status TEXT;
           END IF;
+          ALTER TABLE counterparties ADD COLUMN IF NOT EXISTS iban TEXT;
+          ALTER TABLE counterparties ADD COLUMN IF NOT EXISTS swift_bic TEXT;
         END $$;
       `;
       
@@ -54,6 +56,7 @@ export async function ensureTablesExist() {
           purity_factor DECIMAL(5,4),
           premium_discount DECIMAL(10,2) DEFAULT 0,
           logistics_cost DECIMAL(10,2) DEFAULT 0,
+          assay_fee DECIMAL(10,2) DEFAULT 0,
           total_estimated_value DECIMAL(15,2),
           currency TEXT DEFAULT 'USD',
           price_lock_expiry TIMESTAMP WITH TIME ZONE,
@@ -134,7 +137,11 @@ export async function ensureTablesExist() {
           approved_at TIMESTAMP WITH TIME ZONE,
           approved_by TEXT,
           completed_at TIMESTAMP WITH TIME ZONE,
-          notes TEXT
+          notes TEXT,
+          logistics_cost DECIMAL(10,2),
+          insurance_cost DECIMAL(10,2),
+          assay_fees DECIMAL(10,2),
+          withholding_tax DECIMAL(10,2)
         )
       `;
       
@@ -155,6 +162,17 @@ export async function ensureTablesExist() {
         primary_contact TEXT,
         primary_email TEXT,
         primary_phone TEXT,
+        iban TEXT,
+        swift_bic TEXT,
+        counterparty_type TEXT NOT NULL DEFAULT 'trading_house',
+        lbma_good_delivery_status TEXT,
+        max_output_fineness TEXT,
+        gd_list_reference TEXT,
+        gd_first_listed_at DATE,
+        accreditation_monitoring_at DATE,
+        annual_refining_capacity_tons DECIMAL(10,2),
+        responsible_sourcing_certifications TEXT[] DEFAULT '{}',
+        refining_channels TEXT[] DEFAULT '{}',
         gold_source_types TEXT[] DEFAULT '{}',
         status TEXT NOT NULL DEFAULT 'pending_review',
         preliminary_score INTEGER,
@@ -170,6 +188,7 @@ export async function ensureTablesExist() {
         counterparty_id TEXT NOT NULL REFERENCES counterparties(id) ON DELETE CASCADE,
         full_name TEXT NOT NULL,
         nationality TEXT,
+        residence_country TEXT,
         ownership_percent DECIMAL(5,2),
         is_pep BOOLEAN NOT NULL DEFAULT false,
         pep_details TEXT,
@@ -208,6 +227,18 @@ export async function ensureTablesExist() {
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'counterparties' AND column_name = 'screening_status') THEN
           ALTER TABLE counterparties ADD COLUMN screening_status TEXT;
         END IF;
+        ALTER TABLE counterparties ADD COLUMN IF NOT EXISTS counterparty_type TEXT NOT NULL DEFAULT 'trading_house';
+        ALTER TABLE counterparties ADD COLUMN IF NOT EXISTS lbma_good_delivery_status TEXT;
+        ALTER TABLE counterparties ADD COLUMN IF NOT EXISTS max_output_fineness TEXT;
+        ALTER TABLE counterparties ADD COLUMN IF NOT EXISTS gd_list_reference TEXT;
+        ALTER TABLE counterparties ADD COLUMN IF NOT EXISTS gd_first_listed_at DATE;
+        ALTER TABLE counterparties ADD COLUMN IF NOT EXISTS accreditation_monitoring_at DATE;
+        ALTER TABLE counterparties ADD COLUMN IF NOT EXISTS annual_refining_capacity_tons DECIMAL(10,2);
+        ALTER TABLE counterparties ADD COLUMN IF NOT EXISTS responsible_sourcing_certifications TEXT[] DEFAULT '{}';
+        ALTER TABLE counterparties ADD COLUMN IF NOT EXISTS refining_channels TEXT[] DEFAULT '{}';
+        ALTER TABLE counterparties ADD COLUMN IF NOT EXISTS iban TEXT;
+        ALTER TABLE counterparties ADD COLUMN IF NOT EXISTS swift_bic TEXT;
+        ALTER TABLE ubos ADD COLUMN IF NOT EXISTS residence_country TEXT;
       END $$;
     `;
 
@@ -304,6 +335,7 @@ export async function ensureTablesExist() {
         purity_factor DECIMAL(5,4),
         premium_discount DECIMAL(10,2) DEFAULT 0,
         logistics_cost DECIMAL(10,2) DEFAULT 0,
+        assay_fee DECIMAL(10,2) DEFAULT 0,
         total_estimated_value DECIMAL(15,2),
         currency TEXT DEFAULT 'USD',
         price_lock_expiry TIMESTAMP WITH TIME ZONE,
@@ -313,6 +345,23 @@ export async function ensureTablesExist() {
         submitted_at TIMESTAMP WITH TIME ZONE,
         approved_at TIMESTAMP WITH TIME ZONE
       )
+    `;
+
+    await sql`
+      ALTER TABLE purchase_orders
+        ADD COLUMN IF NOT EXISTS assay_fee DECIMAL(10,2) DEFAULT 0
+    `;
+    await sql`
+      DO $$
+      BEGIN
+        IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'settlements') THEN
+          ALTER TABLE settlements
+            ADD COLUMN IF NOT EXISTS logistics_cost DECIMAL(10,2),
+            ADD COLUMN IF NOT EXISTS insurance_cost DECIMAL(10,2),
+            ADD COLUMN IF NOT EXISTS assay_fees DECIMAL(10,2),
+            ADD COLUMN IF NOT EXISTS withholding_tax DECIMAL(10,2);
+        END IF;
+      END $$
     `;
 
     await sql`
@@ -367,6 +416,17 @@ export interface Counterparty {
   primary_contact: string | null;
   primary_email: string | null;
   primary_phone: string | null;
+  iban: string | null;
+  swift_bic: string | null;
+  counterparty_type: "trading_house" | "refinery";
+  lbma_good_delivery_status: string | null;
+  max_output_fineness: string | null;
+  gd_list_reference: string | null;
+  gd_first_listed_at: string | null;
+  accreditation_monitoring_at: string | null;
+  annual_refining_capacity_tons: number | null;
+  responsible_sourcing_certifications: string[];
+  refining_channels: string[];
   gold_source_types: string[];
   status: string;
   preliminary_score: number | null;
@@ -418,7 +478,8 @@ export async function ensurePurchaseOrderTermsColumns() {
       ADD COLUMN IF NOT EXISTS payment_timing text,
       ADD COLUMN IF NOT EXISTS payment_term text,
       ADD COLUMN IF NOT EXISTS prepayment_percent numeric,
-      ADD COLUMN IF NOT EXISTS cdf_fx_basis text
+      ADD COLUMN IF NOT EXISTS cdf_fx_basis text,
+      ADD COLUMN IF NOT EXISTS assay_fee numeric DEFAULT 0
   `;
   poTermsColumnsReady = true;
 }
@@ -458,6 +519,7 @@ export interface UBO {
   counterparty_id: string;
   full_name: string;
   nationality: string | null;
+  residence_country: string | null;
   ownership_percent: number | null;
   is_pep: boolean;
   pep_details: string | null;
@@ -514,6 +576,7 @@ export interface PurchaseOrder {
   purity_factor: number | null;
   premium_discount: number;
   logistics_cost: number;
+  assay_fee: number;
   total_estimated_value: number | null;
   currency: string;
   price_lock_expiry: string | null;

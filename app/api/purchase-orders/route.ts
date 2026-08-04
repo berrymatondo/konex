@@ -95,6 +95,7 @@ export async function GET() {
           purityFactor: po.purity_factor,
           premiumDiscount: po.premium_discount,
           logisticsCost: po.logistics_cost,
+          assayFee: po.assay_fee,
           totalEstimatedValue: po.total_estimated_value,
           currency: po.currency,
           priceLockExpiry: po.price_lock_expiry,
@@ -145,6 +146,7 @@ export async function POST(request: Request) {
       purityFactor,
       premiumDiscount,
       logisticsCost,
+      assayFee,
       totalEstimatedValue,
       currency,
       priceLockExpiry,
@@ -198,7 +200,7 @@ export async function POST(request: Request) {
       INSERT INTO purchase_orders (
         id, counterparty_id, status, estimated_weight_kg, gold_type, assay_range,
         incoterms, delivery_vault_id, expected_dispatch_date, notes,
-        lbma_price_per_oz, purity_factor, premium_discount, logistics_cost,
+        lbma_price_per_oz, purity_factor, premium_discount, logistics_cost, assay_fee,
         total_estimated_value, currency, price_lock_expiry, tracking_id,
         created_by, submitted_at,
         tolerance_percent, delivery_window_end, payment_usd_cdf_split,
@@ -206,7 +208,7 @@ export async function POST(request: Request) {
       ) VALUES (
         ${poId}, ${counterpartyId}, ${status || 'draft'}, ${estimatedWeightKg}, ${goldType}, ${assayRange || null},
         ${incoterms}, ${deliveryVaultId}, ${expectedDispatchDate || null}, ${notes || null},
-        ${lbmaPricePerOz || null}, ${purityFactor || null}, ${premiumDiscount || 0}, ${logisticsCost || 0},
+        ${lbmaPricePerOz || null}, ${purityFactor || null}, ${premiumDiscount || 0}, ${logisticsCost || 0}, ${assayFee || 0},
         ${totalEstimatedValue || null}, ${currency || 'USD'}, ${priceLockExpiry || null}, ${trackingId},
         ${sessionUser?.id ?? null}, ${status === 'submitted' ? new Date().toISOString() : null},
         ${tolerancePercent ?? null}, ${deliveryWindowEnd || null}, ${paymentUsdCdfSplit || null},

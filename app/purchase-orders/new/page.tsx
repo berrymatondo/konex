@@ -117,6 +117,7 @@ export default function NewPurchaseOrderPage() {
     notes: "",
     premiumDiscount: "0",
     logisticsCost: "2500",
+    assayFee: "0",
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -196,7 +197,8 @@ export default function NewPurchaseOrderPage() {
 
   const premiumDiscount = parseFloat(formData.premiumDiscount) || 0;
   const logisticsCost = parseFloat(formData.logisticsCost) || 0;
-  const totalValue = valuationCentral + premiumDiscount - logisticsCost;
+  const assayFee = parseFloat(formData.assayFee) || 0;
+  const totalValue = valuationCentral + premiumDiscount - logisticsCost - assayFee;
 
   // Last comparable operation (indicative reference data).
   const lastNegotiatedPrice = currentLbmaPrice - 4.4;
@@ -266,6 +268,7 @@ export default function NewPurchaseOrderPage() {
           purityFactor,
           premiumDiscount,
           logisticsCost,
+          assayFee,
           totalEstimatedValue: totalValue,
           currency: formData.currency,
           priceLockExpiry: priceLocked ? priceExpiry?.toISOString() : null,
@@ -869,6 +872,17 @@ export default function NewPurchaseOrderPage() {
                             className="h-7 w-28 text-right"
                             value={formData.premiumDiscount}
                             onChange={(e) => setFormData({ ...formData, premiumDiscount: e.target.value })}
+                          />
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-muted-foreground">{language === "fr" ? "Frais d’essai" : "Assay Fee"}</span>
+                          <Input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            className="h-7 w-28 text-right"
+                            value={formData.assayFee}
+                            onChange={(e) => setFormData({ ...formData, assayFee: e.target.value })}
                           />
                         </div>
                         <div className="flex items-center justify-between">

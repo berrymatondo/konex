@@ -203,8 +203,8 @@ export default function SettlementDetailPage({ params }: { params: Promise<{ id:
           poReference: d.po_reference || d.settlement_reference || d.id,
           counterparty: {
             name: d.counterparty_name || "—",
-            iban: "—",
-            swift: "—",
+            iban: d.counterparty_iban || "—",
+            swift: d.counterparty_swift_bic || "—",
             jurisdiction: d.counterparty_jurisdiction || "—",
           },
           netWeightKg: fineGoldKg,
@@ -212,10 +212,10 @@ export default function SettlementDetailPage({ params }: { params: Promise<{ id:
           pureAuWeightKg: fineGoldKg,
           fixingType: "PM",
           premiumPerOz,
-          logisticsCost: 0,
-          insuranceCost: 0,
-          assayFees: 0,
-          withholdingTax: 0,
+          logisticsCost: parseFloat(d.settlement_logistics_cost) || 0,
+          insuranceCost: parseFloat(d.settlement_insurance_cost) || 0,
+          assayFees: parseFloat(d.settlement_assay_fees) || 0,
+          withholdingTax: parseFloat(d.settlement_withholding_tax) || 0,
           currency: d.currency || "USD",
           status: d.status || "pending",
           settlementId: d.settlement_reference,
@@ -244,6 +244,22 @@ export default function SettlementDetailPage({ params }: { params: Promise<{ id:
     deductionsAuthorized: false,
     bankingVerified: false,
   });
+
+  const deductionsPayload = {
+    logisticsCost: settlement.logisticsCost,
+    insuranceCost: settlement.insuranceCost,
+    assayFees: settlement.assayFees,
+    withholdingTax: settlement.withholdingTax,
+  };
+
+  const updateDeduction = (
+    field: "logisticsCost" | "insuranceCost" | "assayFees" | "withholdingTax",
+    value: string,
+  ) => {
+    const amount = Math.max(0, Number.parseFloat(value) || 0);
+    setSettlement((previous) => ({ ...previous, [field]: amount }));
+    setReviewChecks((previous) => ({ ...previous, deductionsAuthorized: false }));
+  };
 
   // Approval state
   const [otp1, setOtp1] = useState("");
@@ -275,7 +291,7 @@ export default function SettlementDetailPage({ params }: { params: Promise<{ id:
       await fetch(`/api/settlements/${resolvedParams.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: settlement.status }),
+        body: JSON.stringify({ status: settlement.status, deductions: deductionsPayload }),
       });
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3000);
@@ -329,7 +345,7 @@ export default function SettlementDetailPage({ params }: { params: Promise<{ id:
 
   const handleProceedToApproval = async () => {
     if (reviewChecks.feesMatchPO && reviewChecks.deductionsAuthorized && reviewChecks.bankingVerified) {
-      await persistStatus("pending_approval");
+      await persistStatus("pending_approval", { deductions: deductionsPayload });
       setActiveTab("approval");
     }
   };
@@ -664,20 +680,20 @@ export default function SettlementDetailPage({ params }: { params: Promise<{ id:
                             <Table>
                               <TableBody>
                                 <TableRow>
-                                  <TableCell>{language === "fr" ? "Coûts Logistiques" : "Logistics Costs"}</TableCell>
-                                  <TableCell className="text-right font-mono">${settlement.logisticsCost.toLocaleString()}</TableCell>
+                                  <TableCell><div className="flex items-center gap-2">{language === "fr" ? "Coûts Logistiques" : "Logistics Costs"}<Badge variant="outline" className="text-[10px]">PO</Badge></div></TableCell>
+                                  <TableCell className="text-right"><DeductionInput value={settlement.logisticsCost} onChange={(value) => updateDeduction("logisticsCost", value)} disabled={settlement.status === "allocated"} label={language === "fr" ? "Coûts logistiques" : "Logistics costs"} /></TableCell>
                                 </TableRow>
                                 <TableRow>
                                   <TableCell>{language === "fr" ? "Prime d'Assurance" : "Insurance Premium"}</TableCell>
-                                  <TableCell className="text-right font-mono">${settlement.insuranceCost.toLocaleString()}</TableCell>
+                                  <TableCell className="text-right"><DeductionInput value={settlement.insuranceCost} onChange={(value) => updateDeduction("insuranceCost", value)} disabled={settlement.status === "allocated"} label={language === "fr" ? "Prime d’assurance" : "Insurance premium"} /></TableCell>
                                 </TableRow>
                                 <TableRow>
-                                  <TableCell>{language === "fr" ? "Frais d'Essai" : "Assay Fees"}</TableCell>
-                                  <TableCell className="text-right font-mono">${settlement.assayFees.toLocaleString()}</TableCell>
+                                  <TableCell><div className="flex items-center gap-2">{language === "fr" ? "Frais d'Essai" : "Assay Fees"}<Badge variant="outline" className="text-[10px]">PO</Badge></div></TableCell>
+                                  <TableCell className="text-right"><DeductionInput value={settlement.assayFees} onChange={(value) => updateDeduction("assayFees", value)} disabled={settlement.status === "allocated"} label={language === "fr" ? "Frais d’essai" : "Assay fees"} /></TableCell>
                                 </TableRow>
                                 <TableRow>
                                   <TableCell>{language === "fr" ? "Retenue à la Source" : "Withholding Tax"}</TableCell>
-                                  <TableCell className="text-right font-mono">${settlement.withholdingTax.toLocaleString()}</TableCell>
+                                  <TableCell className="text-right"><DeductionInput value={settlement.withholdingTax} onChange={(value) => updateDeduction("withholdingTax", value)} disabled={settlement.status === "allocated"} label={language === "fr" ? "Retenue à la source" : "Withholding tax"} /></TableCell>
                                 </TableRow>
                                 <TableRow className="border-t-2">
                                   <TableCell className="font-semibold">
@@ -707,7 +723,7 @@ export default function SettlementDetailPage({ params }: { params: Promise<{ id:
                                 <div className="font-mono text-sm bg-muted p-2 rounded">{settlement.counterparty.iban}</div>
                               </div>
                               <div>
-                                <Label className="text-xs text-muted-foreground">SWIFT</Label>
+                                <Label className="text-xs text-muted-foreground">SWIFT / BIC</Label>
                                 <div className="font-mono text-sm bg-muted p-2 rounded">{settlement.counterparty.swift}</div>
                               </div>
                             </CardContent>
@@ -1247,5 +1263,23 @@ export default function SettlementDetailPage({ params }: { params: Promise<{ id:
         </DialogContent>
       </Dialog>
     </SidebarProvider>
+  );
+}
+
+function DeductionInput({ value, onChange, disabled, label }: { value: number; onChange: (value: string) => void; disabled: boolean; label: string }) {
+  return (
+    <div className="ml-auto flex w-40 items-center rounded-md border bg-background focus-within:ring-2 focus-within:ring-ring">
+      <span className="pl-3 text-sm text-muted-foreground">$</span>
+      <Input
+        type="number"
+        min="0"
+        step="0.01"
+        value={value}
+        disabled={disabled}
+        aria-label={label}
+        onChange={(event) => onChange(event.target.value)}
+        className="border-0 text-right font-mono shadow-none focus-visible:ring-0"
+      />
+    </div>
   );
 }

@@ -14,7 +14,13 @@ export async function GET(
         s.*,
         c.legal_name as counterparty_name,
         c.country_of_incorporation as counterparty_jurisdiction,
-        po.tracking_id as po_reference
+        c.iban as counterparty_iban,
+        c.swift_bic as counterparty_swift_bic,
+        po.tracking_id as po_reference,
+        COALESCE(s.logistics_cost, po.logistics_cost, 0) as settlement_logistics_cost,
+        COALESCE(s.assay_fees, po.assay_fee, 0) as settlement_assay_fees,
+        COALESCE(s.insurance_cost, 0) as settlement_insurance_cost,
+        COALESCE(s.withholding_tax, 0) as settlement_withholding_tax
       FROM settlements s
       LEFT JOIN counterparties c ON s.counterparty_id = c.id
       LEFT JOIN purchase_orders po ON s.purchase_order_id = po.id
@@ -46,7 +52,7 @@ export async function PUT(
     await ensureTablesExist();
     const { id } = await params;
     const body = await request.json();
-    const { status, paymentReference, notes } = body;
+    const { status, paymentReference, notes, deductions } = body;
 
     // Get current settlement for audit
     const current = await sql`SELECT * FROM settlements WHERE id = ${id}`;
@@ -67,6 +73,10 @@ export async function PUT(
         status        = COALESCE(${status ?? null}, status),
         bank_reference = COALESCE(${paymentReference ?? null}, bank_reference),
         notes         = COALESCE(${notes ?? null}, notes),
+        logistics_cost = COALESCE(${deductions?.logisticsCost ?? null}, logistics_cost),
+        insurance_cost = COALESCE(${deductions?.insuranceCost ?? null}, insurance_cost),
+        assay_fees = COALESCE(${deductions?.assayFees ?? null}, assay_fees),
+        withholding_tax = COALESCE(${deductions?.withholdingTax ?? null}, withholding_tax),
         approved_at   = CASE WHEN ${status ?? null} = 'pending_approval' THEN ${now}::timestamptz ELSE approved_at END,
         completed_at  = CASE WHEN ${status ?? null} IN ('allocated','completed') THEN ${now}::timestamptz ELSE completed_at END
       WHERE id = ${id}
@@ -80,7 +90,7 @@ export async function PUT(
       action: `settlement_${status || 'updated'}`,
       previousStatus,
       newStatus: status || previousStatus,
-      details: { bankReference: paymentReference, notes },
+      details: { bankReference: paymentReference, notes, deductions },
       performedBy: 'finance_officer',
     });
 

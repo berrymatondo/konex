@@ -50,6 +50,8 @@ export interface Counterparty {
   primaryContact?: string | null;
   primaryEmail?: string | null;
   primaryPhone?: string | null;
+  iban?: string | null;
+  swiftBic?: string | null;
   goldSourceTypes: string[];
   status: CounterpartyStatus;
   preliminaryScore?: number | null;

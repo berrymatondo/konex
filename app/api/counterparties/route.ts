@@ -44,6 +44,17 @@ export async function GET() {
           primaryContact: cp.primary_contact,
           primaryEmail: cp.primary_email,
           primaryPhone: cp.primary_phone,
+          iban: cp.iban,
+          swiftBic: cp.swift_bic,
+          counterpartyType: cp.counterparty_type,
+          lbmaGoodDeliveryStatus: cp.lbma_good_delivery_status,
+          maxOutputFineness: cp.max_output_fineness,
+          gdListReference: cp.gd_list_reference,
+          gdFirstListedAt: cp.gd_first_listed_at,
+          accreditationMonitoringAt: cp.accreditation_monitoring_at,
+          annualRefiningCapacityTons: cp.annual_refining_capacity_tons,
+          responsibleSourcingCertifications: cp.responsible_sourcing_certifications || [],
+          refiningChannels: cp.refining_channels || [],
           goldSourceTypes: cp.gold_source_types || [],
           status: cp.status,
           preliminaryScore: cp.preliminary_score,
@@ -54,6 +65,7 @@ export async function GET() {
             id: u.id,
             fullName: u.full_name,
             nationality: u.nationality,
+            residenceCountry: u.residence_country,
             ownershipPercent: u.ownership_percent,
             isPEP: u.is_pep,
             pepDetails: u.pep_details,
@@ -99,7 +111,11 @@ export async function POST(request: Request) {
       INSERT INTO counterparties (
         id, legal_name, trading_name, registration_number, tax_id,
         legal_form, country_of_incorporation, registered_address,
-        primary_contact, primary_email, primary_phone,
+        primary_contact, primary_email, primary_phone, iban, swift_bic,
+        counterparty_type, lbma_good_delivery_status, max_output_fineness,
+        gd_list_reference, gd_first_listed_at, accreditation_monitoring_at,
+        annual_refining_capacity_tons, responsible_sourcing_certifications,
+        refining_channels,
         gold_source_types, status, preliminary_score
       ) VALUES (
         ${id}, ${body.legalName}, ${body.tradingName || null}, 
@@ -107,6 +123,14 @@ export async function POST(request: Request) {
         ${body.legalForm || null}, ${body.countryOfIncorporation},
         ${body.registeredAddress || null}, ${body.primaryContact || null},
         ${body.primaryEmail || null}, ${body.primaryPhone || null},
+        ${body.iban?.trim().toUpperCase() || null}, ${body.swiftBic?.trim().toUpperCase() || null},
+        ${body.counterpartyType || "trading_house"},
+        ${body.lbmaGoodDeliveryStatus || null}, ${body.maxOutputFineness || null},
+        ${body.gdListReference || null}, ${body.gdFirstListedAt || null},
+        ${body.accreditationMonitoringAt || null},
+        ${body.annualRefiningCapacityTons || null},
+        ${body.responsibleSourcingCertifications || []},
+        ${body.refiningChannels || []},
         ${body.goldSourceTypes || []}, ${body.status || "draft"},
         ${Math.floor(Math.random() * 40) + 60}
       )
@@ -117,8 +141,8 @@ export async function POST(request: Request) {
       for (const ubo of body.ubos) {
         const uboId = generateId("ubo");
         await sql`
-          INSERT INTO ubos (id, counterparty_id, full_name, nationality, ownership_percent, is_pep, pep_details)
-          VALUES (${uboId}, ${id}, ${ubo.fullName}, ${ubo.nationality || null}, 
+          INSERT INTO ubos (id, counterparty_id, full_name, nationality, residence_country, ownership_percent, is_pep, pep_details)
+          VALUES (${uboId}, ${id}, ${ubo.fullName}, ${ubo.nationality || null}, ${ubo.residenceCountry || null},
                   ${ubo.ownershipPercent || null}, ${ubo.isPEP || false}, ${ubo.pepDetails || null})
         `;
       }

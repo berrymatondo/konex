@@ -94,6 +94,8 @@ interface Counterparty {
   primaryContact: string;
   primaryEmail: string;
   primaryPhone: string;
+  iban: string | null;
+  swiftBic: string | null;
   goldSourceTypes: string[];
   estimatedAnnualVolume: number | null;
   primarySourceCountries: string[];
@@ -170,6 +172,8 @@ export default function CounterpartyDetailPage() {
     primaryContact: "",
     primaryEmail: "",
     primaryPhone: "",
+    iban: "",
+    swiftBic: "",
   });
   const [goldSourceTypes, setGoldSourceTypes] = useState<string[]>([]);
   const [selectedSourceType, setSelectedSourceType] = useState<string>("");
@@ -247,6 +251,8 @@ export default function CounterpartyDetailPage() {
         primaryContact: counterparty.primaryContact,
         primaryEmail: counterparty.primaryEmail,
         primaryPhone: counterparty.primaryPhone,
+        iban: counterparty.iban || "",
+        swiftBic: counterparty.swiftBic || "",
       });
       setGoldSourceTypes(counterparty.goldSourceTypes);
       // Set selected source type (exclusive selection)
@@ -392,6 +398,8 @@ export default function CounterpartyDetailPage() {
         primaryContact: counterparty.primaryContact,
         primaryEmail: counterparty.primaryEmail,
         primaryPhone: counterparty.primaryPhone,
+        iban: counterparty.iban || "",
+        swiftBic: counterparty.swiftBic || "",
       });
       setGoldSourceTypes(counterparty.goldSourceTypes);
       setUbos(
@@ -776,6 +784,45 @@ export default function CounterpartyDetailPage() {
                       ) : (
                         <p className="text-sm">{counterparty.primaryPhone}</p>
                       )}
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  <div>
+                    <div className="mb-4">
+                      <h3 className="text-sm font-medium">{language === "fr" ? "Coordonnées bancaires" : "Banking details"}</h3>
+                      <p className="mt-1 text-xs text-muted-foreground">{language === "fr" ? "Informations facultatives, utilisées automatiquement lors du calcul et de la révision du règlement." : "Optional details, automatically used during settlement calculation and review."}</p>
+                    </div>
+                    <div className="grid gap-6 sm:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label>IBAN <span className="font-normal text-muted-foreground">({language === "fr" ? "facultatif" : "optional"})</span></Label>
+                        {isEditing ? (
+                          <Input
+                            value={formData.iban}
+                            onChange={(e) => handleInputChange("iban", e.target.value.toUpperCase())}
+                            className="font-mono uppercase"
+                            placeholder="CD12 1234 5678 9012 3456 7890"
+                            autoComplete="off"
+                          />
+                        ) : (
+                          <p className="font-mono text-sm">{counterparty.iban || "—"}</p>
+                        )}
+                      </div>
+                      <div className="space-y-2">
+                        <Label>SWIFT / BIC <span className="font-normal text-muted-foreground">({language === "fr" ? "facultatif" : "optional"})</span></Label>
+                        {isEditing ? (
+                          <Input
+                            value={formData.swiftBic}
+                            onChange={(e) => handleInputChange("swiftBic", e.target.value.toUpperCase())}
+                            className="font-mono uppercase"
+                            placeholder="BCDCCDKIXXX"
+                            autoComplete="off"
+                          />
+                        ) : (
+                          <p className="font-mono text-sm">{counterparty.swiftBic || "—"}</p>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </CardContent>

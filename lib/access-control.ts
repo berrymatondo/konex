@@ -23,6 +23,8 @@ const DEFAULT_ACCESS: Record<Exclude<UserRole, "admin">, string[]> = {
   risk_manager: [
     "dashboard",
     "risk-management",
+    "refining-orders",
+    "non-monetary-holdings",
     "monetary-policy",
     "counterparties",
     "reports",
@@ -85,6 +87,19 @@ export async function ensureAccessTableExists() {
       AND role NOT IN (
         SELECT role FROM role_page_access WHERE page_key = 'transactions'
       )
+    ON CONFLICT (role, page_key) DO NOTHING
+  `
+
+  // A profile that can create purchase orders also participates in the
+  // downstream refining workflow. This also covers existing custom Trade
+  // Manager roles without broadening access for counterparty profiles.
+  await sql`
+    INSERT INTO role_page_access (role, page_key)
+    SELECT role, 'refining-orders'
+    FROM role_page_access
+    WHERE page_key = 'purchase-orders'
+      AND role NOT ILIKE '%contrepart%'
+      AND role NOT ILIKE '%counterpart%'
     ON CONFLICT (role, page_key) DO NOTHING
   `
 

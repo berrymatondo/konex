@@ -88,6 +88,7 @@ interface PurchaseOrder {
   purity_factor: number | null;
   premium_discount: number | null;
   logistics_cost: number | null;
+  assay_fee: number | null;
   total_estimated_value: number | null;
   currency: string;
   created_at: string;
@@ -181,6 +182,7 @@ export default function EditPurchaseOrderPage() {
     notes: "",
     premiumDiscount: "0",
     logisticsCost: "2500",
+    assayFee: "0",
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -214,6 +216,7 @@ export default function EditPurchaseOrderPage() {
         notes: po.notes || "",
         premiumDiscount: String(po.premium_discount ?? 0),
         logisticsCost: String(po.logistics_cost ?? 2500),
+        assayFee: String(po.assay_fee ?? 0),
         currency: po.currency || "Mixte",
         tolerancePercent: po.tolerance_percent != null ? String(po.tolerance_percent) : prev.tolerancePercent,
         usdCdfSplit: po.payment_usd_cdf_split || prev.usdCdfSplit,
@@ -283,7 +286,8 @@ export default function EditPurchaseOrderPage() {
 
   const premiumDiscount = parseFloat(formData.premiumDiscount) || 0;
   const logisticsCost = parseFloat(formData.logisticsCost) || 0;
-  const totalValue = valuationCentral + premiumDiscount - logisticsCost;
+  const assayFee = parseFloat(formData.assayFee) || 0;
+  const totalValue = valuationCentral + premiumDiscount - logisticsCost - assayFee;
 
   // Last comparable operation (indicative reference data).
   const lastNegotiatedPrice = currentLbmaPrice - 4.4;
@@ -311,6 +315,7 @@ export default function EditPurchaseOrderPage() {
     purityFactor,
     premiumDiscount,
     logisticsCost,
+    assayFee,
     totalEstimatedValue: totalValue,
     currency: formData.currency,
     priceLockExpiry: priceLocked ? priceExpiry?.toISOString() : null,
@@ -1181,6 +1186,17 @@ export default function EditPurchaseOrderPage() {
                             className="h-7 w-28 text-right"
                             value={formData.logisticsCost}
                             onChange={(e) => setFormData({ ...formData, logisticsCost: e.target.value })}
+                          />
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-muted-foreground">{language === "fr" ? "Frais d’essai" : "Assay Fee"}</span>
+                          <Input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            className="h-7 w-28 text-right"
+                            value={formData.assayFee}
+                            onChange={(e) => setFormData({ ...formData, assayFee: e.target.value })}
                           />
                         </div>
                       </div>
