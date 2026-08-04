@@ -15,7 +15,7 @@ function generateTrackingId(): string {
   return `PO-${year}${month}-${random}`;
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     await ensureTablesExist();
 
@@ -55,7 +55,7 @@ export async function GET() {
       'declined', 'cancelled',
     ];
 
-    const purchaseOrders = (scope === undefined
+    let purchaseOrders = (scope === undefined
       ? await sql`
           SELECT po.*, c.legal_name as counterparty_name, c.risk_level as counterparty_risk_level
           FROM purchase_orders po
@@ -70,6 +70,27 @@ export async function GET() {
             AND po.status = ANY(${COUNTERPARTY_VISIBLE_STATUSES})
           ORDER BY po.created_at DESC
         `) as (PurchaseOrder & { counterparty_name: string; counterparty_risk_level: string | null })[];
+
+    // The refining-order picker must not offer purchase orders that already
+    // have a settlement record. A validated manifest is the minimum workflow
+    // state required before refining can begin. Other PO screens keep the full list.
+    if (new URL(request.url).searchParams.get("excludeSettled") === "true" && purchaseOrders.length > 0) {
+      const REFINING_ELIGIBLE_STATUSES = [
+        "manifest_validated",
+        "in_transit",
+        "delivered",
+        "pending_settlement",
+      ];
+      purchaseOrders = purchaseOrders.filter((po) => REFINING_ELIGIBLE_STATUSES.includes(po.status));
+
+      const settledRows = await sql`
+        SELECT DISTINCT purchase_order_id
+        FROM settlements
+        WHERE purchase_order_id = ANY(${purchaseOrders.map((po) => po.id)})
+      `;
+      const settledIds = new Set(settledRows.map((row) => String(row.purchase_order_id)));
+      purchaseOrders = purchaseOrders.filter((po) => !settledIds.has(po.id));
+    }
 
     // Optional vault/manifest details used by workflows that must list every PO.
     // Keep the main list available on a fresh database where those workflow

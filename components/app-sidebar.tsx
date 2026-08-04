@@ -25,6 +25,11 @@ import {
   GitMerge,
   ArrowLeftRight,
   Factory,
+  Landmark,
+  TrendingUp,
+  Sliders,
+  PieChart,
+  Activity,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import useSWR from "swr";
@@ -49,9 +54,14 @@ function readNavAccessCookie(): NavAccess | undefined {
   const match = document.cookie.match(/(?:^|;\s*)nav_access=([^;]+)/);
   if (!match) return undefined;
   try {
-    const parsed = JSON.parse(decodeURIComponent(match[1])) as Partial<NavAccess>;
+    const parsed = JSON.parse(
+      decodeURIComponent(match[1]),
+    ) as Partial<NavAccess>;
     if (Array.isArray(parsed.allowedPaths)) {
-      return { allowedPaths: parsed.allowedPaths, isAdmin: Boolean(parsed.isAdmin) };
+      return {
+        allowedPaths: parsed.allowedPaths,
+        isAdmin: Boolean(parsed.isAdmin),
+      };
     }
   } catch {
     // Ignore malformed cookie; SWR will resolve access shortly after.
@@ -61,7 +71,8 @@ function readNavAccessCookie(): NavAccess | undefined {
 
 // Runs before paint on the client; falls back to a no-op effect on the server
 // to avoid the useLayoutEffect SSR warning.
-const useIsomorphicLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect;
+const useIsomorphicLayoutEffect =
+  typeof window !== "undefined" ? useLayoutEffect : useEffect;
 
 interface NavItemProps {
   href: string;
@@ -72,7 +83,14 @@ interface NavItemProps {
   onClick?: () => void;
 }
 
-function NavItem({ href, icon: Icon, title, isActive, isCollapsed, onClick }: NavItemProps) {
+function NavItem({
+  href,
+  icon: Icon,
+  title,
+  isActive,
+  isCollapsed,
+  onClick,
+}: NavItemProps) {
   const linkContent = (
     <Link
       href={href}
@@ -83,7 +101,7 @@ function NavItem({ href, icon: Icon, title, isActive, isCollapsed, onClick }: Na
         isCollapsed && "justify-center px-2",
         isActive
           ? "bg-sidebar-accent text-sidebar-primary shadow-sm before:absolute before:left-0 before:h-6 before:w-1 before:rounded-r-full before:bg-sidebar-primary"
-          : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+          : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground",
       )}
     >
       <Icon className="h-5 w-5 shrink-0" />
@@ -105,7 +123,13 @@ function NavItem({ href, icon: Icon, title, isActive, isCollapsed, onClick }: Na
   return linkContent;
 }
 
-function SidebarContent({ isCollapsed, onNavClick }: { isCollapsed: boolean; onNavClick?: () => void }) {
+function SidebarContent({
+  isCollapsed,
+  onNavClick,
+}: {
+  isCollapsed: boolean;
+  onNavClick?: () => void;
+}) {
   const pathname = usePathname();
   const { toggleSidebar } = useSidebar();
   const { language, t } = useLanguage();
@@ -134,7 +158,9 @@ function SidebarContent({ isCollapsed, onNavClick }: { isCollapsed: boolean; onN
   // Access seeded synchronously from the server-set cookie, applied before the
   // first paint so no forbidden links ever flash. Starts undefined so SSR and
   // the client's first hydration render match (both hide everything).
-  const [serverAccess, setServerAccess] = useState<NavAccess | undefined>(undefined);
+  const [serverAccess, setServerAccess] = useState<NavAccess | undefined>(
+    undefined,
+  );
   useIsomorphicLayoutEffect(() => {
     const fromCookie = readNavAccessCookie();
     if (fromCookie) setServerAccess(fromCookie);
@@ -153,40 +179,111 @@ function SidebarContent({ isCollapsed, onNavClick }: { isCollapsed: boolean; onN
   const allowedPaths = access?.allowedPaths ?? serverAccess?.allowedPaths;
   const isAdmin = access?.isAdmin ?? serverAccess?.isAdmin ?? false;
   // Human-readable role label resolved server-side (covers custom roles).
-  const userRole = access?.roleLabel ?? getRoleLabel((session?.user as { role?: string } | undefined)?.role);
+  const userRole =
+    access?.roleLabel ??
+    getRoleLabel((session?.user as { role?: string } | undefined)?.role);
   // Until access is known, hide every link (instead of showing them all) so a
   // restricted profile never sees pages it shouldn't, even for a frame.
-  const canSee = (href: string) => Boolean(allowedPaths && allowedPaths.includes(href));
+  const canSee = (href: string) =>
+    Boolean(allowedPaths && allowedPaths.includes(href));
   const isPathActive = (href: string) =>
-    href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`);
+    href === "/"
+      ? pathname === "/"
+      : pathname === href || pathname.startsWith(`${href}/`);
 
   const mainNavItems = [
     { title: t.nav.dashboard, href: "/", icon: LayoutDashboard },
     { title: t.nav.counterparties, href: "/counterparties", icon: Users },
     { title: t.nav.onboarding, href: "/onboarding", icon: FileCheck },
-    { title: t.nav.approvalQueue, href: "/approval-queue", icon: ClipboardList },
-    { title: t.nav.riskManagement, href: "/risk-management", icon: ShieldAlert },
-    { title: language === "fr" ? "Transactions" : "Transactions", href: "/transactions", icon: ArrowLeftRight },
+    {
+      title: t.nav.approvalQueue,
+      href: "/approval-queue",
+      icon: ClipboardList,
+    },
+    {
+      title: t.nav.riskManagement,
+      href: "/risk-management",
+      icon: ShieldAlert,
+    },
+    {
+      title: language === "fr" ? "Transactions" : "Transactions",
+      href: "/transactions",
+      icon: ArrowLeftRight,
+    },
+  ].filter((item) => canSee(item.href));
+
+  const monetaryPolicyNavItems = [
+    {
+      title: language === "fr" ? "Prévisions" : "Forecasts",
+      href: "/previsions",
+      icon: TrendingUp,
+    },
+    {
+      title: language === "fr" ? "Calibration" : "Calibration",
+      href: "/calibration",
+      icon: Sliders,
+    },
+    {
+      title: language === "fr" ? "Gestion des réserves" : "Reserve Management",
+      href: "/gestion-reserves",
+      icon: PieChart,
+    },
+    {
+      title: language === "fr" ? "Impact Macro" : "Macro Impact",
+      href: "/impact-macro",
+      icon: Activity,
+    },
+    {
+      title: language === "fr" ? "Or non monétaire" : "Non-monetary Gold",
+      href: "/non-monetary-holdings",
+      icon: Package,
+    },
   ].filter((item) => canSee(item.href));
 
   const operationsNavItems = [
     { title: t.nav.purchaseOrders, href: "/purchase-orders", icon: Package },
-    { title: language === "fr" ? "Ordres de raffinage" : "Refining Orders", href: "/refining-orders", icon: Factory },
-    { title: language === "fr" ? "File Manifestes" : "Manifest Queue", href: "/manifest-queue", icon: Inbox },
-    { title: language === "fr" ? "Réception Coffre" : "Vault Intake", href: "/vault-intake", icon: Warehouse },
+    {
+      title: language === "fr" ? "Ordres de raffinage" : "Refining Orders",
+      href: "/refining-orders",
+      icon: Factory,
+    },
+    {
+      title: language === "fr" ? "File Manifestes" : "Manifest Queue",
+      href: "/manifest-queue",
+      icon: Inbox,
+    },
+    {
+      title: language === "fr" ? "Réception Coffre" : "Vault Intake",
+      href: "/vault-intake",
+      icon: Warehouse,
+    },
     { title: t.nav.settlements, href: "/settlements", icon: Wallet },
-    { title: language === "fr" ? "Cycle de vie PO" : "PO Lifecycle", href: "/po-lifecycle", icon: GitMerge },
+    {
+      title: language === "fr" ? "Cycle de vie PO" : "PO Lifecycle",
+      href: "/po-lifecycle",
+      icon: GitMerge,
+    },
   ].filter((item) => canSee(item.href));
 
   const systemNavItems = [
     { title: t.nav.reports, href: "/reports", icon: FileText },
     { title: t.nav.auditLog, href: "/audit", icon: Shield },
     { title: t.nav.settings, href: "/settings", icon: Settings },
-    { title: language === "fr" ? "Documentation" : "Documentation", href: "/documentation", icon: BookOpen },
+    {
+      title: language === "fr" ? "Documentation" : "Documentation",
+      href: "/documentation",
+      icon: BookOpen,
+    },
   ].filter((item) => canSee(item.href));
 
   const adminNavItems = isAdmin
-    ? [{ title: language === "fr" ? "Administration" : "Administration", href: "/admin", icon: UserCog }]
+    ? [
+        {
+          title: language === "fr" ? "Administration" : "Administration",
+          href: "/admin",
+          icon: UserCog,
+        },
+      ]
     : [];
 
   return (
@@ -197,13 +294,17 @@ function SidebarContent({ isCollapsed, onNavClick }: { isCollapsed: boolean; onN
         onClick={onNavClick}
         className={cn(
           "flex h-16 items-center border-b border-sidebar-border transition-colors hover:bg-sidebar-accent/50",
-          isCollapsed ? "justify-center px-2" : "gap-3 px-6"
+          isCollapsed ? "justify-center px-2" : "gap-3 px-6",
         )}
       >
         {isCollapsed ? (
           <img src="/logo-mark.svg" alt="KONEX" className="h-9 w-9 shrink-0" />
         ) : (
-          <img src="/logo.svg" alt="KONEX Gold Reserve Management" className="h-10 w-auto max-w-[200px]" />
+          <img
+            src="/logo.svg"
+            alt="KONEX Gold Reserve Management"
+            className="h-10 w-auto max-w-[200px]"
+          />
         )}
       </Link>
 
@@ -231,6 +332,32 @@ function SidebarContent({ isCollapsed, onNavClick }: { isCollapsed: boolean; onN
               ))}
             </ul>
           </div>
+
+          {monetaryPolicyNavItems.length > 0 && (
+            <div>
+              {!isCollapsed && (
+                <p className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/50">
+                  {language === "fr"
+                    ? "Politique monétaire"
+                    : "Monetary Policy"}
+                </p>
+              )}
+              <ul className="space-y-1">
+                {monetaryPolicyNavItems.map((item) => (
+                  <li key={item.href}>
+                    <NavItem
+                      href={item.href}
+                      icon={item.icon}
+                      title={item.title}
+                      isActive={isPathActive(item.href)}
+                      isCollapsed={isCollapsed}
+                      onClick={onNavClick}
+                    />
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
 
           <div>
             {!isCollapsed && (
@@ -308,7 +435,7 @@ function SidebarContent({ isCollapsed, onNavClick }: { isCollapsed: boolean; onN
           onClick={toggleSidebar}
           className={cn(
             "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground",
-            isCollapsed && "justify-center px-2"
+            isCollapsed && "justify-center px-2",
           )}
         >
           {isCollapsed ? (
@@ -327,7 +454,7 @@ function SidebarContent({ isCollapsed, onNavClick }: { isCollapsed: boolean; onN
         <div
           className={cn(
             "flex items-center",
-            isCollapsed ? "justify-center" : "gap-3"
+            isCollapsed ? "justify-center" : "gap-3",
           )}
         >
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-sidebar-accent">
@@ -365,7 +492,7 @@ export function AppSidebar() {
       <aside
         className={cn(
           "hidden lg:flex h-screen flex-col bg-sidebar text-sidebar-foreground transition-all duration-300",
-          isCollapsed ? "w-16" : "w-64"
+          isCollapsed ? "w-16" : "w-64",
         )}
       >
         <SidebarContent isCollapsed={isCollapsed} />
@@ -383,7 +510,7 @@ export function AppSidebar() {
       <aside
         className={cn(
           "fixed inset-y-0 left-0 z-50 flex w-72 flex-col bg-sidebar text-sidebar-foreground transition-transform duration-300 lg:hidden",
-          isMobileOpen ? "translate-x-0" : "-translate-x-full"
+          isMobileOpen ? "translate-x-0" : "-translate-x-full",
         )}
       >
         {/* Mobile Close Button */}

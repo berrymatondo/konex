@@ -38,6 +38,10 @@ interface SimInputs {
   goldPriceDriftPctPerYear: number
   horizonYears: number
   exchangeRateInit: number
+  gdpNominalUSDbnInit: number
+  realGDPGrowthPct: number
+  importCoverMonthsInit: number
+  m2ToGdpPct: number
   m2Init: number
   reservesInit: number
   importsPerMonthUSD: number
@@ -125,6 +129,10 @@ const DEFAULTS: SimInputs = {
   goldPriceDriftPctPerYear: 0,
   horizonYears: 5,
   exchangeRateInit: 2249,
+  gdpNominalUSDbnInit: 123.4,
+  realGDPGrowthPct: 5.9,
+  importCoverMonthsInit: 3.0,
+  m2ToGdpPct: 18,
   m2Init: 14800,
   reservesInit: 7.86,
   importsPerMonthUSD: 0.72,
@@ -284,9 +292,18 @@ function simulate(p: SimInputs): SimRow[] {
   const derivedMultiplier = (1 + c) / (c + r + e)
 
   const rows: SimRow[] = []
-  let exchangeRate = p.exchangeRateInit
-  let m2Stock = p.m2Init
-  let reserves = p.reservesInit
+  const exchangeRateInit = p.exchangeRateInit ?? DEFAULTS.exchangeRateInit
+  const gdpNominalUSDbnInit = p.gdpNominalUSDbnInit ?? DEFAULTS.gdpNominalUSDbnInit
+  const realGDPGrowthPct = p.realGDPGrowthPct ?? DEFAULTS.realGDPGrowthPct
+  const baselineInflationPct = p.baseInflationPct ?? DEFAULTS.baseInflationPct
+  const reservesInit = p.reservesInit ?? DEFAULTS.reservesInit
+  const importCoverMonthsInit = p.importCoverMonthsInit ?? DEFAULTS.importCoverMonthsInit
+  const m2ToGdpPct = p.m2ToGdpPct ?? DEFAULTS.m2ToGdpPct
+
+  let exchangeRate = exchangeRateInit
+  let m2Stock = gdpNominalUSDbnInit * exchangeRateInit * (m2ToGdpPct / 100)
+  let reserves = reservesInit
+  let monthlyImportsUSD = reservesInit / importCoverMonthsInit
   let goldHoldingsUSD = 0
   let cumSterilizationCostCDF = 0
   let currencyInCirculationCDF = p.currencyInCirculationInit
@@ -306,7 +323,8 @@ function simulate(p: SimInputs): SimRow[] {
 
     const prevM2 = m2Stock
     const deltaM2 = domesticInjectionCDF * (derivedMultiplier - 1)
-    m2Stock = m2Stock + deltaM2
+    const nominalGDPGrowthPct = realGDPGrowthPct + baselineInflationPct
+    m2Stock = m2Stock * (1 + nominalGDPGrowthPct / 100) + deltaM2
     const m2GrowthFromGold = (deltaM2 / prevM2) * 100
 
     const fxPressureRaw = (fxLeakageCDF / prevM2) * (p.fxPressureScaling ?? 0.8) * 100
@@ -316,14 +334,15 @@ function simulate(p: SimInputs): SimRow[] {
 
     const inflationFromM2 = m2GrowthFromGold * p.inflationSensitivity
     const inflationFromFX = netFXchangePct * p.fxPassThroughCoeff
-    const inflation = p.baseInflationPct + inflationFromM2 + inflationFromFX
+    const inflation = baselineInflationPct + inflationFromM2 + inflationFromFX
 
     exchangeRate = exchangeRate * (1 + (p.fxDepreciationBasePct + netFXchangePct) / 100)
 
     goldHoldingsUSD = goldHoldingsUSD + goldValueUSDbn
-    reserves = p.reservesInit + goldHoldingsUSD
+    reserves = reservesInit + goldHoldingsUSD
     const goldShareOfReserves = goldHoldingsUSD / reserves
-    const importCover = reserves / p.importsPerMonthUSD
+    monthlyImportsUSD = monthlyImportsUSD * (1 + nominalGDPGrowthPct / 100)
+    const importCover = reserves / monthlyImportsUSD
 
     const additionalRequiredReservesCDF = deltaM2 * p.requiredReserveRatioPct / 100
     currencyInCirculationCDF = currencyInCirculationCDF + netInjectionCDF
@@ -512,6 +531,39 @@ function SliderRow({
       </div>
       {hint && <p className="text-[10px] text-zinc-500 mt-0.5 leading-tight">{hint}</p>}
       <Slider value={[value]} onValueChange={([v]) => onChange(v)} min={min} max={max} step={step} className="mt-2" />
+    </div>
+  )
+}
+
+function BaselineNumberRow({
+  label, value, onChange, min, max, step, unit,
+}: {
+  label: string; value: number; onChange: (v: number) => void
+  min: number; max: number; step: number; unit: string
+}) {
+  return (
+    <div className="border-b border-zinc-800/60 py-2.5 last:border-0">
+      <Label className="text-xs font-normal leading-tight text-zinc-300">{label}</Label>
+      <div className="mt-1.5 flex items-center gap-2">
+        <Input
+          type="number"
+          value={value}
+          min={min}
+          max={max}
+          step={step}
+          className="h-8 min-w-0 flex-1 border-zinc-700 bg-zinc-900/70 px-2 text-right text-xs tabular-nums"
+          onChange={(event) => {
+            const next = Number(event.target.value)
+            if (Number.isFinite(next)) onChange(next)
+          }}
+          onBlur={(event) => {
+            const next = Number(event.target.value)
+            if (!Number.isFinite(next)) return
+            onChange(Math.min(max, Math.max(min, next)))
+          }}
+        />
+        <span className="w-[62px] shrink-0 text-[10px] leading-tight text-zinc-500">{unit}</span>
+      </div>
     </div>
   )
 }
@@ -858,7 +910,7 @@ export default function ImpactMacroPage() {
           <AppHeader title={T.pageTitle} subtitle={T.pageSub} />
           <main className="flex-1 overflow-auto p-2 sm:p-4">
             <Tabs value={tab} onValueChange={setTab} className="space-y-4">
-              <TabsList className="h-auto flex-wrap gap-y-1">
+              <TabsList className="sticky top-0 z-30 h-auto flex-wrap gap-y-1 border border-border/70 bg-background/95 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-background/80">
                 <TabsTrigger value="overview"    className="text-xs"><BarChart2    className="h-3.5 w-3.5 mr-1 shrink-0" /><span className="hidden xs:inline sm:inline">{T.tabs.overview}</span></TabsTrigger>
                 <TabsTrigger value="simulator"   className="text-xs"><FlaskConical className="h-3.5 w-3.5 mr-1 shrink-0" /><span>{T.tabs.simulator}</span></TabsTrigger>
                 <TabsTrigger value="balance"     className="text-xs"><Layers       className="h-3.5 w-3.5 mr-1 shrink-0" /><span className="hidden sm:inline">{T.tabs.balance}</span><span className="sm:hidden">{lang === "fr" ? "Bilan" : "Balance"}</span></TabsTrigger>
@@ -991,7 +1043,7 @@ export default function ImpactMacroPage() {
                 {/* Main 2-column layout */}
                 <div className="flex flex-col lg:flex-row gap-4 items-start">
                   {/* ── Left: Inputs panel ── */}
-                  <div className="w-full lg:w-64 shrink-0 border border-zinc-700/60 rounded-xl overflow-hidden">
+                  <div className="w-full shrink-0 overflow-hidden rounded-xl border border-zinc-700/60 lg:sticky lg:top-14 lg:w-64">
                     <div className="px-4 py-3 border-b border-zinc-700/60 bg-zinc-900/60">
                       <p className="text-[10px] font-bold uppercase tracking-widest text-amber-500/80">
                         {lang === "fr" ? "PARAMÈTRES" : "INPUTS"}
@@ -1034,6 +1086,23 @@ export default function ImpactMacroPage() {
                         <SliderRow label={lang === "fr" ? "Offset confiance réserves" : "Reserve-confidence offset"} displayValue={`${(inputs.reserveConfidenceOffset ?? 1.2).toFixed(1)}×`} value={inputs.reserveConfidenceOffset ?? 1.2} onChange={v => update("reserveConfidenceOffset", v)} min={0.1} max={2} step={0.1} />
                         <SliderRow label={lang === "fr" ? "Dépréciation FX → inflation" : "FX depreciation → inflation pass-through"} displayValue={`${inputs.fxPassThroughCoeff.toFixed(2)}`} value={inputs.fxPassThroughCoeff} onChange={v => update("fxPassThroughCoeff", v)} min={0} max={1} step={0.05} />
                         <SliderRow label={lang === "fr" ? "Offset intervention BCC FX" : "BCC FX intervention offset"} displayValue={`${(inputs.bccFXInterventionPct ?? 30).toFixed(0)}%`} value={inputs.bccFXInterventionPct ?? 30} onChange={v => update("bccFXInterventionPct", v)} min={0} max={50} step={5} />
+
+                        {/* Section 4 — editable initial conditions from simulator v1.8 */}
+                        <p className="mt-4 mb-1 text-[10px] font-bold uppercase tracking-widest text-amber-500">
+                          {lang === "fr" ? "Référence macroéconomique (conditions initiales)" : "Macroeconomic baseline (initial conditions)"}
+                        </p>
+                        <p className="mb-1.5 text-[10px] leading-relaxed text-zinc-500">
+                          {lang === "fr"
+                            ? "Valeurs initiales publiées qui déterminent l’année 0 de la simulation. Modifiez-les pour remplacer le calibrage de juillet 2026."
+                            : "Published starting values that seed year 0 of the simulation. Edit them to override the July 2026 calibration."}
+                        </p>
+                        <BaselineNumberRow label={lang === "fr" ? "Taux de change initial" : "Exchange rate (initial)"} value={inputs.exchangeRateInit ?? DEFAULTS.exchangeRateInit} onChange={v => update("exchangeRateInit", v)} min={1800} max={3200} step={1} unit="CDF/USD" />
+                        <BaselineNumberRow label={lang === "fr" ? "PIB nominal initial" : "Nominal GDP (initial)"} value={inputs.gdpNominalUSDbnInit ?? DEFAULTS.gdpNominalUSDbnInit} onChange={v => update("gdpNominalUSDbnInit", v)} min={50} max={300} step={0.1} unit="US$ bn" />
+                        <BaselineNumberRow label={lang === "fr" ? "Croissance réelle du PIB" : "Real GDP growth"} value={inputs.realGDPGrowthPct ?? DEFAULTS.realGDPGrowthPct} onChange={v => update("realGDPGrowthPct", v)} min={-5} max={15} step={0.1} unit="%" />
+                        <BaselineNumberRow label={lang === "fr" ? "Inflation de référence, a/a" : "Baseline inflation, y/y"} value={inputs.baseInflationPct ?? DEFAULTS.baseInflationPct} onChange={v => update("baseInflationPct", v)} min={0} max={30} step={0.1} unit="%" />
+                        <BaselineNumberRow label={lang === "fr" ? "Réserves internationales initiales" : "International reserves (initial)"} value={inputs.reservesInit ?? DEFAULTS.reservesInit} onChange={v => update("reservesInit", v)} min={1} max={30} step={0.01} unit="US$ bn" />
+                        <BaselineNumberRow label={lang === "fr" ? "Couverture initiale des importations" : "Import cover (initial)"} value={inputs.importCoverMonthsInit ?? DEFAULTS.importCoverMonthsInit} onChange={v => update("importCoverMonthsInit", v)} min={0.5} max={12} step={0.1} unit={lang === "fr" ? "mois" : "months"} />
+                        <BaselineNumberRow label={lang === "fr" ? "Ratio M2/PIB" : "M2-to-GDP ratio"} value={inputs.m2ToGdpPct ?? DEFAULTS.m2ToGdpPct} onChange={v => update("m2ToGdpPct", v)} min={5} max={40} step={1} unit="%" />
                       </div>
                     </ScrollArea>
                   </div>

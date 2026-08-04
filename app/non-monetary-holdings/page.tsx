@@ -1,14 +1,14 @@
-"use client"
+"use client";
 
-import { AppHeader } from "@/components/app-header"
-import { AppSidebar } from "@/components/app-sidebar"
-import { NonMonetaryHoldings } from "@/components/refining/non-monetary-holdings"
-import { SidebarProvider } from "@/components/sidebar-provider"
-import { useLanguage } from "@/lib/i18n/language-context"
+import { AppHeader } from "@/components/app-header";
+import { AppSidebar } from "@/components/app-sidebar";
+import { NonMonetaryHoldings } from "@/components/refining/non-monetary-holdings";
+import { SidebarProvider } from "@/components/sidebar-provider";
+import { useLanguage } from "@/lib/i18n/language-context";
 
 export default function NonMonetaryHoldingsPage() {
-  const { language } = useLanguage()
-  const isFrench = language === "fr"
+  const { language } = useLanguage();
+  const isFrench = language === "fr";
 
   return (
     <SidebarProvider>
@@ -16,7 +16,11 @@ export default function NonMonetaryHoldingsPage() {
         <AppSidebar />
         <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
           <AppHeader
-            title={isFrench ? "Détention d’or non monétaire" : "Non-monetary Gold Holding"}
+            title={
+              isFrench
+                ? "Détention d’or non monétaire"
+                : "Non-monetary Gold Holding"
+            }
             subtitle={
               isFrench
                 ? "Sous-livre , suivi et remédiation des avoirs non éligibles aux réserves"
@@ -31,5 +35,5 @@ export default function NonMonetaryHoldingsPage() {
         </div>
       </div>
     </SidebarProvider>
-  )
+  );
 }

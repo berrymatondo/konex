@@ -143,7 +143,7 @@ export function RefiningOrderForm() {
     data: purchaseOrders = [],
     isLoading: purchaseOrdersLoading,
     error: purchaseOrdersError,
-  } = useSWR<PurchaseOrderSource[]>("/api/purchase-orders", fetcher);
+  } = useSWR<PurchaseOrderSource[]>("/api/purchase-orders?excludeSettled=true", fetcher);
   const {
     data: counterparties = [],
     isLoading: counterpartiesLoading,
@@ -432,8 +432,8 @@ export function RefiningOrderForm() {
             <DialogTitle>{fr ? "Sélectionner un bon de commande à raffiner" : "Select a purchase order to refine"}</DialogTitle>
             <DialogDescription>
               {fr
-                ? "Tous les bons de commande enregistrés dans le système."
-                : "All purchase orders registered in the system."}
+                ? "Bons de commande avec manifeste validé et sans règlement enregistré."
+                : "Purchase orders with a validated manifest and no recorded settlement."}
             </DialogDescription>
           </DialogHeader>
           <div className="relative">
