@@ -396,7 +396,7 @@ export function RefiningOrderForm() {
             </Field>
             <Label>{fr ? "Canal de raffinage" : "Refining channel"} <span className="text-destructive">*</span></Label>
             <div className="mt-2 grid gap-3 md:grid-cols-2">
-              <ChannelCard selected={channel === "domestic"} title={fr ? "Raffinage à façon national" : "Domestic toll refining"} description={fr ? "Kinshasa Refinery SA · pas encore GD · délai plus court" : "Kinshasa Refinery SA · not yet GD-accredited · faster turnaround"} onClick={() => chooseChannel("domestic")} />
+              <ChannelCard selected={channel === "domestic"} title={fr ? "Export vers une raffinerie non accréditée" : "Export to a non-accredited refinery"} description={fr ? "Kinshasa Refinery SA · pas encore GD · délai plus court" : "Kinshasa Refinery SA · not yet GD-accredited · faster turnaround"} onClick={() => chooseChannel("domestic")} />
               <ChannelCard selected={channel === "export"} title={fr ? "Export vers une raffinerie accréditée" : "Export to accredited refiner"} description={fr ? "Rand Refinery, Afrique du Sud · LBMA GD · logistique et assurance" : "Rand Refinery, South Africa · LBMA GD accredited · logistics + insurance"} onClick={() => chooseChannel("export")} />
             </div>
             <div className="mt-5 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
