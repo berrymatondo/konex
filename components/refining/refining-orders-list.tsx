@@ -36,6 +36,8 @@ export function RefiningOrdersList() {
   const roleIdentity = `${access?.role || ""} ${access?.roleLabel || ""}`.toLowerCase();
   const isCounterparty = roleIdentity.includes("counterparty") || roleIdentity.includes("contrepart");
   const orderHref = (order: RefiningOrder) => {
+    if (["classification_pending", "classified_monetary", "classified_non_monetary"].includes(order.status)) return `/refining-orders/${order.reference}/reserve-eligibility`;
+    if (["outturn_received", "under_verification", "reconciled", "exception"].includes(order.status)) return isCounterparty ? `/refining-orders/${order.reference}/refining` : `/refining-orders/${order.reference}/outturn`;
     if (["in_refining", "dispatched"].includes(order.status)) return `/refining-orders/${order.reference}/refining`;
     if (order.status === "approved") return isCounterparty ? `/refining-orders/${order.reference}/refining` : `/refining-orders/${order.reference}/dispatch`;
     return `/refining-orders/${order.reference}/approval`;

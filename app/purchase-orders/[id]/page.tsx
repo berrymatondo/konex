@@ -1495,13 +1495,13 @@ export default function PurchaseOrderDetailPage() {
                     po.status !== "draft" &&
                     po.status !== "manifest_validated" &&
                     po.status !== "in_transit" &&
+                    po.status !== "negotiating" &&
                     (() => {
                       const noUser =
                         counterparty !== undefined &&
                         counterparty?.hasLinkedUser === false;
                       const canSubmitToCp =
                         po.status === "approved" ||
-                        po.status === "negotiating" ||
                         po.status === "sent_to_counterparty";
                       const isDisabled = submittingToCp || !canSubmitToCp || noUser;
                       return (

@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import useSWR from "swr";
 import { BarChart3, Clock3, Download, Factory, PackageOpen, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -27,13 +28,6 @@ interface Holding {
   newOrder?: string;
 }
 
-const INITIAL_HOLDINGS: Holding[] = [
-  { reference: "NMH-2026-0007", order: "GAC-REF-2026-014", lot: "DORE-2026-0421", po: "GAC-TRK-MRUYZ7EK", refiner: "Kinshasa Refinery SA", gdStatus: "Not accredited", fineKg: 44.054, reason: "Refiner not GD-accredited", since: "2026-08-05", status: "held" },
-  { reference: "NMH-2026-0005", order: "GAC-REF-2026-009", lot: "DORE-2026-0388", po: "GAC-TRK-K92AF3QX", refiner: "Kinshasa Refinery SA", gdStatus: "Not accredited", fineKg: 28.9, reason: "Sub-995 fineness", since: "2026-07-20", status: "re-refining", newOrder: "GAC-REF-2026-016" },
-  { reference: "NMH-2026-0003", order: "GAC-REF-2026-004", lot: "DORE-2026-0361", po: "GAC-TRK-P41MZ8LT", refiner: "Lomami Assay & Refine", gdStatus: "Application in progress", fineKg: 15.2, reason: "Refiner not GD-accredited", since: "2026-06-28", status: "awaiting-accreditation" },
-  { reference: "NMH-2026-0001", order: "GAC-REF-2026-001", lot: "DORE-2026-0340", po: "GAC-TRK-B77YHW2C", refiner: "Kinshasa Refinery SA", gdStatus: "Not accredited", fineKg: 9.5, reason: "Sourcing verification pending", since: "2026-06-10", status: "held" },
-];
-
 const REASON_STYLES: Record<string, string> = {
   "Refiner not GD-accredited": "bg-amber-500",
   "Sub-995 fineness": "bg-destructive",
@@ -47,15 +41,22 @@ const ageInDays = (since: string) => Math.round((TODAY.getTime() - new Date(`${s
 export function NonMonetaryHoldings() {
   const { language } = useLanguage();
   const fr = language === "fr";
-  const [holdings, setHoldings] = useState(INITIAL_HOLDINGS);
-  const [selectedReference, setSelectedReference] = useState(INITIAL_HOLDINGS[0].reference);
+  const [holdings, setHoldings] = useState<Holding[]>([]);
+  const [selectedReference, setSelectedReference] = useState("");
+  const { data: classifiedHoldings } = useSWR<Holding[]>("/api/non-monetary-holdings", async (url: string) => { const response = await fetch(url); const data = await response.json(); if (!response.ok) throw new Error(data.error || "Request failed"); return data; });
 
-  const selected = holdings.find((holding) => holding.reference === selectedReference) ?? holdings[0];
+  useEffect(() => {
+    if (!classifiedHoldings) return;
+    setHoldings(classifiedHoldings);
+    setSelectedReference(classifiedHoldings[0]?.reference || "");
+  }, [classifiedHoldings]);
+
+  const selected = holdings.find((holding) => holding.reference === selectedReference) ?? holdings[0] ?? { reference: "", order: "", lot: "", po: "", refiner: "", gdStatus: "", fineKg: 0, reason: "", since: "", status: "held" as const };
   const active = holdings.filter((holding) => holding.status !== "remediated");
   const totalFine = active.reduce((sum, holding) => sum + holding.fineKg, 0);
   const totalOz = totalFine * OZ_PER_KG;
   const inRemediation = active.filter((holding) => holding.status !== "held").length;
-  const oldestAge = Math.max(...active.map((holding) => ageInDays(holding.since)));
+  const oldestAge = active.length ? Math.max(...active.map((holding) => ageInDays(holding.since))) : 0;
 
   const byReason = active.reduce<Record<string, number>>((totals, holding) => {
     totals[holding.reason] = (totals[holding.reason] ?? 0) + holding.fineKg;
@@ -96,12 +97,12 @@ export function NonMonetaryHoldings() {
 
       <Card className="overflow-hidden"><CardContent className="p-0"><div className="overflow-x-auto"><table className="w-full min-w-[1000px] text-sm"><thead className="bg-muted/50 text-left text-xs text-muted-foreground"><tr>{[fr ? "Détention" : "Holding", fr ? "Ordre source" : "Source order", fr ? "Raffinerie" : "Refiner", fr ? "Or fin" : "Fine gold", fr ? "Motif" : "Reason held", fr ? "Détenu depuis" : "Held since", fr ? "Âge" : "Age", fr ? "Statut" : "Status"].map((heading) => <th key={heading} className="px-4 py-3 font-medium">{heading}</th>)}</tr></thead><tbody>{holdings.map((holding) => { const selectedRow = holding.reference === selected.reference; const age = ageInDays(holding.since); return <tr key={holding.reference} onClick={() => setSelectedReference(holding.reference)} className={`cursor-pointer border-t transition-colors hover:bg-muted/40 ${selectedRow ? "bg-primary/5" : ""}`}><td className="px-4 py-3 font-mono text-xs">{holding.reference}</td><td className="px-4 py-3 text-primary">{holding.order}</td><td className="px-4 py-3">{holding.refiner}</td><td className="px-4 py-3 font-medium">{format(holding.fineKg)} kg</td><td className="px-4 py-3">{translateReason(holding.reason, fr)}</td><td className="px-4 py-3">{holding.since}</td><td className={`px-4 py-3 ${age > 45 ? "font-semibold text-destructive" : ""}`}>{age} d</td><td className="px-4 py-3"><HoldingStatusPill holding={holding} fr={fr} /></td></tr>; })}</tbody></table></div></CardContent></Card>
 
-      <RefiningPanel icon={PackageOpen} title={<span className="flex w-full flex-wrap items-center gap-2">{fr ? `Détention ${selected.reference}` : `Holding ${selected.reference}`}<span className="ml-auto"><StatusPill tone="warning">{fr ? "Non monétaire · autres actifs en devises" : "Non-monetary · other FX assets"}</StatusPill></span></span>}>
+      {holdings.length > 0 ? <RefiningPanel icon={PackageOpen} title={<span className="flex w-full flex-wrap items-center gap-2">{fr ? `Détention ${selected.reference}` : `Holding ${selected.reference}`}<span className="ml-auto"><StatusPill tone="warning">{fr ? "Non monétaire · autres actifs en devises" : "Non-monetary · other FX assets"}</StatusPill></span></span>}>
         <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
           <div><div className="grid gap-4 sm:grid-cols-2"><InfoCell label={fr ? "Référence de détention" : "Holding reference"}>{selected.reference}</InfoCell><InfoCell label={fr ? "Or fin détenu" : "Fine gold held"}>{format(selected.fineKg)} kg · {format(selected.fineKg * OZ_PER_KG, 2)} oz</InfoCell><InfoCell label={fr ? "Ordre de raffinage source" : "Source refining order"}><Link href="/refining-orders" className="text-primary hover:underline">{selected.order}</Link></InfoCell><InfoCell label={fr ? "Lot doré / PO" : "Doré lot / PO"}>{selected.lot} · {selected.po}</InfoCell><InfoCell label={fr ? "Raffinerie" : "Refiner"}>{selected.refiner}</InfoCell><InfoCell label={fr ? "Statut GD de la raffinerie" : "Refiner GD status"}><StatusPill tone="warning">{translateGd(selected.gdStatus, fr)}</StatusPill></InfoCell><InfoCell className="sm:col-span-2" label={fr ? "Motif de détention" : "Reason held"}>{translateReason(selected.reason, fr)}</InfoCell><InfoCell label={fr ? "Détenu depuis" : "Held since"}>{selected.since} · {ageInDays(selected.since)} {fr ? "jours" : "days"}</InfoCell><InfoCell label={fr ? "Valeur indicative" : "Indicative value"}>{money(selected.fineKg * OZ_PER_KG * PRICE)}</InfoCell></div><div className="mt-5 rounded-lg border border-l-4 border-l-primary bg-muted/30 p-4 text-xs leading-5 text-muted-foreground"><strong className="text-foreground">{fr ? "Traitement BPM6." : "BPM6 treatment."}</strong> {fr ? "Enregistré parmi les autres actifs en devises (IRFCL section I.B), hors réserves monétaires. Le lot ne redevient éligible à  qu’après correction du critère défaillant." : "Recorded under other foreign currency assets (IRFCL Section I.B), not monetary reserves. It re-enters  only after remediation clears the failing gate."}</div></div>
           <Remediation holding={selected} fr={fr} onReRefine={() => updateSelected({ status: "re-refining", newOrder: "GAC-REF-2026-017" })} onWatch={() => updateSelected({ status: "awaiting-accreditation" })} onReEvaluate={() => updateSelected({ status: "remediated" })} />
         </div>
-      </RefiningPanel>
+      </RefiningPanel> : <div className="rounded-lg border border-dashed p-10 text-center text-sm text-muted-foreground">{fr ? "Aucune détention d’or non monétaire enregistrée." : "No non-monetary gold holding recorded."}</div>}
     </div>
   );
 }

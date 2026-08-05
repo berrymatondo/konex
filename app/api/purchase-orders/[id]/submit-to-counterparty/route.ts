@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { sql, createAuditLog, ensurePurchaseOrderResponseColumns } from "@/lib/db"
-import { getSessionUser } from "@/lib/session-user"
+import { getSessionUser, isCounterpartyProfile } from "@/lib/session-user"
 import { notifyCounterparty } from "@/lib/notifications"
 import { sendCounterpartyOrderEmail } from "@/lib/email"
 import { buildPurchaseOrderPDFArrayBuffer } from "@/lib/pdf-generator"
@@ -16,6 +16,9 @@ export async function POST(
   const sessionUser = await getSessionUser()
   if (!sessionUser) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  }
+  if (isCounterpartyProfile(sessionUser)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 })
   }
 
   try {
@@ -34,10 +37,11 @@ export async function POST(
     }
     const po = rows[0]
 
-    // Only an approved (or already transmitted) order can be sent to the counterparty.
+    // Every revised offer must complete the internal BCC approval workflow
+    // before it can be sent back to the counterparty.
     if (!["approved", "sent_to_counterparty"].includes(po.status as string)) {
       return NextResponse.json(
-        { error: "Le bon de commande doit être approuvé par la BCC avant d'être transmis à la contrepartie." },
+        { error: "Le bon de commande doit être approuvé par la BCC avant d’être transmis à la contrepartie." },
         { status: 400 },
       )
     }

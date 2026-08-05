@@ -316,7 +316,7 @@ export function RefiningOrderForm() {
 
       {saveError && <p className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">{saveError}</p>}
 
-      <WorkflowStepper active={0} hrefs={["/refining-orders", orderReference ? `/refining-orders/${orderReference}/approval` : undefined, orderReference ? `/refining-orders/${orderReference}/dispatch` : undefined, undefined, undefined, undefined, orderReference ? `/refining-orders/${orderReference}/reserve-eligibility` : undefined]} labels={fr ? ["Brouillon", "Approuvé", "Expédié", "En raffinage", "Outturn reçu", "Rapproché", "Classification"] : ["Draft", "Approved", "Dispatched", "In refining", "Outturn received", "Reconciled", "Classification"]} />
+      <WorkflowStepper active={0} hrefs={["/refining-orders", orderReference ? `/refining-orders/${orderReference}/approval` : undefined, orderReference ? `/refining-orders/${orderReference}/dispatch` : undefined, undefined, undefined, orderReference ? `/refining-orders/${orderReference}/reserve-eligibility` : undefined]} labels={fr ? ["Brouillon", "Approuvé", "Expédié", "En raffinage", "Outturn reçu", "Classification"] : ["Draft", "Approved", "Dispatched", "In refining", "Outturn received", "Classification"]} />
 
       <Tabs defaultValue="details">
         <TabsList><TabsTrigger value="details">{fr ? "Détails" : "Details"}</TabsTrigger><TabsTrigger value="trace">{fr ? "Traçabilité" : "Traceability"}</TabsTrigger></TabsList>

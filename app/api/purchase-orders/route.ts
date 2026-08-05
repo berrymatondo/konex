@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { randomBytes } from "crypto";
 import { sql, ensureTablesExist, ensurePurchaseOrderTermsColumns, PurchaseOrder } from "@/lib/db";
-import { getSessionUser, getCounterpartyScope } from "@/lib/session-user";
+import { getSessionUser, getCounterpartyScope, isCounterpartyProfile } from "@/lib/session-user";
 
 function generateId(prefix: string): string {
   return `${prefix}-${Date.now()}-${randomBytes(4).toString("hex")}`;
@@ -233,6 +233,8 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   const sessionUser = await getSessionUser();
+  if (!sessionUser) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (isCounterpartyProfile(sessionUser)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   try {
     await ensureTablesExist();
     await ensurePurchaseOrderTermsColumns();

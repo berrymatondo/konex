@@ -161,6 +161,7 @@ export async function PUT(
           currency = ${currency || 'USD'},
           price_lock_expiry = ${priceLockExpiry || null},
           status = ${status || 'draft'},
+          approved_at = CASE WHEN ${status === 'submitted'} THEN NULL ELSE approved_at END,
           submitted_at = ${status === 'submitted' ? now : null},
           tolerance_percent = ${tolerancePercent ?? null},
           delivery_window_end = ${deliveryWindowEnd || null},
@@ -173,6 +174,7 @@ export async function PUT(
       `;
 
       if (resubmitting) {
+        await sql`DELETE FROM po_approvals WHERE purchase_order_id = ${id}`;
         await sql`
           UPDATE purchase_orders SET
             cp_response = NULL,
@@ -343,7 +345,7 @@ export async function PUT(
 
       if (!["approved", "sent_to_counterparty"].includes(poData.status as string)) {
         return NextResponse.json(
-          { error: "Le bon de commande doit être approuvé par la BCC avant d'être transmis à la contrepartie." },
+          { error: "Le bon de commande doit être approuvé par la BCC avant d’être transmis à la contrepartie." },
           { status: 400 },
         );
       }

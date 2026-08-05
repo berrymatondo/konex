@@ -138,6 +138,13 @@ const ASSAY_BOUNDS: Record<string, { low: number; central: number; high: number 
   "99.5+": { low: 0.995, central: 0.9999, high: 0.9999 },
 };
 
+function assayRangeForPurity(purity: number | null | undefined, fallback: string) {
+  if (purity == null || !Number.isFinite(Number(purity))) return fallback;
+  if (Number(purity) >= 99.5) return "99.5+";
+  if (Number(purity) >= 92) return "92-99";
+  return "85-92";
+}
+
 type PurchaseOrderAction = "draft" | "submit";
 
 export default function EditPurchaseOrderPage() {
@@ -150,6 +157,7 @@ export default function EditPurchaseOrderPage() {
 
   const agentName = session?.user?.name ?? session?.user?.email ?? "—";
   const [cpPanelOpen, setCpPanelOpen] = useState(true);
+  const [counterproposalPurity, setCounterproposalPurity] = useState<number | null>(null);
 
   const { data: po, isLoading: poLoading } = useSWR<PurchaseOrder>(`/api/purchase-orders/${id}`, fetcher);
   const { data: counterparties = [] } = useSWR<Counterparty[]>("/api/counterparties", fetcher);
@@ -203,18 +211,21 @@ export default function EditPurchaseOrderPage() {
   // Load existing PO data into the form.
   useEffect(() => {
     if (po) {
+      const useCounterproposal = po.status === "negotiating";
+      const proposedPurity = useCounterproposal && po.cp_proposed_purity != null ? Number(po.cp_proposed_purity) : null;
+      setCounterproposalPurity(proposedPurity);
       setFormData((prev) => ({
         ...prev,
         counterpartyId: po.counterparty_id || "",
-        estimatedWeightKg: String(po.estimated_weight_kg || ""),
-        goldType: po.gold_type || "dore_bars",
-        assayRange: po.assay_range || "85-92",
+        estimatedWeightKg: String(useCounterproposal && po.cp_proposed_weight_kg != null ? po.cp_proposed_weight_kg : po.estimated_weight_kg || ""),
+        goldType: useCounterproposal && po.cp_gold_form ? po.cp_gold_form : po.gold_type || "dore_bars",
+        assayRange: assayRangeForPurity(proposedPurity, po.assay_range || "85-92"),
         incoterms: po.incoterms || "DAP",
         deliveryVaultId: po.delivery_vault_id || "",
-        deliveryWindowStart: po.expected_dispatch_date ? po.expected_dispatch_date.split("T")[0] : "",
-        deliveryWindowEnd: po.delivery_window_end ? po.delivery_window_end.split("T")[0] : "",
+        deliveryWindowStart: useCounterproposal && po.cp_proposed_dispatch_date ? po.cp_proposed_dispatch_date.split("T")[0] : po.expected_dispatch_date ? po.expected_dispatch_date.split("T")[0] : "",
+        deliveryWindowEnd: useCounterproposal && po.cp_estimated_delivery_date ? po.cp_estimated_delivery_date.split("T")[0] : po.delivery_window_end ? po.delivery_window_end.split("T")[0] : "",
         notes: po.notes || "",
-        premiumDiscount: String(po.premium_discount ?? 0),
+        premiumDiscount: String(useCounterproposal && po.cp_proposed_premium != null ? po.cp_proposed_premium : po.premium_discount ?? 0),
         logisticsCost: String(po.logistics_cost ?? 2500),
         assayFee: String(po.assay_fee ?? 0),
         currency: po.currency || "Mixte",
@@ -276,7 +287,7 @@ export default function EditPurchaseOrderPage() {
   const weightOz = (weightKg * 1000) / OZ_TO_GRAM;
 
   const bounds = ASSAY_BOUNDS[formData.assayRange] || ASSAY_BOUNDS["85-92"];
-  const purityFactor = bounds.central;
+  const purityFactor = counterproposalPurity != null ? counterproposalPurity / 100 : bounds.central;
   const fineWeightKg = weightKg * purityFactor;
   const fineWeightOz = (fineWeightKg * 1000) / OZ_TO_GRAM;
 
@@ -287,7 +298,7 @@ export default function EditPurchaseOrderPage() {
   const premiumDiscount = parseFloat(formData.premiumDiscount) || 0;
   const logisticsCost = parseFloat(formData.logisticsCost) || 0;
   const assayFee = parseFloat(formData.assayFee) || 0;
-  const totalValue = valuationCentral + premiumDiscount - logisticsCost - assayFee;
+  const totalValue = valuationCentral * (1 + premiumDiscount / 100) - logisticsCost - assayFee;
 
   // Last comparable operation (indicative reference data).
   const lastNegotiatedPrice = currentLbmaPrice - 4.4;
@@ -799,7 +810,7 @@ export default function EditPurchaseOrderPage() {
                           <Label>{language === "fr" ? "Plage de pureté (%)" : "Assay Range (%)"}</Label>
                           <Select
                             value={formData.assayRange}
-                            onValueChange={(value) => setFormData({ ...formData, assayRange: value })}
+                            onValueChange={(value) => { setCounterproposalPurity(null); setFormData({ ...formData, assayRange: value }); }}
                           >
                             <SelectTrigger>
                               <SelectValue />
@@ -810,6 +821,7 @@ export default function EditPurchaseOrderPage() {
                               <SelectItem value="99.5+">99,5 %+</SelectItem>
                             </SelectContent>
                           </Select>
+                          {counterproposalPurity != null && <p className="text-xs text-warning">{language === "fr" ? `Pureté contre-proposée utilisée pour les calculs : ${counterproposalPurity.toLocaleString("fr-FR")} %` : `Counter-proposed purity used in calculations: ${counterproposalPurity.toLocaleString("en-US")} %`}</p>}
                         </div>
                         <div className="space-y-2">
                           <Label>

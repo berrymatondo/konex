@@ -295,12 +295,12 @@ function PurchaseOrdersContent() {
                   {language === "fr" ? "Gérer les ordres d'achat d'or" : "Manage gold purchase orders"}
                 </p>
               </div>
-              <Link href="/purchase-orders/new" className="w-full sm:w-auto">
+              {!isCounterparty && <Link href="/purchase-orders/new" className="w-full sm:w-auto">
                 <Button className="w-full sm:w-auto gap-2">
                   <Plus className="h-4 w-4" />
                   {language === "fr" ? "Nouveau BC" : "New PO"}
                 </Button>
-              </Link>
+              </Link>}
             </div>
 
             {/* Stats Cards */}
@@ -422,16 +422,16 @@ function PurchaseOrdersContent() {
                       {language === "fr" ? "Aucun bon de commande trouvé" : "No purchase orders found"}
                     </p>
                     <p className="text-sm text-muted-foreground">
-                      {language === "fr" 
-                        ? "Créez votre premier bon de commande" 
-                        : "Create your first purchase order"}
+                      {isCounterparty
+                        ? (language === "fr" ? "Aucun bon de commande ne vous a encore été transmis" : "No purchase order has been sent to you yet")
+                        : (language === "fr" ? "Créez votre premier bon de commande" : "Create your first purchase order")}
                     </p>
-                    <Link href="/purchase-orders/new" className="mt-4">
+                    {!isCounterparty && <Link href="/purchase-orders/new" className="mt-4">
                       <Button>
                         <Plus className="mr-2 h-4 w-4" />
                         {language === "fr" ? "Nouveau BC" : "New PO"}
                       </Button>
-                    </Link>
+                    </Link>}
                   </CardContent>
                 </Card>
               ) : (
