@@ -627,6 +627,53 @@ interface ReportData {
   language: "en" | "fr";
 }
 
+/** Converts database codes into labels intended for report readers. */
+function businessLabel(value: string, language: "en" | "fr"): string {
+  const key = String(value || "").trim().toLowerCase().replace(/[\s-]+/g, "_");
+  const labels: Record<string, [string, string]> = {
+    draft: ["Draft", "Brouillon"], submitted: ["Submitted", "Soumis"], pending: ["Pending", "En attente"],
+    pending_review: ["Under review", "En révision"], pending_kyc: ["KYC review", "Vérification KYC"],
+    pending_screening: ["Screening pending", "Contrôle en attente"], pending_risk_review: ["Risk review", "Révision des risques"],
+    pending_standard_review: ["Standard review", "Révision standard"], pending_enhanced_review: ["Enhanced review", "Révision renforcée"],
+    pending_senior_review: ["Senior review", "Révision par la direction"], pending_docs: ["Documents pending", "Documents en attente"],
+    documents_pending: ["Documents pending", "Documents en attente"], docs_validated: ["Documents validated", "Documents validés"],
+    pending_authorization: ["Awaiting authorization", "En attente d’autorisation"], pending_intake: ["Awaiting intake", "En attente de réception"],
+    pending_compliance: ["Compliance review", "Contrôle de conformité"], pending_finance: ["Finance review", "Contrôle financier"],
+    pending_approval: ["Awaiting approval", "En attente d’approbation"], pending_valuation: ["Awaiting valuation", "En attente d’évaluation"],
+    pending_settlement: ["Awaiting settlement", "En attente de règlement"], approved: ["Approved", "Approuvé"],
+    active: ["Active", "Active"], rejected: ["Rejected", "Rejeté"], declined: ["Declined", "Refusé"], blocked: ["Blocked", "Bloqué"],
+    accepted: ["Accepted", "Accepté"], returned: ["Returned for correction", "Retourné pour correction"],
+    dispatched: ["Dispatched", "Expédié"], received: ["Received", "Réceptionné"], awaiting_receipt: ["Awaiting receipt", "En attente de réception"],
+    in_refining: ["In refining", "En cours de raffinage"], verified: ["Verified", "Vérifié"], reconciled: ["Reconciled", "Rapproché"],
+    in_transit: ["In transit", "En transit"], delivered: ["Delivered", "Livré"], settled: ["Settled", "Réglé"],
+    allocated: ["Allocated", "Affecté"], completed: ["Completed", "Terminé"], paid: ["Paid", "Payé"],
+    executed: ["Executed", "Exécuté"], failed: ["Failed", "Échoué"], cancelled: ["Cancelled", "Annulé"],
+    negotiating: ["Under negotiation", "En négociation"], manifest_validated: ["Manifest validated", "Manifeste validé"],
+    clear: ["Clear", "Aucun signalement"], cleared: ["Cleared", "Validé"], no_match: ["No match", "Aucune correspondance"],
+    potential_match: ["Potential match", "Correspondance potentielle"], confirmed_match: ["Confirmed match", "Correspondance confirmée"],
+    hit: ["Match found", "Correspondance détectée"],
+    match: ["Match found", "Correspondance détectée"], review: ["Review required", "Révision requise"], "n/a": ["Not applicable", "Sans objet"],
+    low: ["Low risk", "Risque faible"], medium: ["Medium risk", "Risque moyen"], high: ["High risk", "Risque élevé"],
+    critical: ["Critical risk", "Risque critique"], unassessed: ["Not assessed", "Non évalué"],
+    tier_1: ["Tier 1 - Low risk", "Niveau 1 - Risque faible"], tier_2: ["Tier 2 - Medium risk", "Niveau 2 - Risque moyen"],
+    tier_3: ["Tier 3 - High risk", "Niveau 3 - Risque élevé"], tier_4: ["Tier 4 - Critical risk", "Niveau 4 - Risque critique"],
+    in_progress: ["In progress", "En cours"], large_scale_mining: ["Large-scale mining", "Exploitation minière industrielle"],
+    artisanal_mining: ["Artisanal mining", "Exploitation minière artisanale"], recycled: ["Recycled gold", "Or recyclé"],
+    refined: ["Refined gold", "Or raffiné"], unknown: ["Unknown", "Non renseigné"], unassigned: ["Unassigned", "Non affecté"],
+  };
+  const label = labels[key];
+  if (label) return label[language === "fr" ? 1 : 0];
+  // Unknown codes still become readable instead of leaking snake_case.
+  const readable = key.replace(/_/g, " ");
+  return readable ? readable.charAt(0).toUpperCase() + readable.slice(1) : "—";
+}
+
+function reportFooter(language: "en" | "fr", generatedAt: string) {
+  return language === "fr"
+    ? [`Document généré le ${generatedAt}`, "GAC Sourcing - Rapport confidentiel"]
+    : [`Document generated on ${generatedAt}`, "GAC Sourcing - Confidential report"];
+}
+
 interface AcquisitionSummaryData extends ReportData {
   totalPurchaseOrders: number;
   totalWeightKg: number;
@@ -702,7 +749,7 @@ export function generateAcquisitionSummaryReport(data: AcquisitionSummaryData): 
   doc.rect(20, yPos, pageWidth - 40, 8, "F");
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(8);
-  doc.text("Status", 25, yPos + 5.5);
+  doc.text(data.language === "fr" ? "Statut" : "Status", 25, yPos + 5.5);
   doc.text(data.language === "fr" ? "Nombre" : "Count", 80, yPos + 5.5);
   doc.text(data.language === "fr" ? "Poids (kg)" : "Weight (kg)", 110, yPos + 5.5);
   doc.text(data.language === "fr" ? "Valeur" : "Value", 150, yPos + 5.5);
@@ -716,7 +763,7 @@ export function generateAcquisitionSummaryReport(data: AcquisitionSummaryData): 
     }
     doc.setTextColor(30, 41, 59);
     doc.setFont("helvetica", "normal");
-    doc.text(row.status, 25, yPos + 5);
+    doc.text(businessLabel(row.status, data.language), 25, yPos + 5);
     doc.text(row.count.toString(), 80, yPos + 5);
   doc.text(formatNumber(row.weight), 110, yPos + 5);
   doc.text(`${data.currency} ${formatNumber(row.value)}`, 150, yPos + 5);
@@ -762,8 +809,9 @@ export function generateAcquisitionSummaryReport(data: AcquisitionSummaryData): 
   doc.line(20, pageHeight - 20, pageWidth - 20, pageHeight - 20);
   doc.setFontSize(7);
   doc.setTextColor(100, 116, 139);
-  doc.text(`Document généré le ${data.generatedAt}`, 20, pageHeight - 12);
-  doc.text("GAC Sourcing - Rapport Confidentiel", pageWidth - 60, pageHeight - 12);
+  let footer = reportFooter(data.language, data.generatedAt);
+  doc.text(footer[0], 20, pageHeight - 12);
+  doc.text(footer[1], pageWidth - 60, pageHeight - 12);
   
   doc.save(`acquisition-summary-${data.period}.pdf`);
 }
@@ -847,7 +895,7 @@ export function generateCounterpartyOverviewReport(data: CounterpartyOverviewDat
     doc.setTextColor(30, 41, 59);
     doc.setFontSize(10);
     doc.setFont("helvetica", "normal");
-    doc.text(tier.tier, 25, yPos + 8);
+    doc.text(businessLabel(tier.tier, data.language), 25, yPos + 8);
     doc.setFont("helvetica", "bold");
     doc.text(tier.count.toString(), pageWidth - 35, yPos + 8);
     yPos += 15;
@@ -888,8 +936,9 @@ export function generateCounterpartyOverviewReport(data: CounterpartyOverviewDat
   doc.line(20, pageHeight - 20, pageWidth - 20, pageHeight - 20);
   doc.setFontSize(7);
   doc.setTextColor(100, 116, 139);
-  doc.text(`Document généré le ${data.generatedAt}`, 20, pageHeight - 12);
-  doc.text("GAC Sourcing - Rapport Confidentiel", pageWidth - 60, pageHeight - 12);
+  let footer = reportFooter(data.language, data.generatedAt);
+  doc.text(footer[0], 20, pageHeight - 12);
+  doc.text(footer[1], pageWidth - 60, pageHeight - 12);
   
   doc.save(`counterparty-overview-${data.period}.pdf`);
 }
@@ -1007,8 +1056,9 @@ export function generateGoldInventoryReport(data: GoldInventoryData): void {
   doc.line(20, pageHeight - 20, pageWidth - 20, pageHeight - 20);
   doc.setFontSize(7);
   doc.setTextColor(100, 116, 139);
-  doc.text(`Document généré le ${data.generatedAt}`, 20, pageHeight - 12);
-  doc.text("GAC Sourcing - Rapport Confidentiel", pageWidth - 60, pageHeight - 12);
+  let footer = reportFooter(data.language, data.generatedAt);
+  doc.text(footer[0], 20, pageHeight - 12);
+  doc.text(footer[1], pageWidth - 60, pageHeight - 12);
   
   doc.save(`gold-inventory-${data.period}.pdf`);
 }
@@ -1092,7 +1142,7 @@ export function generateSettlementReport(data: SettlementReportData): void {
   doc.text("ID", 25, yPos + 5.5);
   doc.text(data.language === "fr" ? "Contrepartie" : "Counterparty", 55, yPos + 5.5);
   doc.text(data.language === "fr" ? "Montant" : "Amount", 115, yPos + 5.5);
-  doc.text("Status", 155, yPos + 5.5);
+  doc.text(data.language === "fr" ? "Statut" : "Status", 155, yPos + 5.5);
   
   yPos += 8;
   
@@ -1106,7 +1156,7 @@ export function generateSettlementReport(data: SettlementReportData): void {
     doc.text(row.id, 25, yPos + 5);
     doc.text(row.counterparty.substring(0, 25), 55, yPos + 5);
     doc.text(`${data.currency} ${formatNumber(row.amount)}`, 115, yPos + 5);
-    doc.text(row.status, 155, yPos + 5);
+    doc.text(businessLabel(row.status, data.language), 155, yPos + 5);
     yPos += 7;
   });
   
@@ -1115,8 +1165,9 @@ export function generateSettlementReport(data: SettlementReportData): void {
   doc.line(20, pageHeight - 20, pageWidth - 20, pageHeight - 20);
   doc.setFontSize(7);
   doc.setTextColor(100, 116, 139);
-  doc.text(`Document généré le ${data.generatedAt}`, 20, pageHeight - 12);
-  doc.text("GAC Sourcing - Rapport Confidentiel", pageWidth - 60, pageHeight - 12);
+  let footer = reportFooter(data.language, data.generatedAt);
+  doc.text(footer[0], 20, pageHeight - 12);
+  doc.text(footer[1], pageWidth - 60, pageHeight - 12);
   
   doc.save(`settlement-report-${data.period}.pdf`);
 }
@@ -1215,11 +1266,11 @@ export function generateComplianceAuditReport(data: ComplianceAuditData): void {
     doc.setFont("helvetica", "normal");
     doc.text(row.counterparty.substring(0, 28), 25, yPos + 5);
     doc.setTextColor(row.sanctions === "Clear" ? 16 : 239, row.sanctions === "Clear" ? 185 : 68, row.sanctions === "Clear" ? 129 : 68);
-    doc.text(row.sanctions, 90, yPos + 5);
+    doc.text(businessLabel(row.sanctions, data.language), 90, yPos + 5);
     doc.setTextColor(row.pep === "Clear" ? 16 : 245, row.pep === "Clear" ? 185 : 158, row.pep === "Clear" ? 129 : 11);
-    doc.text(row.pep, 125, yPos + 5);
+    doc.text(businessLabel(row.pep, data.language), 125, yPos + 5);
     doc.setTextColor(30, 41, 59);
-    doc.text(row.status, 155, yPos + 5);
+    doc.text(businessLabel(row.status, data.language), 155, yPos + 5);
     yPos += 7;
   });
   
@@ -1228,8 +1279,9 @@ export function generateComplianceAuditReport(data: ComplianceAuditData): void {
   doc.line(20, pageHeight - 20, pageWidth - 20, pageHeight - 20);
   doc.setFontSize(7);
   doc.setTextColor(100, 116, 139);
-  doc.text(`Document généré le ${data.generatedAt}`, 20, pageHeight - 12);
-  doc.text("GAC Sourcing - Rapport Confidentiel", pageWidth - 60, pageHeight - 12);
+  let footer = reportFooter(data.language, data.generatedAt);
+  doc.text(footer[0], 20, pageHeight - 12);
+  doc.text(footer[1], pageWidth - 60, pageHeight - 12);
   
   doc.save(`compliance-audit-${data.period}.pdf`);
 }
@@ -1328,7 +1380,7 @@ export function generateRiskAssessmentReport(data: RiskAssessmentData): void {
     doc.setTextColor(30, 41, 59);
     doc.setFontSize(9);
     doc.setFont("helvetica", "normal");
-    doc.text(tier.tier, 25, yPos + 9);
+    doc.text(businessLabel(tier.tier, data.language), 25, yPos + 9);
     doc.setFont("helvetica", "bold");
     doc.text(`${tier.count} (${tier.percentage.toFixed(1)}%)`, pageWidth - 50, yPos + 9);
     
@@ -1349,8 +1401,8 @@ export function generateRiskAssessmentReport(data: RiskAssessmentData): void {
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(8);
   doc.text(data.language === "fr" ? "Contrepartie" : "Counterparty", 25, yPos + 5.5);
-  doc.text(data.language === "fr" ? "Tier" : "Tier", 90, yPos + 5.5);
-  doc.text("Status", 120, yPos + 5.5);
+  doc.text(data.language === "fr" ? "Niveau" : "Tier", 90, yPos + 5.5);
+  doc.text(data.language === "fr" ? "Statut" : "Status", 120, yPos + 5.5);
   doc.text(data.language === "fr" ? "Échéance" : "Due Date", 160, yPos + 5.5);
   
   yPos += 8;
@@ -1363,8 +1415,8 @@ export function generateRiskAssessmentReport(data: RiskAssessmentData): void {
     doc.setTextColor(30, 41, 59);
     doc.setFont("helvetica", "normal");
     doc.text(row.counterparty.substring(0, 25), 25, yPos + 5);
-    doc.text(row.riskTier, 90, yPos + 5);
-    doc.text(row.eddStatus, 120, yPos + 5);
+    doc.text(businessLabel(row.riskTier, data.language), 90, yPos + 5);
+    doc.text(businessLabel(row.eddStatus, data.language), 120, yPos + 5);
     doc.text(row.dueDate, 160, yPos + 5);
     yPos += 7;
   });
@@ -1374,8 +1426,9 @@ export function generateRiskAssessmentReport(data: RiskAssessmentData): void {
   doc.line(20, pageHeight - 20, pageWidth - 20, pageHeight - 20);
   doc.setFontSize(7);
   doc.setTextColor(100, 116, 139);
-  doc.text(`Document généré le ${data.generatedAt}`, 20, pageHeight - 12);
-  doc.text("GAC Sourcing - Rapport Confidentiel", pageWidth - 60, pageHeight - 12);
+  let footer = reportFooter(data.language, data.generatedAt);
+  doc.text(footer[0], 20, pageHeight - 12);
+  doc.text(footer[1], pageWidth - 60, pageHeight - 12);
   
   doc.save(`risk-assessment-${data.period}.pdf`);
 }

@@ -635,7 +635,7 @@ export function AccueilClient() {
         <div className="container mx-auto px-4 sm:px-6">
           <Reveal from="scale-95">
             <div className="relative rounded-2xl overflow-hidden">
-              <div className="absolute inset-0 bg-gradient-to-r from-primary/20 via-primary/10 to-primary/20" />
+              <div className="absolute inset-0 bg-linear-to-r from-primary/20 via-primary/10 to-primary/20" />
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_50%,rgba(212,175,55,0.15),transparent_50%)]" />
               <div className="relative z-10 text-center py-12 sm:py-16 px-4 sm:px-6">
                 <Earth
