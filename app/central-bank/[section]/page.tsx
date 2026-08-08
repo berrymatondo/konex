@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation"
+import { Suspense } from "react"
 
 import MarketOversightPage from "@/app/page"
 import { BccPrototypePage, type BccPrototypeSection } from "@/components/bcc/bcc-prototype-page"
@@ -38,5 +39,9 @@ export default async function CentralBankPage({ params }: { params: Promise<{ se
   if (section === "transactions" || section === "refining-orders" || section === "audit") {
     return <BccSectionPage section={section} />
   }
-  return <BccPrototypePage section={section as BccPrototypeSection} />
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-background" />}>
+      <BccPrototypePage section={section as BccPrototypeSection} />
+    </Suspense>
+  )
 }
