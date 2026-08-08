@@ -1,4 +1,4 @@
-export type PageGroup = "main" | "operations" | "system" | "admin"
+export type PageGroup = "main" | "operations" | "central_bank" | "system" | "admin"
 
 export interface AppPage {
   /** Stable identifier stored in the access table. */
@@ -40,6 +40,20 @@ export const PAGES: AppPage[] = [
   { key: "vault-intake", path: "/vault-intake", labelFr: "Réception Coffre", labelEn: "Vault Intake", group: "operations" },
   { key: "assays", path: "/assays", labelFr: "Essais", labelEn: "Assays", group: "operations" },
   { key: "settlements", path: "/settlements", labelFr: "Règlements", labelEn: "Settlements", group: "operations" },
+
+  // Banque Centrale — isolated from the operational pages with similar names.
+  { key: "bcc-dashboard", path: "/central-bank/dashboard", labelFr: "Tableau de bord", labelEn: "Dashboard", group: "central_bank" },
+  { key: "bcc-transactions", path: "/central-bank/transactions", labelFr: "Transactions", labelEn: "Transactions", group: "central_bank" },
+  { key: "bcc-purchase-orders", path: "/central-bank/purchase-orders", labelFr: "Ordre d’achat", labelEn: "Purchase Order", group: "central_bank" },
+  { key: "bcc-receipt-assay", path: "/central-bank/receipt-assay", labelFr: "Receipt & Assay", labelEn: "Receipt & Assay", group: "central_bank" },
+  { key: "bcc-receipts", path: "/central-bank/receipts", labelFr: "Liste des réceptions", labelEn: "Receipt List", group: "central_bank" },
+  { key: "bcc-pricing-settlement", path: "/central-bank/pricing-settlement", labelFr: "Pricing & Settlement", labelEn: "Pricing & Settlement", group: "central_bank" },
+  { key: "bcc-custody", path: "/central-bank/custody", labelFr: "Custody Confirmation", labelEn: "Custody Confirmation", group: "central_bank" },
+  { key: "bcc-valuation", path: "/central-bank/valuation", labelFr: "Valuation & P&L", labelEn: "Valuation & P&L", group: "central_bank" },
+  { key: "bcc-monetary-impact", path: "/central-bank/monetary-impact", labelFr: "Impact monétaire", labelEn: "Monetary Impact", group: "central_bank" },
+  { key: "bcc-reports", path: "/central-bank/reports", labelFr: "Rapports", labelEn: "Reports", group: "central_bank" },
+  { key: "bcc-refining-orders", path: "/central-bank/refining-orders", labelFr: "Ordres de raffinage", labelEn: "Refining Orders", group: "central_bank" },
+  { key: "bcc-audit", path: "/central-bank/audit", labelFr: "Journal d’audit", labelEn: "Audit Log", group: "central_bank" },
 
   // System
   { key: "reports", path: "/reports", labelFr: "Rapports", labelEn: "Reports", group: "system" },

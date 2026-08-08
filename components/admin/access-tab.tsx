@@ -15,6 +15,7 @@ import type { AppRole } from "@/lib/roles-store"
 const GROUP_LABELS: Record<PageGroup, string> = {
   main: "Principal",
   operations: "Opérations",
+  central_bank: "Banque Centrale",
   system: "Système",
   admin: "Administration",
 }

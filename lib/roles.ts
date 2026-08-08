@@ -1,9 +1,10 @@
-export type UserRole = "compliance_officer" | "risk_manager" | "counterparty" | "admin"
+export type UserRole = "compliance_officer" | "risk_manager" | "counterparty" | "bcc" | "admin"
 
 export const ROLE_LABELS: Record<UserRole, string> = {
   compliance_officer: "Officier de Conformité",
   risk_manager: "Gestionnaire des Risques",
   counterparty: "Contrepartie",
+  bcc: "BCC",
   admin: "Admin",
 }
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useLayoutEffect } from "react";
+import { useState, useEffect, useLayoutEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -30,6 +30,11 @@ import {
   Sliders,
   PieChart,
   Activity,
+  BarChart3,
+  Boxes,
+  CircleDollarSign,
+  ReceiptText,
+  Scale,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import useSWR from "swr";
@@ -80,6 +85,7 @@ interface NavItemProps {
   title: string;
   isActive: boolean;
   isCollapsed: boolean;
+  isSubmenu?: boolean;
   onClick?: () => void;
 }
 
@@ -89,6 +95,7 @@ function NavItem({
   title,
   isActive,
   isCollapsed,
+  isSubmenu = false,
   onClick,
 }: NavItemProps) {
   const linkContent = (
@@ -98,13 +105,14 @@ function NavItem({
       aria-current={isActive ? "page" : undefined}
       className={cn(
         "relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+        isSubmenu && !isCollapsed && "py-2 text-[13px] font-normal tracking-[0.01em]",
         isCollapsed && "justify-center px-2",
         isActive
           ? "bg-sidebar-accent text-sidebar-primary shadow-sm before:absolute before:left-0 before:h-6 before:w-1 before:rounded-r-full before:bg-sidebar-primary"
           : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground",
       )}
     >
-      <Icon className="h-5 w-5 shrink-0" />
+      <Icon className={cn("h-5 w-5 shrink-0", isSubmenu && !isCollapsed && "h-4 w-4 opacity-80")} />
       {!isCollapsed && <span>{title}</span>}
     </Link>
   );
@@ -131,10 +139,46 @@ function SidebarContent({
   onNavClick?: () => void;
 }) {
   const pathname = usePathname();
+  const [expandedCentralMenus, setExpandedCentralMenus] = useState<Record<string, boolean>>({});
   const { toggleSidebar } = useSidebar();
   const { language, t } = useLanguage();
   const router = useRouter();
   const { data: session } = authClient.useSession();
+  const navRef = useRef<HTMLElement>(null);
+  const scrollStorageKey = onNavClick
+    ? "konex-sidebar-scroll-mobile"
+    : "konex-sidebar-scroll-desktop";
+
+  // Every route owns a new sidebar instance. Persist its scroll offset so the
+  // active menu entry stays in view instead of jumping back to the first item.
+  useIsomorphicLayoutEffect(() => {
+    const nav = navRef.current;
+    if (!nav) return;
+    const saved = window.sessionStorage.getItem(scrollStorageKey);
+    if (saved !== null) nav.scrollTop = Number(saved) || 0;
+  }, [pathname, scrollStorageKey]);
+
+  const rememberNavScroll = () => {
+    const nav = navRef.current;
+    if (nav) window.sessionStorage.setItem(scrollStorageKey, String(nav.scrollTop));
+  };
+
+  useEffect(() => {
+    try {
+      const saved = window.sessionStorage.getItem("konex-central-bank-submenus");
+      if (saved) setExpandedCentralMenus(JSON.parse(saved));
+    } catch {
+      // Keep submenus collapsed when the stored value is unavailable or invalid.
+    }
+  }, []);
+
+  const toggleCentralMenu = (key: string) => {
+    setExpandedCentralMenus((current) => {
+      const next = { ...current, [key]: !current[key] };
+      window.sessionStorage.setItem("konex-central-bank-submenus", JSON.stringify(next));
+      return next;
+    });
+  };
 
   // Current user display info derived from the session.
   const userName = session?.user?.name ?? session?.user?.email ?? "—";
@@ -276,6 +320,27 @@ function SidebarContent({
     },
   ].filter((item) => canSee(item.href));
 
+  const centralBankGroups = [
+    { label: "Main", items: [{ title: language === "fr" ? "Tableau de bord" : "Dashboard", href: "/central-bank/dashboard", icon: Landmark }] },
+    { label: "Gold lifecycle", items: [
+      { title: "Transactions", href: "/central-bank/transactions", icon: ArrowLeftRight, isChild: false, menuKey: "transactions" },
+      { title: language === "fr" ? "Ordre d’achat" : "Purchase Order", href: "/central-bank/purchase-orders", icon: ReceiptText, isChild: true, parentKey: "transactions" },
+      { title: language === "fr" ? "Liste des réceptions" : "Receipt List", href: "/central-bank/receipts", icon: ClipboardList, isChild: false, menuKey: "receipts" },
+      { title: language === "fr" ? "Réception et essai" : "Receipt & Assay", href: "/central-bank/receipt-assay", icon: Scale, isChild: true, parentKey: "receipts" },
+      { title: language === "fr" ? "Tarification et règlement" : "Pricing & Settlement", href: "/central-bank/pricing-settlement", icon: CircleDollarSign },
+      { title: language === "fr" ? "Confirmation de conservation" : "Custody Confirmation", href: "/central-bank/custody", icon: Boxes },
+      { title: language === "fr" ? "Valorisation et résultat" : "Valuation & P&L", href: "/central-bank/valuation", icon: BarChart3 },
+    ]},
+    { label: "Management Information", items: [
+      { title: language === "fr" ? "Impact monétaire" : "Monetary Impact", href: "/central-bank/monetary-impact", icon: TrendingUp },
+      { title: language === "fr" ? "Rapports" : "Reports", href: "/central-bank/reports", icon: FileText },
+    ]},
+    { label: "Supporting operations", items: [
+      { title: language === "fr" ? "Ordres de raffinage" : "Refining Orders", href: "/central-bank/refining-orders", icon: Factory },
+      { title: language === "fr" ? "Journal d’audit" : "Audit Log", href: "/central-bank/audit", icon: Shield },
+    ]},
+  ].map(group => ({ ...group, items: group.items.filter(item => canSee(item.href)) })).filter(group => group.items.length > 0);
+
   const adminNavItems = isAdmin
     ? [
         {
@@ -309,7 +374,11 @@ function SidebarContent({
       </Link>
 
       {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto px-2 py-4">
+      <nav
+        ref={navRef}
+        className="flex-1 overflow-y-auto px-2 py-4"
+        onScroll={rememberNavScroll}
+      >
         <div className="space-y-6">
           <div>
             {!isCollapsed && (
@@ -380,6 +449,22 @@ function SidebarContent({
               ))}
             </ul>
           </div>
+
+          {centralBankGroups.length > 0 && (
+            <div>
+              {!isCollapsed && (
+                <p className="mb-3 px-3 text-xs font-bold uppercase tracking-[0.18em] text-sidebar-primary">
+                  BANQUE CENTRALE
+                </p>
+              )}
+              <div className="space-y-4 border-l border-sidebar-border/70 pl-1">
+                {centralBankGroups.map(group => <div key={group.label}>
+                  {!isCollapsed && <p className="mb-1.5 px-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-sidebar-foreground/45">{group.label}</p>}
+                   <ul className="space-y-1">{group.items.filter(item => !("isChild" in item && item.isChild) || ("parentKey" in item && Boolean(expandedCentralMenus[item.parentKey]))).map(item => <li key={item.href} className={"isChild" in item && item.isChild && !isCollapsed ? "ml-5 border-l border-sidebar-border/70 pl-2" : undefined}><NavItem href={item.href} icon={item.icon} title={item.title} isActive={isPathActive(item.href)} isCollapsed={isCollapsed} isSubmenu={"isChild" in item && item.isChild} onClick={"menuKey" in item && item.menuKey ? ()=>{toggleCentralMenu(item.menuKey);onNavClick?.()} : onNavClick}/></li>)}</ul>
+                </div>)}
+              </div>
+            </div>
+          )}
 
           <div>
             {!isCollapsed && (

@@ -14,6 +14,7 @@ const SYSTEM_ROLES: { key: string; label: string }[] = [
   { key: "compliance_officer", label: ROLE_LABELS.compliance_officer },
   { key: "risk_manager", label: ROLE_LABELS.risk_manager },
   { key: "counterparty", label: ROLE_LABELS.counterparty },
+  { key: "bcc", label: ROLE_LABELS.bcc },
 ]
 
 const SYSTEM_ROLE_KEYS = SYSTEM_ROLES.map((r) => r.key)

@@ -197,6 +197,56 @@ export function buildPurchaseOrderPDFArrayBuffer(data: POData, options: PDFOptio
   return doc.output("arraybuffer");
 }
 
+export interface BccPurchaseOfferData {
+  reference: string;
+  seller: string;
+  contractReference?: string;
+  targetKg: number;
+  goldType?: string;
+  centralPurity: number;
+  benchmarkPriceUsdOz: number;
+  premiumDiscount: number;
+  currency: string;
+  deliveryFrom?: string;
+  deliveryTo?: string;
+  receivingVault?: string;
+  intendedDepositary?: string;
+  createdAt: string;
+}
+
+export function buildBccPurchaseOfferPDF(data: BccPurchaseOfferData, language: "fr" | "en" = "fr"): ArrayBuffer {
+  const fr = language === "fr";
+  const doc = new jsPDF({ unit: "mm", format: "a4" });
+  const width = doc.internal.pageSize.getWidth();
+  doc.setFillColor(18, 24, 33); doc.rect(0, 0, width, 50, "F");
+  doc.setFillColor(202, 163, 72); doc.rect(0, 50, width, 3, "F");
+  doc.setTextColor(255,255,255); doc.setFont("helvetica","bold"); doc.setFontSize(20); doc.text("BANQUE CENTRALE DU CONGO",20,20);
+  doc.setFont("helvetica","normal"); doc.setFontSize(14); doc.text(fr ? "OFFRE D'ACHAT D'OR" : "GOLD PURCHASE OFFER",20,33);
+  doc.setFontSize(9); doc.setTextColor(170,178,190); doc.text(`${fr?"Date":"Date"}: ${new Date(data.createdAt).toLocaleDateString(fr?"fr-FR":"en-GB")}`,width-68,20);
+  let y=63;
+  doc.setFillColor(241,245,249); doc.roundedRect(20,y,width-40,23,3,3,"F");
+  doc.setTextColor(100,116,139); doc.setFontSize(8); doc.text(fr?"REFERENCE DE L'OFFRE":"OFFER REFERENCE",25,y+7);
+  doc.setTextColor(30,41,59); doc.setFont("helvetica","bold"); doc.setFontSize(16); doc.text(data.reference,25,y+17);
+  doc.setFillColor(34,197,94); doc.roundedRect(width-58,y+6,33,11,2,2,"F"); doc.setTextColor(255,255,255); doc.setFontSize(8); doc.text(fr?"APPROUVEE":"APPROVED",width-52,y+13);
+  const section=(title:string)=>{y+=15;doc.setTextColor(30,41,59);doc.setFont("helvetica","bold");doc.setFontSize(11);doc.text(title,20,y);y+=4;doc.setDrawColor(226,232,240);doc.line(20,y,width-20,y);y+=8};
+  const row=(label:string,value:string)=>{doc.setFont("helvetica","normal");doc.setFontSize(9);doc.setTextColor(100,116,139);doc.text(label,25,y);doc.setTextColor(30,41,59);doc.text(String(value||"—"),90,y);y+=7};
+  y=92; section(fr?"CONTREPARTIE ET CONTRAT":"COUNTERPARTY AND CONTRACT"); row(fr?"Contrepartie":"Counterparty",data.seller); row(fr?"Contrat / accord-cadre":"Contract / framework agreement",data.contractReference||"—");
+  section(fr?"CARACTERISTIQUES DE L'OR":"GOLD SPECIFICATIONS"); row(fr?"Quantite cible":"Target quantity",`${formatNumber(data.targetKg,3)} kg`); row(fr?"Forme de l'or":"Gold form",data.goldType||"—"); row(fr?"Estimation centrale":"Central estimate",`${formatNumber(data.centralPurity,2)} %`);
+  section(fr?"CONDITIONS TARIFAIRES":"PRICING TERMS"); row(fr?"Prix de reference":"Benchmark price",`${formatNumber(data.benchmarkPriceUsdOz,2)} USD/oz`); row(fr?"Prime / decote":"Premium / discount",`${formatNumber(data.premiumDiscount,2)} %`); row(fr?"Devise de transaction":"Transaction currency",data.currency);
+  section(fr?"LIVRAISON ET CONSERVATION":"DELIVERY AND CUSTODY"); row(fr?"Fenetre de livraison":"Delivery window",`${data.deliveryFrom||"—"} - ${data.deliveryTo||"—"}`); row(fr?"Coffre de reception":"Receiving vault",data.receivingVault||"—"); row(fr?"Depositaire final":"Final depositary",data.intendedDepositary||"—");
+  const footer=doc.internal.pageSize.getHeight()-18; doc.setDrawColor(226,232,240);doc.line(20,footer-5,width-20,footer-5);doc.setTextColor(100,116,139);doc.setFontSize(8);doc.text(fr?"Document genere automatiquement - Confidentiel":"Automatically generated document - Confidential",20,footer);doc.text(data.reference,width-50,footer);
+  return doc.output("arraybuffer");
+}
+
+export function buildBccReceiptPDF(record: { reference:string; purchaseOrder:string; data:Record<string,any>; createdAt:string }, language:"fr"|"en"="fr"): ArrayBuffer {
+  const fr=language==="fr",d=record.data||{},doc=new jsPDF({unit:"mm",format:"a4"}),width=doc.internal.pageSize.getWidth();
+  doc.setFillColor(18,24,33);doc.rect(0,0,width,50,"F");doc.setFillColor(202,163,72);doc.rect(0,50,width,3,"F");doc.setTextColor(255,255,255);doc.setFont("helvetica","bold");doc.setFontSize(20);doc.text("BANQUE CENTRALE DU CONGO",20,20);doc.setFontSize(14);doc.text(fr?"CERTIFICAT DE RECEPTION ET D'ESSAI":"RECEIPT & ASSAY CERTIFICATE",20,33);
+  let y=63;doc.setFillColor(241,245,249);doc.roundedRect(20,y,width-40,23,3,3,"F");doc.setTextColor(100,116,139);doc.setFontSize(8);doc.text(fr?"REFERENCE DE RECEPTION":"RECEIPT REFERENCE",25,y+7);doc.setTextColor(30,41,59);doc.setFontSize(16);doc.text(record.reference,25,y+17);doc.setFillColor(34,197,94);doc.roundedRect(width-53,y+6,28,11,2,2,"F");doc.setTextColor(255,255,255);doc.setFontSize(8);doc.text(fr?"RECU":"RECEIVED",width-47,y+13);
+  const row=(label:string,value:string)=>{doc.setFont("helvetica","normal");doc.setFontSize(9);doc.setTextColor(100,116,139);doc.text(label,25,y);doc.setTextColor(30,41,59);doc.text(value||"—",92,y);y+=8};const section=(title:string)=>{y+=15;doc.setTextColor(30,41,59);doc.setFont("helvetica","bold");doc.setFontSize(11);doc.text(title,20,y);y+=5;doc.setDrawColor(226,232,240);doc.line(20,y,width-20,y);y+=9};
+  y=92;section(fr?"ORDRE D'ACHAT LIE":"LINKED PURCHASE ORDER");row(fr?"Numero du PO":"PO number",record.purchaseOrder);row(fr?"Date de reception":"Receipt date",d.receiptDate||"—");row(fr?"Reference du manifeste":"Manifest reference",d.manifestReference||"—");row(fr?"Entree au coffre":"Vault intake",d.vaultIntakeReference||"—");section(fr?"POIDS ET ESSAI":"WEIGHT AND ASSAY");row(fr?"Poids brut":"Gross weight",`${formatNumber(Number(d.grossWeightKg||0),3)} kg`);row(fr?"Tare / emballage":"Tare / packaging",`${formatNumber(Number(d.tareWeightKg||0),3)} kg`);row(fr?"Poids net recu":"Net weight received",`${formatNumber(Number(d.netWeightKg||0),3)} kg`);row(fr?"Purete finale":"Final purity",`${formatNumber(Number(d.finalPurityPercent||0),3)} %`);row(fr?"Poids d'or fin":"Fine-gold weight",`${formatNumber(Number(d.fineGoldWeightKg||0),3)} kg`);row(fr?"Certificat d'essai":"Assay certificate",d.assayCertificate||"—");
+  const footer=doc.internal.pageSize.getHeight()-18;doc.setDrawColor(226,232,240);doc.line(20,footer-5,width-20,footer-5);doc.setTextColor(100,116,139);doc.setFontSize(8);doc.text(fr?"Document genere automatiquement - Confidentiel":"Automatically generated document - Confidential",20,footer);return doc.output("arraybuffer");
+}
+
 export async function generateDispatchPDF(data: DispatchData, options: PDFOptions): Promise<void> {
   // Generate QR code if not provided
   let qrCodeImage = data.qrCodeData;
