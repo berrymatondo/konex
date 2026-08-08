@@ -16,7 +16,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ entity: st
     const ctx = await context(params, false)
     if (ctx.error) return ctx.error
     const rows = await sql(`SELECT id,reference,purchase_order_id,status,data,created_at,updated_at FROM ${ctx.table} ORDER BY created_at DESC`)
-    return NextResponse.json(rows, { headers: { "Cache-Control": "private, max-age=5, stale-while-revalidate=30" } })
+    return NextResponse.json(rows, { headers: { "Cache-Control": "private, no-store" } })
   } catch (error) {
     console.error("BCC list error", error)
     return NextResponse.json({ error: "Unable to load BCC records" }, { status: 500 })
@@ -32,6 +32,15 @@ export async function POST(request: Request, { params }: { params: Promise<{ ent
     const status = String(body.status || "draft")
     const purchaseOrderId = body.purchaseOrderId ? String(body.purchaseOrderId) : null
     const data = body.data && typeof body.data === "object" ? body.data : {}
+    if (ctx.entity === "receipt-assay" && purchaseOrderId) {
+      const linked = await sql`
+        SELECT id FROM bcc_receipt_assays
+        WHERE purchase_order_id=${purchaseOrderId}
+          AND status IN ('saved','received','confirmed')
+        LIMIT 1
+      `
+      if (linked[0]) return NextResponse.json({ error: "This purchase order already has a receipt" }, { status: 409 })
+    }
     let rows
     if (ctx.entity === "purchase-orders" && body.recordId) {
       rows = await sql`

@@ -24,8 +24,9 @@ export function BccPrototypePage({ section }: { section: BccPrototypeSection }) 
   const searchParams = useSearchParams()
   const config = CONFIG[section]
   const copy = config[language]
-  const recordId = section === "purchase-orders" ? searchParams.get("recordId") : null
+  const supportsRecords = section === "purchase-orders" || section === "receipt-assay"
+  const recordId = supportsRecords ? searchParams.get("recordId") : null
   const viewOnly = Boolean(recordId && searchParams.get("view") === "1")
-  const createNew = section === "purchase-orders" && !recordId
+  const createNew = supportsRecords && !recordId
   return <SidebarProvider><div className="flex h-screen"><AppSidebar/><div className="flex min-w-0 flex-1 flex-col overflow-hidden"><AppHeader title={copy[0]} subtitle={copy[1]}/><main className="min-h-0 flex-1 bg-background"><iframe key={`${section}-${language}-${recordId||"new"}-${viewOnly}`} className="h-full w-full border-0 bg-background" src={`/bcc-reserve-management.html?embedded=1&screen=${config.screen}&lang=${language}${createNew?"&new=1":recordId?`&recordId=${encodeURIComponent(recordId)}${viewOnly?"&view=1":""}`:""}`} title={`${copy[0]} — Banque Centrale`}/></main></div></div></SidebarProvider>
 }
