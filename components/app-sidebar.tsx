@@ -174,7 +174,7 @@ function SidebarContent({
 
   const toggleCentralMenu = (key: string) => {
     setExpandedCentralMenus((current) => {
-      const next = { ...current, [key]: !current[key] };
+      const next = current[key] ? {} : { [key]: true };
       window.sessionStorage.setItem("konex-central-bank-submenus", JSON.stringify(next));
       return next;
     });
@@ -327,7 +327,8 @@ function SidebarContent({
       { title: language === "fr" ? "Ordre d’achat" : "Purchase Order", href: "/central-bank/purchase-orders", icon: ReceiptText, isChild: true, parentKey: "transactions" },
       { title: language === "fr" ? "Liste des réceptions" : "Receipt List", href: "/central-bank/receipts", icon: ClipboardList, isChild: false, menuKey: "receipts" },
       { title: language === "fr" ? "Réception et essai" : "Receipt & Assay", href: "/central-bank/receipt-assay", icon: Scale, isChild: true, parentKey: "receipts" },
-      { title: language === "fr" ? "Tarification et règlement" : "Pricing & Settlement", href: "/central-bank/pricing-settlement", icon: CircleDollarSign },
+      { title: language === "fr" ? "Règlements" : "Settlements", href: "/central-bank/settlements", icon: CircleDollarSign, isChild: false, menuKey: "settlements" },
+      { title: language === "fr" ? "Tarification et règlement" : "Pricing & Settlement", href: "/central-bank/pricing-settlement", icon: CircleDollarSign, isChild: true, parentKey: "settlements" },
       { title: language === "fr" ? "Confirmation de conservation" : "Custody Confirmation", href: "/central-bank/custody", icon: Boxes },
       { title: language === "fr" ? "Valorisation et résultat" : "Valuation & P&L", href: "/central-bank/valuation", icon: BarChart3 },
     ]},

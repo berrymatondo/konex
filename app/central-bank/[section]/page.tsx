@@ -5,6 +5,7 @@ import MarketOversightPage from "@/app/page"
 import { BccPrototypePage, type BccPrototypeSection } from "@/components/bcc/bcc-prototype-page"
 import { BccSectionPage } from "@/components/bcc/bcc-workspace"
 import { BccReceiptAssaySummary } from "@/components/bcc/bcc-receipt-assay"
+import { BccSettlementsSummary } from "@/components/bcc/bcc-settlements"
 
 const SECTIONS = {
   dashboard: { screen: "dashboard", title: "Tableau de bord", subtitle: "Vue d’ensemble du portefeuille et du cycle de vie" },
@@ -13,6 +14,7 @@ const SECTIONS = {
   "receipt-assay": { screen: "storage", title: "Receipt & Assay", subtitle: "Confirmer la réception physique, le poids et la pureté finale" },
   receipts: { screen: "receipts", title: "Liste des réceptions", subtitle: "Sommaire des réceptions physiques" },
   "pricing-settlement": { screen: "settlement", title: "Pricing & Settlement", subtitle: "Confirmer le prix exécuté, le règlement et les coûts réels" },
+  settlements: { screen: "settlements", title: "Règlements", subtitle: "Liste des tarifications et règlements BCC" },
   custody: { screen: "custody", title: "Custody Confirmation", subtitle: "Confirmer le dépositaire, le titre, l’allocation et l’éligibilité aux réserves" },
   valuation: { screen: "pnl", title: "Valuation & P&L", subtitle: "Analyser le coût comptable, la valorisation et la performance" },
   "monetary-impact": { screen: "monetary", title: "Impact monétaire", subtitle: "Simuler la transmission monétaire et l’adéquation des réserves" },
@@ -35,6 +37,9 @@ export default async function CentralBankPage({ params }: { params: Promise<{ se
   }
   if (section === "receipts") {
     return <BccReceiptAssaySummary />
+  }
+  if (section === "settlements") {
+    return <BccSettlementsSummary />
   }
   if (section === "transactions" || section === "refining-orders" || section === "audit") {
     return <BccSectionPage section={section} />

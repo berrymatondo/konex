@@ -39,6 +39,7 @@ const DEFAULT_ACCESS: Record<Exclude<UserRole, "admin">, string[]> = {
     "bcc-receipt-assay",
     "bcc-receipts",
     "bcc-pricing-settlement",
+    "bcc-settlements",
     "bcc-custody",
     "bcc-valuation",
     "bcc-monetary-impact",

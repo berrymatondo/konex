@@ -48,6 +48,7 @@ export const PAGES: AppPage[] = [
   { key: "bcc-receipt-assay", path: "/central-bank/receipt-assay", labelFr: "Receipt & Assay", labelEn: "Receipt & Assay", group: "central_bank" },
   { key: "bcc-receipts", path: "/central-bank/receipts", labelFr: "Liste des réceptions", labelEn: "Receipt List", group: "central_bank" },
   { key: "bcc-pricing-settlement", path: "/central-bank/pricing-settlement", labelFr: "Pricing & Settlement", labelEn: "Pricing & Settlement", group: "central_bank" },
+  { key: "bcc-settlements", path: "/central-bank/settlements", labelFr: "Règlements", labelEn: "Settlements", group: "central_bank" },
   { key: "bcc-custody", path: "/central-bank/custody", labelFr: "Custody Confirmation", labelEn: "Custody Confirmation", group: "central_bank" },
   { key: "bcc-valuation", path: "/central-bank/valuation", labelFr: "Valuation & P&L", labelEn: "Valuation & P&L", group: "central_bank" },
   { key: "bcc-monetary-impact", path: "/central-bank/monetary-impact", labelFr: "Impact monétaire", labelEn: "Monetary Impact", group: "central_bank" },
