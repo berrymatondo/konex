@@ -54,6 +54,14 @@ import { getRoleLabel } from "@/lib/roles";
 // links on the very first paint (no flash of forbidden pages).
 type NavAccess = { allowedPaths: string[]; isAdmin: boolean };
 
+const CENTRAL_BANK_PARENT_BY_PATH: Record<string, string> = {
+  "/central-bank/purchase-orders": "transactions",
+  "/central-bank/receipt-assay": "receipts",
+  "/central-bank/pricing-settlement": "settlements",
+  "/central-bank/custody": "confirmations",
+  "/central-bank/valuation": "valuations",
+};
+
 function readNavAccessCookie(): NavAccess | undefined {
   if (typeof document === "undefined") return undefined;
   const match = document.cookie.match(/(?:^|;\s*)nav_access=([^;]+)/);
@@ -171,6 +179,28 @@ function SidebarContent({
       // Keep submenus collapsed when the stored value is unavailable or invalid.
     }
   }, []);
+
+  // Direct URLs (including ?new=1, ?recordId=… and ?view=1) must reveal the
+  // matching child entry even when its parent menu was previously collapsed.
+  useEffect(() => {
+    const parentKey = Object.entries(CENTRAL_BANK_PARENT_BY_PATH).find(
+      ([path]) => pathname === path || pathname.startsWith(`${path}/`),
+    )?.[1];
+    if (parentKey) {
+      setExpandedCentralMenus((current) =>
+        current[parentKey] ? current : { ...current, [parentKey]: true },
+      );
+    }
+  }, [pathname]);
+
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => {
+      navRef.current
+        ?.querySelector<HTMLElement>('[aria-current="page"]')
+        ?.scrollIntoView({ block: "nearest" });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [pathname, expandedCentralMenus]);
 
   const toggleCentralMenu = (key: string) => {
     setExpandedCentralMenus((current) => {
@@ -329,16 +359,14 @@ function SidebarContent({
       { title: language === "fr" ? "Réception et essai" : "Receipt & Assay", href: "/central-bank/receipt-assay", icon: Scale, isChild: true, parentKey: "receipts" },
       { title: language === "fr" ? "Règlements" : "Settlements", href: "/central-bank/settlements", icon: CircleDollarSign, isChild: false, menuKey: "settlements" },
       { title: language === "fr" ? "Tarification et règlement" : "Pricing & Settlement", href: "/central-bank/pricing-settlement", icon: CircleDollarSign, isChild: true, parentKey: "settlements" },
-      { title: language === "fr" ? "Confirmation de conservation" : "Custody Confirmation", href: "/central-bank/custody", icon: Boxes },
-      { title: language === "fr" ? "Valorisation et résultat" : "Valuation & P&L", href: "/central-bank/valuation", icon: BarChart3 },
+      { title: language === "fr" ? "Liste des confirmations" : "Confirmation List", href: "/central-bank/confirmations", icon: Boxes, isChild: false, menuKey: "confirmations" },
+      { title: language === "fr" ? "Confirmation de conservation" : "Custody Confirmation", href: "/central-bank/custody", icon: Boxes, isChild: true, parentKey: "confirmations" },
+      { title: language === "fr" ? "Valorisations" : "Valuations", href: "/central-bank/valuations", icon: BarChart3, isChild: false, menuKey: "valuations" },
+      { title: language === "fr" ? "Valorisation et résultat" : "Valuation & P&L", href: "/central-bank/valuation", icon: BarChart3, isChild: true, parentKey: "valuations" },
     ]},
     { label: "Management Information", items: [
       { title: language === "fr" ? "Impact monétaire" : "Monetary Impact", href: "/central-bank/monetary-impact", icon: TrendingUp },
       { title: language === "fr" ? "Rapports" : "Reports", href: "/central-bank/reports", icon: FileText },
-    ]},
-    { label: "Supporting operations", items: [
-      { title: language === "fr" ? "Ordres de raffinage" : "Refining Orders", href: "/central-bank/refining-orders", icon: Factory },
-      { title: language === "fr" ? "Journal d’audit" : "Audit Log", href: "/central-bank/audit", icon: Shield },
     ]},
   ].map(group => ({ ...group, items: group.items.filter(item => canSee(item.href)) })).filter(group => group.items.length > 0);
 
@@ -461,7 +489,7 @@ function SidebarContent({
               <div className="space-y-4 border-l border-sidebar-border/70 pl-1">
                 {centralBankGroups.map(group => <div key={group.label}>
                   {!isCollapsed && <p className="mb-1.5 px-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-sidebar-foreground/45">{group.label}</p>}
-                   <ul className="space-y-1">{group.items.filter(item => !("isChild" in item && item.isChild) || ("parentKey" in item && Boolean(expandedCentralMenus[item.parentKey]))).map(item => <li key={item.href} className={"isChild" in item && item.isChild && !isCollapsed ? "ml-5 border-l border-sidebar-border/70 pl-2" : undefined}><NavItem href={item.href} icon={item.icon} title={item.title} isActive={isPathActive(item.href)} isCollapsed={isCollapsed} isSubmenu={"isChild" in item && item.isChild} onClick={"menuKey" in item && item.menuKey ? ()=>{toggleCentralMenu(item.menuKey);onNavClick?.()} : onNavClick}/></li>)}</ul>
+                   <ul className="space-y-1">{group.items.filter(item => !("isChild" in item && item.isChild) || ("parentKey" in item && Boolean(expandedCentralMenus[String(item.parentKey)]))).map(item => <li key={item.href} className={"isChild" in item && item.isChild && !isCollapsed ? "ml-5 border-l border-sidebar-border/70 pl-2" : undefined}><NavItem href={item.href} icon={item.icon} title={item.title} isActive={isPathActive(item.href)} isCollapsed={isCollapsed} isSubmenu={Boolean("isChild" in item && item.isChild)} onClick={"menuKey" in item && item.menuKey ? ()=>{toggleCentralMenu(String(item.menuKey));onNavClick?.()} : onNavClick}/></li>)}</ul>
                 </div>)}
               </div>
             </div>

@@ -102,7 +102,11 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ en
       ? " AND status <> 'approved'"
       : ctx.entity === "receipt-assay"
         ? " AND status NOT IN ('received','confirmed')"
-        : ""
+        : ctx.entity === "pricing-settlement"
+          ? " AND status NOT IN ('settled','confirmed','completed')"
+          : ctx.entity === "custody"
+            ? " AND status NOT IN ('confirmed','completed')"
+            : ""
     const rows = await sql(
       `UPDATE ${ctx.table} SET status=$1,data=$2::jsonb,purchase_order_id=$3,updated_at=CURRENT_TIMESTAMP WHERE id=$4${immutableClause} RETURNING *`,
       [String(body.status || "draft"), JSON.stringify(body.data || {}), body.purchaseOrderId || null, String(body.id)],
@@ -114,6 +118,10 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ en
     if (ctx.entity === "receipt-assay" && !rows[0]) {
       const existing = await sql`SELECT status FROM bcc_receipt_assays WHERE id=${String(body.id)} LIMIT 1`
       if (["received", "confirmed"].includes(String(existing[0]?.status))) return NextResponse.json({ error: "A received receipt cannot be edited" }, { status: 409 })
+    }
+    if (ctx.entity === "pricing-settlement" && !rows[0]) {
+      const existing = await sql`SELECT status FROM bcc_pricing_settlements WHERE id=${String(body.id)} LIMIT 1`
+      if (["settled", "confirmed", "completed"].includes(String(existing[0]?.status))) return NextResponse.json({ error: "A settled record cannot be edited" }, { status: 409 })
     }
     return NextResponse.json(rows[0] || null)
   } catch (error) {

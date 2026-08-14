@@ -24,7 +24,7 @@ export function BccPrototypePage({ section }: { section: BccPrototypeSection }) 
   const searchParams = useSearchParams()
   const config = CONFIG[section]
   const copy = config[language]
-  const supportsRecords = section === "purchase-orders" || section === "receipt-assay" || section === "pricing-settlement"
+  const supportsRecords = section === "purchase-orders" || section === "receipt-assay" || section === "pricing-settlement" || section === "custody" || section === "valuation"
   const recordId = supportsRecords ? searchParams.get("recordId") : null
   const viewOnly = Boolean(recordId && searchParams.get("view") === "1")
   const createNew = supportsRecords && !recordId

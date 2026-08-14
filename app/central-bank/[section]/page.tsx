@@ -6,6 +6,8 @@ import { BccPrototypePage, type BccPrototypeSection } from "@/components/bcc/bcc
 import { BccSectionPage } from "@/components/bcc/bcc-workspace"
 import { BccReceiptAssaySummary } from "@/components/bcc/bcc-receipt-assay"
 import { BccSettlementsSummary } from "@/components/bcc/bcc-settlements"
+import { BccCustodyConfirmationsSummary } from "@/components/bcc/bcc-custody-confirmations"
+import { BccValuationsSummary } from "@/components/bcc/bcc-valuations"
 
 const SECTIONS = {
   dashboard: { screen: "dashboard", title: "Tableau de bord", subtitle: "Vue d’ensemble du portefeuille et du cycle de vie" },
@@ -15,6 +17,8 @@ const SECTIONS = {
   receipts: { screen: "receipts", title: "Liste des réceptions", subtitle: "Sommaire des réceptions physiques" },
   "pricing-settlement": { screen: "settlement", title: "Pricing & Settlement", subtitle: "Confirmer le prix exécuté, le règlement et les coûts réels" },
   settlements: { screen: "settlements", title: "Règlements", subtitle: "Liste des tarifications et règlements BCC" },
+  confirmations: { screen: "confirmations", title: "Liste des confirmations", subtitle: "Liste des confirmations de conservation BCC" },
+  valuations: { screen: "valuations", title: "Valorisations", subtitle: "Liste des valorisations BCC" },
   custody: { screen: "custody", title: "Custody Confirmation", subtitle: "Confirmer le dépositaire, le titre, l’allocation et l’éligibilité aux réserves" },
   valuation: { screen: "pnl", title: "Valuation & P&L", subtitle: "Analyser le coût comptable, la valorisation et la performance" },
   "monetary-impact": { screen: "monetary", title: "Impact monétaire", subtitle: "Simuler la transmission monétaire et l’adéquation des réserves" },
@@ -40,6 +44,12 @@ export default async function CentralBankPage({ params }: { params: Promise<{ se
   }
   if (section === "settlements") {
     return <BccSettlementsSummary />
+  }
+  if (section === "confirmations") {
+    return <BccCustodyConfirmationsSummary />
+  }
+  if (section === "valuations") {
+    return <BccValuationsSummary />
   }
   if (section === "transactions" || section === "refining-orders" || section === "audit") {
     return <BccSectionPage section={section} />
