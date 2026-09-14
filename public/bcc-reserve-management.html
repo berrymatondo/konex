@@ -233,6 +233,7 @@ body.embedded *{scrollbar-color:#555a65 transparent;scrollbar-width:thin}
 @media(max-width:767px){body.embedded .content{padding:16px}body.embedded .card{padding:16px}}
 
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body class="embedded">
 <div class="app">
@@ -307,7 +308,7 @@ body.embedded *{scrollbar-color:#555a65 transparent;scrollbar-width:thin}
                 <div class="field"><label>Permitted range</label><input type="text" id="poRange" readonly></div>
                 <div class="field"><label>Gold form <span class="req">*</span></label><select id="poType" onchange="onPOType()"><option value="dore">Doré bars</option><option value="refined">Refined bars</option><option value="dust">Gold dust</option><option value="scrap">Scrap gold</option></select></div>
                 <div class="field"><label>Incoterm</label><select id="incoterm"><option>DAP</option><option>DDP</option><option>FCA</option><option>EXW</option></select></div>
-                <div class="field"><label>Intended reserve classification</label><select><option>Monetary gold — subject to eligibility</option><option>Non-monetary gold inventory</option><option>Pending classification</option></select></div>
+                <div class="field"><label>Intended reserve classification</label><select id="poClassification"><option>Monetary gold — subject to eligibility</option><option>Non-monetary gold inventory</option><option>Pending classification</option></select></div>
               </div>
               <div id="poAssayBlock" class="grid3" style="margin-top:14px"><div class="field"><label>Expected assay — minimum (%)</label><input type="number" id="poAssayMin" step="0.1" value="85.0" oninput="calcPO()"></div><div class="field"><label>Expected assay — maximum (%)</label><input type="number" id="poAssayMax" step="0.1" value="92.0" oninput="calcPO()"></div><div class="field"><label>Central estimate (%)</label><input type="number" id="poAssay" step="0.1" value="88.5" oninput="calcPO()"></div></div>
               <div id="poFineBlock" class="grid3 hidden" style="margin-top:14px"><div class="field"><label>Declared fineness (‰)</label><input type="number" id="poFineness" step="0.1" value="995.0" oninput="calcPO()"></div><div class="field"><label>Source refiner</label><select id="poRefiner" onchange="calcPO()"><option value="acc">Rand Refinery — GD accredited</option><option value="non">Kinshasa Refinery SA — not accredited</option></select></div><div class="field"><label>Good Delivery status</label><input id="poGD" type="text" readonly></div></div>
@@ -480,7 +481,7 @@ body.embedded *{scrollbar-color:#555a65 transparent;scrollbar-width:thin}
 
       <!-- P&L SCREEN -->
       <section class="screen" id="screen-pnl">
-        <div class="screen-head"><div><h1>Valuation &amp; P&amp;L attribution</h1><p>Separate the gold's gross market value from capitalized acquisition costs and period expenses. Revaluation posting can be configured independently from this economic management view.</p></div><div class="actions"><button class="btn btn-ghost" onclick="window.top.location.href='/central-bank/valuations'">Cancel</button><button class="btn btn-ghost" onclick="exportPnlCSV()">Export breakdown</button><button class="btn btn-primary" onclick="saveBccValuation()">Save snapshot</button></div></div>
+        <div class="screen-head"><div><h1>Valuation &amp; P&amp;L attribution</h1><p>Separate the gold's gross market value from capitalized acquisition costs and period expenses. Revaluation posting can be configured independently from this economic management view.</p></div><div class="actions"><button id="cancelPnlButton" class="btn btn-ghost" type="button" onclick="window.top.location.href='/central-bank/valuations'">Cancel</button><button id="exportPnlButton" class="btn btn-ghost" type="button" onclick="exportPnlCSV()">Export breakdown</button><button id="savePnlButton" class="btn btn-primary" type="button" onclick="saveBccValuation()">Save snapshot</button></div></div>
         <div class="card layout-wide" style="padding:13px 15px"><div class="grid5"><div class="field"><label>Valuation scope / purchase order</label><div class="link-picker"><input id="pnlLotDisplay" type="text" readonly placeholder="Select a confirmed PO"><button class="btn" type="button" onclick="openDynamicValuationPOPicker()">Choose PO</button></div><select id="pnlLot" class="hidden" onchange="calcPnl()"></select><span class="hint">Only purchase orders with confirmed custody are available.</span></div><div class="field"><label>Valuation date</label><input id="valuationDate" type="date" onchange="calcPnl()"></div><div class="field"><label>Reporting currency</label><select id="reportingCurrency" onchange="calcPnl()"><option value="USD">USD</option><option value="CDF">CDF</option></select></div><div class="field"><label>Revaluation posting</label><select id="revaluationTreatment"><option>Gold revaluation reserve</option><option>Income statement</option><option>Memo / management view only</option></select></div><div class="field"><label>Cost treatment source</label><input type="text" value="Per controlled cost line" readonly><span class="hint">Classification inherited from settlement and custody invoices</span></div></div></div>
         <div class="callout primary layout-wide" style="margin-bottom:18px"><strong>Currency display:</strong> settlement FX is calculated in USD from trade-to-payment rates. Selecting CDF translates that effective USD contribution at the current valuation FX; it does not reset the underlying effect.</div>
         <div class="summary-grid"><div class="stat"><div class="label">Fine-gold holding</div><div class="value" id="pFine">—</div><div class="sub">Physical quantity from storage lot</div></div><div class="stat"><div class="label">Capitalized book cost</div><div class="value" id="pBook">—</div><div class="sub">Purchase + capitalized acquisition costs</div></div><div class="stat"><div class="label">Gross current market value</div><div class="value" id="pMarket">—</div><div class="sub">Fine gold × current market price; excludes all costs</div></div><div class="stat"><div class="label">Period expenses</div><div class="value" id="pPeriod">—</div><div class="sub">Expensed costs not included in book cost</div></div><div class="stat good" id="pnlStat"><div class="label">Net valuation result after expenses</div><div class="value" id="pNet">—</div><div class="sub" id="pReturn">—</div></div></div>
@@ -790,7 +791,7 @@ document.querySelectorAll('[data-screen]').forEach(function(el){el.addEventListe
 function poRouteInfo(){const t=q('poType').value;if(t==='refined'){const eligible=q('poRefiner').value==='acc'&&num('poFineness')>=995;q('poGD').value=q('poRefiner').value==='acc'?'GD accredited':'Not accredited';return eligible?{skip:true,title:'Expected route — may skip refining',desc:'Declared refined bars from a Good Delivery accredited refiner at or above 995‰. Final assay and provenance checks at intake remain mandatory.'}:{skip:false,title:'Expected route — re-refining required',desc:'The declared bars do not yet meet the source-refiner and fineness controls required for direct reserve classification.'};}const names={dore:'Doré bars',dust:'Gold dust',scrap:'Scrap gold'};return{skip:false,title:'Expected route — refining required',desc:(names[t]||'This material')+' is not reserve-eligible as received. It proceeds through vault intake, assay and refining before final eligibility classification.'}}
 function onPOType(){const refined=q('poType').value==='refined';q('poAssayBlock').classList.toggle('hidden',refined);q('poFineBlock').classList.toggle('hidden',!refined);calcPO()}
 function lifecycle(skip){let arr=['PO approved','Manifest','Vault intake','Final assay'];let h=arr.map((x,i)=>'<span class="lnode '+(i===0?'here':'')+'">'+x+'</span>').join('<span class="lar">→</span>');h+='<span class="lar">→</span><span class="lnode '+(skip?'good':'')+'">'+(skip?'Eligibility → reserve':'Refining → eligibility')+'</span>';return h}
-function calcPO(){const qty=num('poQty'),tol=num('poTol'),refined=q('poType').value==='refined';const purity=refined?num('poFineness')/10:num('poAssay');const fineKg=qty*purity/100,fineOz=fineKg*OZ_PER_KG,price=num('poGoldPrice'),gross=fineOz*price;let prem=0;const pv=num('poPremium');if(q('poPremiumUnit').value==='pct')prem=gross*pv/100;else if(q('poPremiumUnit').value==='oz')prem=fineOz*pv;else prem=pv;const ri=poRouteInfo();const refine=ri.skip?0:(fineOz*num('poRefineRate')+gross*num('poLoss')/100);const transport=num('poTransport'),assay=num('poAssayCost');const consideration=gross+prem-transport-assay-refine;APP.purchase=consideration;APP.fineOz=fineOz;q('poRange').value=(qty*(1-tol/100)).fmtKg3()+' – '+(qty*(1+tol/100)).fmtKg3()+' kg';q('poRoute').classList.toggle('skip',ri.skip);q('routeTitle').textContent=ri.title;q('routeDesc').textContent=ri.desc;q('life').innerHTML=lifecycle(ri.skip);q('ePricing').textContent=q('priceMethod').value;q('eBenchmark').textContent=money(price,'USD',2)+'/oz';q('eQty').textContent=qty.fmtKg3()+' kg · ±'+tol.toFixed(1)+'%';q('ePurLabel').textContent=refined?'Declared fineness':'Central purity used';q('ePur').textContent=refined?num('poFineness').toFixed(1)+' ‰':purity.toFixed(2)+' %';q('eFine').textContent=fineKg.fmtKg3()+' kg · '+fineOz.fmtOz2()+' oz';q('eGross').textContent=money(gross);q('ePremium').textContent=(prem>=0?'+':'−')+money(Math.abs(prem));q('eTransport').textContent='−'+money(transport);q('eAssayCost').textContent='−'+money(assay);q('eRefineLine').classList.toggle('hidden',ri.skip);q('eRefine').textContent='−'+money(refine);q('eTotal').textContent=money(consideration);q('poEstNote').textContent=ri.skip?'No expected refining allowance is applied. Final price remains subject to vault assay and commercial settlement.':'The expected refining toll and loss are deducted for approval estimation. Actual refining invoices and outturn are captured against the storage lot.';calcStorage()}
+function calcPO(){const qty=num('poQty'),tol=num('poTol'),refined=q('poType').value==='refined';const purity=refined?num('poFineness')/10:num('poAssay');const fineKg=qty*purity/100,fineOz=fineKg*OZ_PER_KG,price=num('poGoldPrice'),gross=fineOz*price;let prem=0;const pv=num('poPremium');if(q('poPremiumUnit').value==='pct')prem=gross*pv/100;else if(q('poPremiumUnit').value==='oz')prem=fineOz*pv;else prem=pv;const ri=poRouteInfo();if(q('poClassification'))q('poClassification').selectedIndex=refined?0:1;const refine=ri.skip?0:(fineOz*num('poRefineRate')+gross*num('poLoss')/100);const transport=num('poTransport'),assay=num('poAssayCost');const consideration=gross+prem-transport-assay-refine;APP.purchase=consideration;APP.fineOz=fineOz;q('poRange').value=(qty*(1-tol/100)).fmtKg3()+' – '+(qty*(1+tol/100)).fmtKg3()+' kg';q('poRoute').classList.toggle('skip',ri.skip);q('routeTitle').textContent=ri.title;q('routeDesc').textContent=ri.desc;q('life').innerHTML=lifecycle(ri.skip);q('ePricing').textContent=q('priceMethod').value;q('eBenchmark').textContent=money(price,'USD',2)+'/oz';q('eQty').textContent=qty.fmtKg3()+' kg · ±'+tol.toFixed(1)+'%';q('ePurLabel').textContent=refined?'Declared fineness':'Central purity used';q('ePur').textContent=refined?num('poFineness').toFixed(1)+' ‰':purity.toFixed(2)+' %';q('eFine').textContent=fineKg.fmtKg3()+' kg · '+fineOz.fmtOz2()+' oz';q('eGross').textContent=money(gross);q('ePremium').textContent=(prem>=0?'+':'−')+money(Math.abs(prem));q('eTransport').textContent='−'+money(transport);q('eAssayCost').textContent='−'+money(assay);q('eRefineLine').classList.toggle('hidden',ri.skip);q('eRefine').textContent='−'+money(refine);q('eTotal').textContent=money(consideration);q('poEstNote').textContent=ri.skip?'No expected refining allowance is applied. Final price remains subject to vault assay and commercial settlement.':'The expected refining toll and loss are deducted for approval estimation. Actual refining invoices and outturn are captured against the storage lot.';calcStorage()}
 function poFieldValue(id){var el=q(id);return el?el.value:null}
 function poPayload(status){return {
   reference:q('poNo').textContent.trim(),status:status,data:{
@@ -1633,7 +1634,7 @@ async function openDynamicValuationPOPicker(){try{BCC_VALUATION_PICKER_MODE=true
 async function openDynamicReportPOPicker(){try{await loadEligibleValuationOrders();openPOPicker('report',false)}catch(error){toast(document.documentElement.lang==='fr'?'Impossible de charger les ordres disponibles.':'Unable to load available orders.')}}
 var BCC_VALUATION_RECORD_ID=null;
 async function saveBccValuation(){var o=portfolioOrder(ACTIVE_PORTFOLIO_ORDER);if(!o){toast(document.documentElement.lang==='fr'?'Choisissez un PO confirmé.':'Choose a confirmed PO.');return}var m=metricsForOrder(o,num('currentGoldPrice')||2475),payload={status:'saved',purchaseOrderId:o.databaseId||o.po,data:{purchaseOrderReference:o.po,lotReference:o.lot||'',counterparty:o.seller||'',eligibility:o.eligibility||'',valuationDate:q('valuationDate').value,reportingCurrency:q('reportingCurrency').value,revaluationTreatment:q('revaluationTreatment').value,currentGoldPrice:num('currentGoldPrice'),currentFx:num('currentFx'),fineGoldKg:m.fineKg,purchaseConsideration:m.purchase,bookCost:m.book,marketValue:m.market,periodExpenses:m.split.periodExpenses,netResult:m.net}};var response=await fetch('/api/bcc/valuation',{method:BCC_VALUATION_RECORD_ID?'PATCH':'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(BCC_VALUATION_RECORD_ID?Object.assign({id:BCC_VALUATION_RECORD_ID},payload):payload)});if(!response.ok){toast(document.documentElement.lang==='fr'?'Impossible d’enregistrer la valorisation.':'Unable to save valuation.');return}var saved=await response.json();BCC_VALUATION_RECORD_ID=saved.id;toast(document.documentElement.lang==='fr'?'Valorisation enregistrée.':'Valuation saved.')}
-async function loadBccValuation(id,viewOnly){var response=await fetch('/api/bcc/valuation/'+encodeURIComponent(id),{cache:'no-store'});if(!response.ok)throw new Error('valuation load failed');var record=await response.json(),d=record.data||{};await loadEligibleValuationOrders();var o=PORTFOLIO_ORDERS.find(function(item){return item.po===d.purchaseOrderReference||String(item.databaseId)===String(record.purchase_order_id)});if(o)applyValuationOrderContext(o.po);BCC_VALUATION_RECORD_ID=record.id;q('valuationDate').value=d.valuationDate||'';q('reportingCurrency').value=d.reportingCurrency||'USD';q('revaluationTreatment').value=d.revaluationTreatment||q('revaluationTreatment').value;q('currentGoldPrice').value=d.currentGoldPrice||0;q('currentFx').value=d.currentFx||0;calcPnl();if(viewOnly)document.querySelectorAll('#screen-pnl input,#screen-pnl select,#screen-pnl button').forEach(function(el){el.disabled=true})}
+async function loadBccValuation(id,viewOnly){var response=await fetch('/api/bcc/valuation/'+encodeURIComponent(id),{cache:'no-store'});if(!response.ok)throw new Error('valuation load failed');var record=await response.json(),d=record.data||{};await loadEligibleValuationOrders();var o=PORTFOLIO_ORDERS.find(function(item){return item.po===d.purchaseOrderReference||String(item.databaseId)===String(record.purchase_order_id)});if(o)applyValuationOrderContext(o.po);BCC_VALUATION_RECORD_ID=record.id;q('valuationDate').value=d.valuationDate||'';q('reportingCurrency').value=d.reportingCurrency||'USD';q('revaluationTreatment').value=d.revaluationTreatment||q('revaluationTreatment').value;q('currentGoldPrice').value=d.currentGoldPrice||0;q('currentFx').value=d.currentFx||0;calcPnl();if(viewOnly){document.querySelectorAll('#screen-pnl input,#screen-pnl select,#screen-pnl button').forEach(function(el){el.disabled=true});if(q('exportPnlButton'))q('exportPnlButton').disabled=false;if(q('cancelPnlButton')){q('cancelPnlButton').disabled=false;q('cancelPnlButton').textContent=document.documentElement.lang==='fr'?'Retour':'Back'}}}
 var BCC_SETTLEMENT_RECORD_ID=null;
 function updateSettlementStatusDisplay(status){var display=q('settlementStatusDisplay');if(!display)return;var normalized=String(status||'new').toLowerCase(),fr=document.documentElement.lang==='fr',labels={new:fr?'Nouveau':'New',saved:fr?'Enregistré':'Saved',settled:fr?'Réglé':'Settled'};display.textContent=labels[normalized]||status;display.className='badge '+(normalized==='settled'?'b-success':normalized==='saved'?'b-info':'b-muted')}
 function initializeEmptyBccSettlement(){BCC_SETTLEMENT_RECORD_ID=null;q('settlementPODisplay').value='';['executedPrice','settlementPremium','tradeFx','paymentFx','settlementFxOverride','settlementConfirmationRef'].forEach(function(id){if(q(id))q(id).value=''});if(q('calculatedSettlementFxEffect'))q('calculatedSettlementFxEffect').value='';if(q('settlementFxEffect'))q('settlementFxEffect').value='';if(q('finalPurchaseConsideration'))q('finalPurchaseConsideration').value='';updateSettlementStatusDisplay('new')}
@@ -1643,7 +1644,7 @@ function setSettlementButtonsPending(pending){['saveSettlementButton','confirmSe
 function cancelBccSettlement(){window.top.location.href='/central-bank/settlements'}
 async function saveBccSettlement(){if(BCC_ORDER_ACTION_PENDING)return;BCC_ORDER_ACTION_PENDING=true;setSettlementButtonsPending(true);try{await persistBccSettlement('saved');toast(document.documentElement.lang==='fr'?'Règlement enregistré.':'Settlement saved.')}catch(error){toast(document.documentElement.lang==='fr'?'Impossible d’enregistrer le règlement.':'Unable to save the settlement.')}finally{BCC_ORDER_ACTION_PENDING=false;setSettlementButtonsPending(false)}}
 async function confirmBccSettlement(){if(BCC_ORDER_ACTION_PENDING)return;BCC_ORDER_ACTION_PENDING=true;setSettlementButtonsPending(true);try{await persistBccSettlement('settled');window.top.location.href='/central-bank/settlements'}catch(error){toast(document.documentElement.lang==='fr'?'Impossible de confirmer le règlement.':'Unable to confirm the settlement.');BCC_ORDER_ACTION_PENDING=false;setSettlementButtonsPending(false)}}
-async function loadBccSettlement(id,viewOnly){var responses=await Promise.all([fetch('/api/bcc/pricing-settlement',{cache:'no-store'}),fetch('/api/bcc/purchase-orders',{cache:'no-store'}),fetch('/api/bcc/receipt-assay',{cache:'no-store'})]);if(responses.some(function(response){return!response.ok}))throw new Error('settlement load failed');var settlements=await responses[0].json(),orders=await responses[1].json(),receipts=await responses[2].json(),record=settlements.find(function(item){return String(item.id)===String(id)});if(!record)throw new Error('settlement not found');var orderRecord=orders.find(function(item){return String(item.id)===String(record.purchase_order_id)||String(item.reference)===String(record.data&&record.data.purchaseOrderReference)});if(!orderRecord)throw new Error('purchase order not found');var o=bccPortfolioOrder(orderRecord),receipt=receipts.find(function(item){return String(item.id)===String(record.data&&record.data.receiptRecordId)||String(item.purchase_order_id)===String(orderRecord.id)}),receiptData=receipt&&receipt.data||{},d=record.data||{};o.receiptRecordId=receipt&&receipt.id||null;o.receiptStatus='Received';o.receiptDate=receiptData.receiptDate||'';o.manifest=receiptData.manifestReference||'';o.intake=receiptData.vaultIntakeReference||'';o.grossKg=Number(receiptData.grossWeightKg||0);o.tareKg=Number(receiptData.tareWeightKg||0);o.actualPurity=Number(receiptData.finalPurityPercent||0);o.bars=Number(receiptData.barCount||0);o.assayCert=receiptData.assayCertificate||'';o.executedPrice=Number(d.executedPrice||0);o.premiumAmount=Number(d.settlementPremium||0);o.tradeFx=Number(d.tradeFx||0);o.paymentFx=Number(d.paymentFx||0);o.settlementFxOverride=d.settlementFxOverride==null?null:Number(d.settlementFxOverride);o.settlementConfirmationRef=d.settlementConfirmationReference||'';o.costs=Array.isArray(d.costs)?d.costs:[];PORTFOLIO_ORDERS=[o];ACTIVE_PORTFOLIO_ORDER=o.po;BCC_SETTLEMENT_RECORD_ID=record.id;populatePortfolioSelectors();window.loadStorageOrder(o.po);updateSettlementStatusDisplay(record.status);if(viewOnly){document.querySelectorAll('#screen-settlement input,#screen-settlement select,#screen-settlement textarea,#screen-settlement button').forEach(function(element){element.disabled=true});document.querySelector('#screen-settlement .actions').innerHTML='<button class="btn btn-ghost" type="button" onclick="cancelBccSettlement()">'+(document.documentElement.lang==='fr'?'Retour':'Back')+'</button>'}}
+async function loadBccSettlement(id,viewOnly){var responses=await Promise.all([fetch('/api/bcc/pricing-settlement',{cache:'no-store'}),fetch('/api/bcc/purchase-orders',{cache:'no-store'}),fetch('/api/bcc/receipt-assay',{cache:'no-store'})]);if(responses.some(function(response){return!response.ok}))throw new Error('settlement load failed');var settlements=await responses[0].json(),orders=await responses[1].json(),receipts=await responses[2].json(),record=settlements.find(function(item){return String(item.id)===String(id)});if(!record)throw new Error('settlement not found');var orderRecord=orders.find(function(item){return String(item.id)===String(record.purchase_order_id)||String(item.reference)===String(record.data&&record.data.purchaseOrderReference)});if(!orderRecord)throw new Error('purchase order not found');var o=bccPortfolioOrder(orderRecord),receipt=receipts.find(function(item){return String(item.id)===String(record.data&&record.data.receiptRecordId)||String(item.purchase_order_id)===String(orderRecord.id)}),receiptData=receipt&&receipt.data||{},d=record.data||{};o.receiptRecordId=receipt&&receipt.id||null;o.receiptStatus='Received';o.receiptDate=receiptData.receiptDate||'';o.manifest=receiptData.manifestReference||'';o.intake=receiptData.vaultIntakeReference||'';o.grossKg=Number(receiptData.grossWeightKg||0);o.tareKg=Number(receiptData.tareWeightKg||0);o.actualPurity=Number(receiptData.finalPurityPercent||0);o.bars=Number(receiptData.barCount||0);o.assayCert=receiptData.assayCertificate||'';o.executedPrice=Number(d.executedPrice||0);o.premiumAmount=Number(d.settlementPremium||0);o.tradeFx=Number(d.tradeFx||o.poFx||0);o.paymentFx=Number(d.paymentFx||o.poFx||0);o.settlementFxOverride=d.settlementFxOverride==null?null:Number(d.settlementFxOverride);o.settlementConfirmationRef=d.settlementConfirmationReference||'';o.costs=Array.isArray(d.costs)?d.costs:[];PORTFOLIO_ORDERS=[o];ACTIVE_PORTFOLIO_ORDER=o.po;BCC_SETTLEMENT_RECORD_ID=record.id;populatePortfolioSelectors();window.loadStorageOrder(o.po);updateSettlementStatusDisplay(record.status);if(viewOnly){document.querySelectorAll('#screen-settlement input,#screen-settlement select,#screen-settlement textarea,#screen-settlement button').forEach(function(element){element.disabled=true});document.querySelector('#screen-settlement .actions').innerHTML='<button class="btn btn-ghost" type="button" onclick="cancelBccSettlement()">'+(document.documentElement.lang==='fr'?'Retour':'Back')+'</button>'}}
 var BCC_CUSTODY_RECORD_ID=null;
 function updateCustodyRecordStatus(status){var el=q('custodyRecordStatus'),fr=document.documentElement.lang==='fr',confirmed=['confirmed','completed'].includes(String(status));if(!el)return;el.textContent=confirmed?(fr?'Confirmé':'Confirmed'):String(status)==='saved'?(fr?'Enregistré':'Saved'):(fr?'Nouveau':'New');el.className='badge '+(confirmed?'b-success':String(status)==='saved'?'b-info':'b-muted');if(q('openValuationButton'))q('openValuationButton').disabled=!confirmed}
 function custodyPayload(status){var o=portfolioOrder(ACTIVE_PORTFOLIO_ORDER);return{status:status,purchaseOrderId:o&&o.databaseId||o&&o.po||null,data:{purchaseOrderReference:o&&o.po||'',lotReference:o&&o.lot||'',depositary:q('depositary').value,vaultLocation:q('vaultLocation').value,custodyAccount:q('custodyAccount').value,custodyModel:q('custodyModel').value,warehouseReceipt:q('warehouseReceipt').value,storageStart:q('storageStart').value,insurancePolicy:q('insurancePolicy').value,unencumbered:q('unencumbered').checked}}}
@@ -1661,7 +1662,7 @@ function receiptPayload(status){var gross=Number(q('grossWeight').value||0),tare
 async function persistBccReceipt(status){var response=await fetch('/api/bcc/receipt-assay',{method:BCC_RECEIPT_RECORD_ID?'PATCH':'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(BCC_RECEIPT_RECORD_ID?Object.assign({id:BCC_RECEIPT_RECORD_ID},receiptPayload(status)):receiptPayload(status))});if(!response.ok)throw new Error('receipt save failed');var saved=await response.json();BCC_RECEIPT_RECORD_ID=saved.id;updateReceiptStatusDisplay(status);return saved}
 window.saveStorageDraft=async function(){if(BCC_ORDER_ACTION_PENDING)return;calcStorage();var button=q('saveReceiptButton');BCC_ORDER_ACTION_PENDING=true;button.classList.add('btn-loading');button.disabled=true;q('confirmReceiptButton').disabled=true;try{await persistBccReceipt('saved');toast(document.documentElement.lang==='fr'?'Réception enregistrée.':'Receipt saved.');window.top.location.href='/central-bank/receipts'}catch(error){toast(document.documentElement.lang==='fr'?'Impossible d’enregistrer la réception.':'Unable to save the receipt.')}finally{BCC_ORDER_ACTION_PENDING=false;button.classList.remove('btn-loading');button.disabled=false;updateReceiptConfirmState()}}
 window.confirmReceipt=async function(){if(BCC_ORDER_ACTION_PENDING)return;if(!receiptRequiredFieldsComplete()){toast(document.documentElement.lang==='fr'?'Complétez tous les champs obligatoires.':'Complete all required fields.');updateReceiptConfirmState();return}var button=q('confirmReceiptButton');BCC_ORDER_ACTION_PENDING=true;button.classList.add('btn-loading');button.disabled=true;q('saveReceiptButton').disabled=true;try{await persistBccReceipt('received');toast(document.documentElement.lang==='fr'?'Réception confirmée.':'Receipt confirmed.');window.top.location.href='/central-bank/receipts'}catch(error){toast(document.documentElement.lang==='fr'?'Impossible de confirmer la réception.':'Unable to confirm the receipt.')}finally{BCC_ORDER_ACTION_PENDING=false;button.classList.remove('btn-loading')}}
-async function loadBccReceipt(id,viewOnly){var responses=await Promise.all([fetch('/api/bcc/receipt-assay/'+encodeURIComponent(id),{cache:'no-store'}),fetch('/api/bcc/purchase-orders',{cache:'no-store'})]);if(!responses[0].ok)throw new Error('receipt load failed');var record=await responses[0].json(),d=record.data||{},orderRecords=responses[1].ok?await responses[1].json():[],orderRecord=orderRecords.find(function(item){return String(item.id)===String(record.purchase_order_id)||String(item.reference)===String(record.purchase_order_id)});if(orderRecord){var o=bccPortfolioOrder(orderRecord);o.receiptDate=d.receiptDate||'';o.manifest=d.manifestReference||'';o.intake=d.vaultIntakeReference||'';o.grossKg=Number(d.grossWeightKg||0);o.tareKg=Number(d.tareWeightKg||0);o.actualPurity=Number(d.finalPurityPercent||0);o.bars=Number(d.barCount||0);o.assayCert=d.assayCertificate||'';o.barIds=d.barIdentifiers||'';PORTFOLIO_ORDERS=[o];ACTIVE_PORTFOLIO_ORDER=o.po;populatePortfolioSelectors();window.loadStorageOrder(o.po)}else{initializeEmptyBccReceipt();q('linkedPOStatus').textContent=record.purchase_order_id||'—';q('receiptDate').value=d.receiptDate||'';q('manifestRef').value=d.manifestReference||'';q('intakeRef').value=d.vaultIntakeReference||'';q('grossWeight').value=d.grossWeightKg||0;q('tareWeight').value=d.tareWeightKg||0;q('actualPurity').value=d.finalPurityPercent||0;q('barCount').value=d.barCount||0;q('assayCert').value=d.assayCertificate||'';q('barIds').value=d.barIdentifiers||''}BCC_RECEIPT_RECORD_ID=record.id;q('linkedPO').value=record.purchase_order_id||'';calcStorage();if(viewOnly||record.status==='received'||record.status==='confirmed'){document.querySelectorAll('#screen-storage input,#screen-storage select,#screen-storage textarea,#screen-storage button').forEach(function(el){el.disabled=true});document.querySelector('#screen-storage .actions').innerHTML='<button class="btn btn-ghost" onclick="window.top.location.href=\'/central-bank/receipts\'">'+(document.documentElement.lang==='fr'?'Retour':'Back')+'</button>'}}
+async function loadBccReceipt(id,viewOnly){var responses=await Promise.all([fetch('/api/bcc/receipt-assay/'+encodeURIComponent(id),{cache:'no-store'}),fetch('/api/bcc/purchase-orders',{cache:'no-store'})]);if(!responses[0].ok)throw new Error('receipt load failed');var record=await responses[0].json(),d=record.data||{},orderRecords=responses[1].ok?await responses[1].json():[],orderRecord=orderRecords.find(function(item){return String(item.id)===String(record.purchase_order_id)||String(item.reference)===String(record.purchase_order_id)});var savedBarIdentifiers=String(d.barIdentifiers||'').split('\n').map(function(v){return v.trim()}).filter(Boolean);if(orderRecord){var o=bccPortfolioOrder(orderRecord);o.receiptDate=d.receiptDate||'';o.manifest=d.manifestReference||'';o.intake=d.vaultIntakeReference||'';o.grossKg=Number(d.grossWeightKg||0);o.tareKg=Number(d.tareWeightKg||0);o.actualPurity=Number(d.finalPurityPercent||0);o.bars=Number(d.barCount||0);o.assayCert=d.assayCertificate||'';o.barIds=d.barIdentifiers||'';o.barIdentifiers=savedBarIdentifiers;PORTFOLIO_ORDERS=[o];ACTIVE_PORTFOLIO_ORDER=o.po;populatePortfolioSelectors();window.loadStorageOrder(o.po)}else{initializeEmptyBccReceipt();q('linkedPOStatus').textContent=record.purchase_order_id||'—';q('receiptDate').value=d.receiptDate||'';q('manifestRef').value=d.manifestReference||'';q('intakeRef').value=d.vaultIntakeReference||'';q('grossWeight').value=d.grossWeightKg||0;q('tareWeight').value=d.tareWeightKg||0;q('actualPurity').value=d.finalPurityPercent||0;q('barCount').value=d.barCount||0;q('assayCert').value=d.assayCertificate||'';q('barIds').value=d.barIdentifiers||'';renderBarIdentifierRows(savedBarIdentifiers)}BCC_RECEIPT_RECORD_ID=record.id;q('linkedPO').value=record.purchase_order_id||'';calcStorage();if(viewOnly||record.status==='received'||record.status==='confirmed'){document.querySelectorAll('#screen-storage input,#screen-storage select,#screen-storage textarea,#screen-storage button').forEach(function(el){el.disabled=true});document.querySelector('#screen-storage .actions').innerHTML='<button class="btn btn-ghost" onclick="window.top.location.href=\'/central-bank/receipts\'">'+(document.documentElement.lang==='fr'?'Retour':'Back')+'</button>'}}
 var BCC_BASE_LOAD_RECEIPT=loadBccReceipt;
 loadBccReceipt=async function(id,viewOnly){await BCC_BASE_LOAD_RECEIPT(id,viewOnly);var response=await fetch('/api/bcc/receipt-assay/'+encodeURIComponent(id),{cache:'no-store'});if(response.ok){var record=await response.json();updateReceiptStatusDisplay(record.status)}};
 var costRowsElement=q('costRows');
@@ -1692,12 +1693,737 @@ function findEligiblePORef(poId){return PORTFOLIO_ORDERS.find(function(o){return
   if(initial==='custody'&&params.get('new')==='1'){q('workflow').classList.add('hidden');q('custodyPODisplay').value='';ensureSelectOption(q('depositary'),'Bank of England');q('depositary').value='Bank of England';loadEligibleCustodyOrders().then(function(){var poId=params.get('poId'),match=poId&&findEligiblePORef(poId);if(match){BCC_CUSTODY_PO_CHOSEN=true;beginStageDraft('custody',match.po);return}if(!BCC_CUSTODY_PO_CHOSEN){q('workflow').classList.add('hidden');q('custodyPODisplay').value='';ensureSelectOption(q('depositary'),'Bank of England');q('depositary').value='Bank of England'}}).catch(function(){toast(document.documentElement.lang==='fr'?'Impossible de charger les règlements disponibles.':'Unable to load available settlements.')})}
   if(initial==='custody'&&params.get('recordId'))loadBccCustody(params.get('recordId'),params.get('view')==='1').catch(function(){toast(document.documentElement.lang==='fr'?'Impossible de charger la confirmation.':'Unable to load confirmation.')}).finally(function(){document.documentElement.classList.remove('po-record-loading')});
   if(initial==='pnl'&&params.get('recordId'))loadBccValuation(params.get('recordId'),params.get('view')==='1').catch(function(){toast(document.documentElement.lang==='fr'?'Impossible de charger la valorisation.':'Unable to load valuation.')}).finally(function(){document.documentElement.classList.remove('po-record-loading')});
-  if(initial==='pnl'&&!params.get('recordId')){if(!q('valuationDate').value)q('valuationDate').value=todayISO();loadEligibleValuationOrders().then(function(){calcPnl()}).catch(function(){toast(document.documentElement.lang==='fr'?'Impossible de charger le portefeuille confirmé.':'Unable to load the confirmed portfolio.')})}
+  if(initial==='pnl'&&!params.get('recordId')){if(!q('valuationDate').value)q('valuationDate').value=todayISO();loadEligibleValuationOrders().then(function(){var custodyId=params.get('custodyId');if(!custodyId){calcPnl();return}return fetch('/api/bcc/custody/'+encodeURIComponent(custodyId),{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(record){var reference=record&&((record.data&&record.data.purchaseOrderReference)||record.purchase_order_id),match=reference&&PORTFOLIO_ORDERS.find(function(o){return o.po===String(reference)||String(o.databaseId)===String(reference)});if(match)applyValuationOrderContext(match.po);else calcPnl()}).catch(function(){calcPnl()})}).catch(function(){toast(document.documentElement.lang==='fr'?'Impossible de charger le portefeuille confirmé.':'Unable to load the confirmed portfolio.')})}
   if(initial==='reports')loadEligibleValuationOrders().then(function(){refreshReports()}).catch(function(){toast(document.documentElement.lang==='fr'?'Impossible de charger les ordres disponibles.':'Unable to load available orders.')});
   ['linkedPO','receiptDate','manifestRef','intakeRef','grossWeight','tareWeight','actualPurity','barCount','assayCert'].forEach(function(id){var el=q(id);if(el){el.addEventListener('input',updateReceiptConfirmState);el.addEventListener('change',updateReceiptConfirmState)}});q('screen-storage').addEventListener('input',updateReceiptConfirmState,true);q('screen-storage').addEventListener('change',updateReceiptConfirmState,true);updateReceiptConfirmState();setTimeout(updateReceiptConfirmState,0);
   ['seller','poQty','poTol','poType','priceMethod','poVault'].forEach(function(id){var el=q(id);if(el){el.addEventListener('input',updateSubmitState);el.addEventListener('change',updateSubmitState)}});updateSubmitState();
   var poNumber=q('poNo'),poDisplay=q('poReferenceDisplay');if(poNumber&&poDisplay){var syncPOReference=function(){poDisplay.value=poNumber.textContent.trim()};syncPOReference();new MutationObserver(syncPOReference).observe(poNumber,{childList:true,characterData:true,subtree:true});}
 },0);
+</script>
+
+<script>
+/* ===== Governor's Gold Reserve Executive Brief — scalable, portfolio-wide PDF ===== */
+const GOV_M = 36;
+const GOV_COLORS = {
+  navy: [23, 32, 54],
+  orange: [188, 116, 27],
+  muted: [110, 116, 126],
+  border: [214, 217, 222],
+  cardBg: [247, 248, 250],
+  amberBg: [253, 234, 196], amberBorder: [214, 158, 66], amberText: [140, 92, 18],
+  grayBg: [237, 238, 241], grayBorder: [200, 204, 210], grayText: [95, 100, 110],
+  blueBg: [225, 236, 252], blueBorder: [74, 118, 196], blueText: [30, 68, 138],
+  greenBg: [222, 244, 232], greenBorder: [60, 150, 105], greenText: [20, 110, 70],
+  redBg: [252, 228, 228], redBorder: [205, 96, 96], redText: [163, 40, 40],
+  positive: [21, 128, 86],
+  negative: [178, 42, 42],
+};
+
+function govFmtUsd(v, decimals) {
+  const n = Number(v) || 0;
+  return (n < 0 ? '-' : '') + 'USD ' + Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: decimals || 0, maximumFractionDigits: decimals || 0 });
+}
+function govCompactUsd(v) {
+  const n = Number(v) || 0, a = Math.abs(n);
+  const body = a >= 1e6 ? (a / 1e6).toFixed(2) + 'm' : a >= 1e3 ? (a / 1e3).toFixed(0) + 'k' : a.toFixed(0);
+  return (n < 0 ? '-' : '') + 'USD ' + body;
+}
+function govFmtKg(v, decimals) {
+  return (Number(v) || 0).toLocaleString('en-US', { minimumFractionDigits: decimals == null ? 3 : decimals, maximumFractionDigits: decimals == null ? 3 : decimals }) + ' kg';
+}
+function govFmtPct(v, decimals) {
+  return (Number(v) || 0).toFixed(decimals == null ? 1 : decimals) + '%';
+}
+
+/* ---------- data: fetch + build a portfolio-wide, stage-agnostic order list ---------- */
+
+function govApprovalEstimate(d) {
+  const refined = d.goldType === 'refined';
+  const purity = refined ? Number(d.declaredFineness || 0) / 10 : Number(d.centralPurity || 0);
+  const qty = Number(d.targetKg || 0);
+  const fineKg = qty * purity / 100, fineOz = fineKg * OZ_PER_KG;
+  const price = Number(d.benchmarkPriceUsdOz || 0), gross = fineOz * price;
+  const premiumValue = Number(d.premiumDiscount || 0), premiumUnit = d.premiumUnit || 'flat';
+  const prem = premiumUnit === 'pct' ? gross * premiumValue / 100 : premiumUnit === 'oz' ? fineOz * premiumValue : premiumValue;
+  const fineness = Number(d.declaredFineness || 0);
+  const accreditedRefined = refined && d.sourceRefiner === 'acc' && fineness >= 995;
+  const refineRate = Number(d.refiningTollUsdOz || 0), lossPct = Number(d.expectedRefiningLossPercent || 0);
+  const refineCost = accreditedRefined ? 0 : (fineOz * refineRate + gross * lossPct / 100);
+  const transport = Number(d.transportSecurityUsd || 0), assay = Number(d.assayEstimateUsd || 0);
+  const consideration = gross + prem - transport - assay - refineCost;
+  return { fineKg: fineKg, fineOz: fineOz, consideration: consideration, accreditedRefined: accreditedRefined };
+}
+
+function govBuildOrder(record, receiptByPO, settlementByPO, custodyByPO) {
+  const d = record.data || {};
+  const receipt = receiptByPO.get(String(record.id)) || receiptByPO.get(String(record.reference));
+  const settlement = settlementByPO.get(String(record.id)) || settlementByPO.get(String(record.reference));
+  const custody = custodyByPO.get(String(record.id)) || custodyByPO.get(String(record.reference));
+  const rd = (receipt && receipt.data) || {};
+  const sd = (settlement && settlement.data) || {};
+  const cd = (custody && custody.data) || {};
+  const approval = govApprovalEstimate(d);
+  const received = Boolean(receipt);
+  const settled = Boolean(settlement);
+  const custodyConfirmed = Boolean(custody);
+  const refinedAccredited = approval.accreditedRefined;
+  const eligible = custodyConfirmed && d.goldType === 'refined';
+  const o = {
+    po: record.reference,
+    databaseId: record.id,
+    seller: d.seller || '—',
+    form: d.goldType || 'refined',
+    targetKg: Number(d.targetKg || 0),
+    expectedPurity: d.goldType === 'refined' ? Number(d.declaredFineness || 0) / 10 : Number(d.centralPurity || 0),
+    benchmark: Number(d.benchmarkPriceUsdOz || 0),
+    grossKg: Number(rd.grossWeightKg || 0),
+    tareKg: Number(rd.tareWeightKg || 0),
+    actualPurity: Number(rd.finalPurityPercent || 0),
+    executedPrice: Number(sd.executedPrice || 0),
+    premiumAmount: Number(sd.settlementPremium || 0),
+    tradeFx: Number(sd.tradeFx || 0),
+    paymentFx: Number(sd.paymentFx || 0),
+    settlementFxOverride: sd.settlementFxOverride == null ? null : Number(sd.settlementFxOverride),
+    costs: Array.isArray(sd.costs) ? sd.costs : [],
+  };
+  return {
+    o: o, po: record.reference, seller: o.seller, depositary: cd.depositary || d.intendedDepositary || '',
+    received: received, settled: settled, custodyConfirmed: custodyConfirmed,
+    refinedAccredited: refinedAccredited, eligible: eligible, approval: approval,
+  };
+}
+
+async function govFetchPortfolio() {
+  const responses = await Promise.all([
+    fetch('/api/bcc/purchase-orders', { cache: 'no-store' }),
+    fetch('/api/bcc/receipt-assay', { cache: 'no-store' }),
+    fetch('/api/bcc/pricing-settlement', { cache: 'no-store' }),
+    fetch('/api/bcc/custody', { cache: 'no-store' }),
+  ]);
+  if (responses.some(function (r) { return !r.ok; })) throw new Error('governor report sources failed');
+  const orders = await responses[0].json(), receipts = await responses[1].json(), settlements = await responses[2].json(), custodies = await responses[3].json();
+  const receiptByPO = new Map(), settlementByPO = new Map(), custodyByPO = new Map();
+  receipts.forEach(function (r) {
+    if (['received', 'confirmed'].includes(String(r.status).toLowerCase())) {
+      if (r.purchase_order_id) receiptByPO.set(String(r.purchase_order_id), r);
+      if (r.data && r.data.purchaseOrderReference) receiptByPO.set(String(r.data.purchaseOrderReference), r);
+    }
+  });
+  settlements.forEach(function (s) {
+    if (['settled', 'confirmed', 'completed'].includes(String(s.status).toLowerCase())) {
+      if (s.purchase_order_id) settlementByPO.set(String(s.purchase_order_id), s);
+      if (s.data && s.data.purchaseOrderReference) settlementByPO.set(String(s.data.purchaseOrderReference), s);
+    }
+  });
+  custodies.forEach(function (c) {
+    if (['confirmed', 'completed'].includes(String(c.status).toLowerCase())) {
+      if (c.purchase_order_id) custodyByPO.set(String(c.purchase_order_id), c);
+      if (c.data && c.data.purchaseOrderReference) custodyByPO.set(String(c.data.purchaseOrderReference), c);
+    }
+  });
+  const approved = orders.filter(function (r) { return r.status === 'approved'; });
+  return approved.map(function (record) { return govBuildOrder(record, receiptByPO, settlementByPO, custodyByPO); });
+}
+
+function govOrderMetrics(go, marketPrice) {
+  if (go.settled) {
+    const m = metricsForOrder(go.o, marketPrice);
+    return { fineKg: m.fineKg, book: m.book, market: m.market, net: m.net, components: m.components };
+  }
+  const fineKg = go.approval.fineKg, book = go.approval.consideration, market = fineKg * marketPrice, net = market - book;
+  return { fineKg: fineKg, book: book, market: market, net: net, components: [] };
+}
+
+function govStageLabel(go) {
+  if (!go.received) return 'Pending receipt';
+  if (go.eligible) return 'Reserve eligible';
+  if (go.custodyConfirmed) return 'In custody';
+  if (go.refinedAccredited) return 'Refined / assayed';
+  return 'Pending refining';
+}
+
+/* ---------- aggregation ---------- */
+
+function govAggregate(govOrders, marketPrice) {
+  let fineKg = 0, book = 0, market = 0, net = 0;
+  const componentsMap = {};
+  govOrders.forEach(function (go) {
+    const gm = govOrderMetrics(go, marketPrice);
+    go.metrics = gm;
+    fineKg += gm.fineKg; book += gm.book; market += gm.market; net += gm.net;
+    (gm.components || []).forEach(function (c) {
+      const key = c.label + '|' + c.treatment;
+      if (!componentsMap[key]) componentsMap[key] = { label: c.label, treatment: c.treatment, value: 0 };
+      componentsMap[key].value += c.value;
+    });
+  });
+  return { fineKg: fineKg, book: book, market: market, net: net, components: Object.values(componentsMap) };
+}
+
+function govPipeline(govOrders, totalBook) {
+  const stages = [
+    { key: 'acquired', label: 'ACQUIRED' },
+    { key: 'received', label: 'RECEIVED OR LATER' },
+    { key: 'refined', label: 'REFINED / ASSAYED' },
+    { key: 'custody', label: 'IN CUSTODY' },
+    { key: 'eligible', label: 'RESERVE ELIGIBLE' },
+  ];
+  const buckets = {};
+  stages.forEach(function (s) { buckets[s.key] = { label: s.label, count: 0, fineKg: 0, book: 0 }; });
+  govOrders.forEach(function (go) {
+    const gm = go.metrics;
+    buckets.acquired.count++; buckets.acquired.fineKg += gm.fineKg; buckets.acquired.book += gm.book;
+    if (go.received) { buckets.received.count++; buckets.received.fineKg += gm.fineKg; buckets.received.book += gm.book; }
+    if (go.received && go.refinedAccredited) { buckets.refined.count++; buckets.refined.fineKg += gm.fineKg; buckets.refined.book += gm.book; }
+    if (go.custodyConfirmed) { buckets.custody.count++; buckets.custody.fineKg += gm.fineKg; buckets.custody.book += gm.book; }
+    if (go.eligible) { buckets.eligible.count++; buckets.eligible.fineKg += gm.fineKg; buckets.eligible.book += gm.book; }
+  });
+  stages.forEach(function (s) { buckets[s.key].pct = totalBook ? buckets[s.key].book / totalBook * 100 : 0; });
+  return stages.map(function (s) { return buckets[s.key]; });
+}
+
+function govStageBuckets(govOrders) {
+  const rows = [
+    { key: 'pendingReceipt', label: 'Pending receipt', note: 'Prepaid metal not yet in hand', orders: 0, fineKg: 0, book: 0 },
+    { key: 'pendingRefining', label: 'Pending refining', note: 'Operational processing incomplete; not custody-ready', orders: 0, fineKg: 0, book: 0 },
+    { key: 'inCustody', label: 'In custody', note: 'Vaulted / allocated but not yet reserve-classified', orders: 0, fineKg: 0, book: 0 },
+    { key: 'reserveEligible', label: 'Reserve eligible', note: 'Classified as monetary gold', orders: 0, fineKg: 0, book: 0 },
+  ];
+  const byKey = {}; rows.forEach(function (r) { byKey[r.key] = r; });
+  govOrders.forEach(function (go) {
+    const gm = go.metrics;
+    let key;
+    if (!go.received) key = 'pendingReceipt';
+    else if (go.eligible) key = 'reserveEligible';
+    else if (go.custodyConfirmed) key = 'inCustody';
+    else key = 'pendingRefining';
+    byKey[key].orders++; byKey[key].fineKg += gm.fineKg; byKey[key].book += gm.book;
+  });
+  return rows;
+}
+
+function govExceptions(govOrders, reportDate) {
+  function dueIn(days) { const dt = new Date(reportDate); dt.setDate(dt.getDate() + days); return dt.toISOString().slice(0, 10); }
+  const rows = [];
+  govOrders.forEach(function (go) {
+    const gm = go.metrics;
+    if (go.settled && go.o.benchmark > 0) {
+      const variancePct = (go.o.executedPrice - go.o.benchmark) / go.o.benchmark * 100;
+      if (Math.abs(variancePct) >= 15) {
+        rows.push({ order: go.po, book: gm.book, stage: 'Settlement', issue: 'Execution price ' + (variancePct >= 0 ? '+' : '') + variancePct.toFixed(1) + '% vs benchmark', owner: 'Reserve Ops / Treasury', due: dueIn(21) });
+      }
+    }
+    if (!go.received) {
+      rows.push({ order: go.po, book: gm.book, stage: 'Receipt', issue: 'Prepaid, undelivered; physical receipt outstanding', owner: 'Reserve Ops / Treasury', due: dueIn(30) });
+    } else if (!go.custodyConfirmed && !go.refinedAccredited) {
+      rows.push({ order: go.po, book: gm.book, stage: 'Refining', issue: 'Refining/assay completion required before custody and eligibility', owner: 'Reserve Management', due: dueIn(45) });
+    }
+  });
+  const eligibleCount = govOrders.filter(function (go) { return go.eligible; }).length;
+  if (eligibleCount < govOrders.length) {
+    rows.push({ order: 'Portfolio', book: null, stage: 'Eligibility', issue: eligibleCount + ' of ' + govOrders.length + ' orders currently count in official reserves', owner: 'Reserve Management', due: dueIn(45) });
+  }
+  return rows;
+}
+
+function govDrivers(components) {
+  const buckets = { 'Execution & commercial terms': 0, 'Market price move': 0, 'Acquisition costs': 0, 'Assay, weight & FX true-up': 0, 'Storage & custody': 0 };
+  components.forEach(function (c) {
+    if (c.label === 'Gold price movement') buckets['Market price move'] += c.value;
+    else if (c.label === 'Execution price variance' || c.label === 'Premium / discount') buckets['Execution & commercial terms'] += c.value;
+    else if (c.label === 'Assay & weight settlement true-up' || c.label === 'Settlement FX effect') buckets['Assay, weight & FX true-up'] += c.value;
+    else if (c.treatment === 'Period expense') buckets['Storage & custody'] += c.value;
+    else buckets['Acquisition costs'] += c.value;
+  });
+  return Object.keys(buckets).map(function (k) { return { label: k, value: buckets[k] }; });
+}
+
+function govConcentration(govOrders) {
+  const bySeller = {};
+  govOrders.forEach(function (go) {
+    const key = go.seller || 'Unknown';
+    if (!bySeller[key]) bySeller[key] = { seller: key, orders: 0, book: 0 };
+    bySeller[key].orders++; bySeller[key].book += go.metrics.book;
+  });
+  return Object.values(bySeller).sort(function (a, b) { return b.book - a.book; });
+}
+
+function govDominantDepositary(govOrders) {
+  const counts = {};
+  govOrders.forEach(function (go) { const d = go.depositary || ''; if (d) counts[d] = (counts[d] || 0) + 1; });
+  const keys = Object.keys(counts);
+  if (!keys.length) return '—';
+  keys.sort(function (a, b) { return counts[b] - counts[a]; });
+  return keys.length === 1 ? keys[0] : keys[0] + ' (+' + (keys.length - 1) + ' other' + (keys.length > 2 ? 's' : '') + ')';
+}
+
+async function buildGovernorReportData() {
+  const govOrders = await govFetchPortfolio();
+  const marketPrice = num('currentGoldPrice') || 2475;
+  const reportDate = (q('reportDate') && q('reportDate').value) || todayISO();
+  const agg = govAggregate(govOrders, marketPrice);
+  const pipeline = govPipeline(govOrders, agg.book);
+  const stageBuckets = govStageBuckets(govOrders);
+  const exceptions = govExceptions(govOrders, reportDate);
+  const drivers = govDrivers(agg.components);
+  const concentration = govConcentration(govOrders);
+  const depositary = govDominantDepositary(govOrders);
+  const custodyFineKg = govOrders.reduce(function (a, go) { return a + (go.custodyConfirmed ? go.metrics.fineKg : 0); }, 0);
+  const prepaidExposure = govOrders.reduce(function (a, go) { return a + (!go.received ? go.metrics.book : 0); }, 0);
+  return {
+    govOrders: govOrders, marketPrice: marketPrice, reportDate: reportDate, agg: agg, pipeline: pipeline,
+    stageBuckets: stageBuckets, exceptions: exceptions, drivers: drivers, concentration: concentration,
+    depositary: depositary, custodyFineKg: custodyFineKg, prepaidExposure: prepaidExposure,
+  };
+}
+
+/* ---------- CSV export ---------- */
+
+function governorReportSlug(report) { return 'governor_brief_' + report.reportDate; }
+
+function governorReportCsv(report) {
+  const rows = [['GOVERNOR\'S GOLD RESERVE EXECUTIVE BRIEF'], ['Reporting date', report.reportDate], ['Orders', String(report.govOrders.length)], ['']];
+  rows.push(['Portfolio summary']);
+  rows.push(['Fine gold acquired (kg)', report.agg.fineKg.toFixed(3)]);
+  rows.push(['Book cost (USD)', report.agg.book.toFixed(2)]);
+  rows.push(['Market value (USD)', report.agg.market.toFixed(2)]);
+  rows.push(['Net result (USD)', report.agg.net.toFixed(2)]);
+  rows.push(['Reserve conversion ratio (%)', (report.agg.book ? (report.pipeline[4].book / report.agg.book * 100) : 0).toFixed(1)]);
+  rows.push(['']);
+  rows.push(['Reserve pipeline', 'Orders', 'Fine gold (kg)', 'Book cost (USD)', '% of cost']);
+  report.pipeline.forEach(function (p) { rows.push([p.label, String(p.count), p.fineKg.toFixed(3), p.book.toFixed(2), p.pct.toFixed(1)]); });
+  rows.push(['']);
+  rows.push(['Pipeline exceptions', 'Book value (USD)', 'Stage', 'Issue', 'Owner', 'Due']);
+  report.exceptions.forEach(function (e) { rows.push([e.order, e.book == null ? '' : e.book.toFixed(2), e.stage, e.issue, e.owner, e.due]); });
+  rows.push(['']);
+  rows.push(['Top performance drivers (USD)']);
+  report.drivers.forEach(function (d) { rows.push([d.label, d.value.toFixed(2)]); });
+  return rows.map(function (r) { return r.map(csvEscape).join(','); }).join('\n');
+}
+
+/* ---------- PDF drawing helpers ---------- */
+
+function govPill(doc, x, y, text, colors) {
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5);
+  const w = doc.getTextWidth(text) + 14, h = 14;
+  doc.setFillColor(colors[0][0], colors[0][1], colors[0][2]);
+  doc.roundedRect(x, y, w, h, 3, 3, 'F');
+  doc.setTextColor(colors[1][0], colors[1][1], colors[1][2]);
+  doc.text(text, x + 7, y + 9.7);
+  doc.setTextColor(0, 0, 0);
+  return w;
+}
+
+function govPageChrome(doc, pageW, pageH, title, subtitle, pageLabel) {
+  doc.setFillColor(255, 255, 255); doc.rect(0, 0, pageW, pageH, 'F');
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(9);
+  doc.setTextColor(GOV_COLORS.orange[0], GOV_COLORS.orange[1], GOV_COLORS.orange[2]);
+  doc.text('BANQUE CENTRALE DU CONGO', GOV_M, 28);
+  doc.setTextColor(GOV_COLORS.navy[0], GOV_COLORS.navy[1], GOV_COLORS.navy[2]);
+  doc.setFontSize(18);
+  doc.text(title, GOV_M, 47);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5);
+  doc.setTextColor(GOV_COLORS.muted[0], GOV_COLORS.muted[1], GOV_COLORS.muted[2]);
+  doc.text(subtitle, GOV_M, 60);
+  let px = pageW - GOV_M;
+  const w2 = doc.getTextWidth('CONFIDENTIAL') + 14;
+  px -= w2; govPill(doc, px, 22, 'CONFIDENTIAL', [GOV_COLORS.grayBg, GOV_COLORS.grayText]);
+  px -= 8;
+  const w1 = doc.getTextWidth('PRELIMINARY') + 14;
+  px -= w1; govPill(doc, px, 22, 'PRELIMINARY', [GOV_COLORS.amberBg, GOV_COLORS.amberText]);
+  doc.setDrawColor(GOV_COLORS.navy[0], GOV_COLORS.navy[1], GOV_COLORS.navy[2]);
+  doc.setLineWidth(1.3);
+  doc.line(GOV_M, 68, pageW - GOV_M, 68);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(7);
+  doc.setTextColor(GOV_COLORS.muted[0], GOV_COLORS.muted[1], GOV_COLORS.muted[2]);
+  doc.text('PROPOSED SCALABLE GOVERNOR REPORT', GOV_M, pageH - 16);
+  doc.text('Confidential — Internal use', pageW / 2, pageH - 16, { align: 'center' });
+  doc.text(pageLabel, pageW - GOV_M, pageH - 16, { align: 'right' });
+  doc.setTextColor(0, 0, 0);
+}
+
+function govCallout(doc, x, y, w, lines, colors) {
+  const pad = 10, lineH = 11.5;
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5);
+  const wrapped = [];
+  lines.forEach(function (l) { doc.splitTextToSize(l, w - pad * 2).forEach(function (wl) { wrapped.push(wl); }); });
+  const h = pad * 2 + wrapped.length * lineH;
+  doc.setFillColor(colors.bg[0], colors.bg[1], colors.bg[2]);
+  doc.setDrawColor(colors.border[0], colors.border[1], colors.border[2]);
+  doc.setLineWidth(0.8);
+  doc.roundedRect(x, y, w, h, 3, 3, 'FD');
+  doc.setTextColor(colors.text[0], colors.text[1], colors.text[2]);
+  wrapped.forEach(function (l, i) { doc.text(l, x + pad, y + pad + 8 + i * lineH); });
+  doc.setTextColor(0, 0, 0);
+  return h;
+}
+
+function govKpiRow(doc, x, y, w, cards) {
+  const gap = 8, cw = (w - gap * (cards.length - 1)) / cards.length, h = 56;
+  cards.forEach(function (c, i) {
+    const cx = x + i * (cw + gap);
+    doc.setFillColor(GOV_COLORS.cardBg[0], GOV_COLORS.cardBg[1], GOV_COLORS.cardBg[2]);
+    doc.setDrawColor(GOV_COLORS.border[0], GOV_COLORS.border[1], GOV_COLORS.border[2]);
+    doc.setLineWidth(0.7);
+    doc.roundedRect(cx, y, cw, h, 3, 3, 'FD');
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7.3);
+    doc.setTextColor(GOV_COLORS.muted[0], GOV_COLORS.muted[1], GOV_COLORS.muted[2]);
+    doc.text(doc.splitTextToSize(c.label, cw - 14), cx + 7, y + 13);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(13.5);
+    const valColor = c.color || [20, 26, 40];
+    doc.setTextColor(valColor[0], valColor[1], valColor[2]);
+    doc.text(c.value, cx + 7, y + 32);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7);
+    doc.setTextColor(GOV_COLORS.muted[0], GOV_COLORS.muted[1], GOV_COLORS.muted[2]);
+    doc.text(doc.splitTextToSize(c.sub, cw - 14), cx + 7, y + 45);
+  });
+  doc.setTextColor(0, 0, 0);
+  return h;
+}
+
+function govFunnel(doc, x, y, w, stages) {
+  const gap = 8, cw = (w - gap * (stages.length - 1)) / stages.length, h = 62;
+  stages.forEach(function (s, i) {
+    const cx = x + i * (cw + gap);
+    let colors;
+    if (i === 0) colors = { bg: GOV_COLORS.blueBg, border: GOV_COLORS.blueBorder, text: GOV_COLORS.blueText };
+    else if (i === stages.length - 1) colors = s.count > 0 ? { bg: GOV_COLORS.greenBg, border: GOV_COLORS.greenBorder, text: GOV_COLORS.greenText } : { bg: GOV_COLORS.redBg, border: GOV_COLORS.redBorder, text: GOV_COLORS.redText };
+    else colors = s.count > 0 ? { bg: GOV_COLORS.amberBg, border: GOV_COLORS.amberBorder, text: GOV_COLORS.amberText } : { bg: GOV_COLORS.grayBg, border: GOV_COLORS.grayBorder, text: GOV_COLORS.grayText };
+    doc.setFillColor(colors.bg[0], colors.bg[1], colors.bg[2]);
+    doc.setDrawColor(colors.border[0], colors.border[1], colors.border[2]);
+    doc.setLineWidth(0.9);
+    doc.roundedRect(cx, y, cw, h, 3, 3, 'FD');
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(6.6);
+    doc.setTextColor(colors.text[0], colors.text[1], colors.text[2]);
+    doc.text(doc.splitTextToSize(s.label, cw - 10), cx + 7, y + 11);
+    doc.setFontSize(17);
+    doc.text(String(s.count), cx + 7, y + 29);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(6.8);
+    doc.text(govFmtKg(s.fineKg) + ' | ' + govCompactUsd(s.book), cx + 7, y + 40);
+    doc.text(govFmtPct(s.pct) + ' of cost', cx + 7, y + 50);
+    if (i < stages.length - 1) {
+      doc.setDrawColor(GOV_COLORS.muted[0], GOV_COLORS.muted[1], GOV_COLORS.muted[2]);
+      doc.setLineWidth(0.6);
+      doc.line(cx + cw + 1.5, y + h / 2, cx + cw + gap - 1.5, y + h / 2);
+    }
+  });
+  doc.setTextColor(0, 0, 0);
+  return h;
+}
+
+function govTable(doc, x, y, w, colWidths, headers, rows, opts) {
+  opts = opts || {};
+  const rowH = opts.rowH || 15, headH = 16, pad = 5;
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(7.3);
+  doc.setFillColor(GOV_COLORS.navy[0], GOV_COLORS.navy[1], GOV_COLORS.navy[2]);
+  doc.rect(x, y, w, headH, 'F');
+  doc.setTextColor(255, 255, 255);
+  let cx = x;
+  headers.forEach(function (h, i) { doc.text(h, cx + pad, y + 11); cx += colWidths[i]; });
+  doc.setTextColor(0, 0, 0);
+  let ry = y + headH;
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(7.3);
+  rows.forEach(function (row, ri) {
+    if (ri % 2 === 1) { doc.setFillColor(GOV_COLORS.cardBg[0], GOV_COLORS.cardBg[1], GOV_COLORS.cardBg[2]); doc.rect(x, ry, w, rowH, 'F'); }
+    cx = x;
+    row.forEach(function (cell, ci) {
+      const isNum = opts.numCols && opts.numCols.includes(ci);
+      const color = (opts.colorCols && opts.colorCols[ci]) ? opts.colorCols[ci](cell, row) : [30, 32, 38];
+      doc.setTextColor(color[0], color[1], color[2]);
+      const text = String(cell == null ? '—' : cell);
+      if (isNum) doc.text(text, cx + colWidths[ci] - pad, ry + 10.5, { align: 'right' });
+      else doc.text(doc.splitTextToSize(text, colWidths[ci] - pad * 2), cx + pad, ry + 10.5);
+      cx += colWidths[ci];
+    });
+    doc.setTextColor(0, 0, 0);
+    ry += rowH;
+  });
+  doc.setDrawColor(GOV_COLORS.border[0], GOV_COLORS.border[1], GOV_COLORS.border[2]);
+  doc.setLineWidth(0.6);
+  doc.rect(x, y, w, headH + rows.length * rowH);
+  return headH + rows.length * rowH;
+}
+
+function govBarChart(doc, x, y, w, items) {
+  const max = Math.max.apply(null, items.map(function (i) { return Math.abs(i.value); }).concat([1]));
+  const rowH = 22, labelW = 150, valueW = 80, barW = w - labelW - valueW - 10;
+  items.forEach(function (item, i) {
+    const ry = y + i * rowH;
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
+    doc.setTextColor(40, 44, 52);
+    doc.text(item.label, x, ry + 13);
+    const bw = Math.max(2, Math.abs(item.value) / max * barW);
+    const barColor = item.value >= 0 ? GOV_COLORS.positive : GOV_COLORS.negative;
+    doc.setFillColor(barColor[0], barColor[1], barColor[2]);
+    doc.rect(x + labelW, ry + 4, bw, 10, 'F');
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(8);
+    doc.setTextColor(barColor[0], barColor[1], barColor[2]);
+    doc.text((item.value >= 0 ? '+' : '-') + govCompactUsd(Math.abs(item.value)), x + labelW + barW + 8, ry + 13);
+  });
+  doc.setTextColor(0, 0, 0);
+  return items.length * rowH;
+}
+
+/* ---------- page builders ---------- */
+
+function govBuildPage1(doc, pageW, pageH, report) {
+  govPageChrome(doc, pageW, pageH, "Gold reserve — Governor executive brief",
+    'Reporting date: ' + report.reportDate + ' | market data cut-off: ' + report.reportDate + ' | preliminary MTD | ref GGR-' + report.reportDate.slice(0, 7),
+    'Page 1 of 3 | Confidential — Internal use');
+  let y = 82;
+  const w = pageW - GOV_M * 2;
+  y += govCallout(doc, GOV_M, y, w, [
+    'SCALABLE FORMAT — this brief aggregates every approved purchase order into a single portfolio conversion view designed to remain readable as the number of orders grows.',
+  ], { bg: GOV_COLORS.amberBg, border: GOV_COLORS.amberBorder, text: GOV_COLORS.amberText }) + 10;
+
+  const eligibleBook = report.pipeline[4].book;
+  const netPct = report.agg.book ? report.agg.net / report.agg.book * 100 : 0;
+  y += govCallout(doc, GOV_M, y, w, [
+    'GOVERNOR TAKEAWAY',
+    govFmtUsd(report.agg.book / 1e6, 2) + 'm has been deployed for ' + govFmtKg(report.agg.fineKg) + ' of fine gold, with market value of ' +
+      govFmtUsd(report.agg.market / 1e6, 2) + 'm and a net portfolio ' + (report.agg.net >= 0 ? 'gain' : 'loss') + ' of about ' +
+      govFmtUsd(Math.abs(report.agg.net) / 1e6, 2) + 'm (' + govFmtPct(netPct) + '). ' +
+      govFmtPct(report.pipeline[3].pct) + ' of deployed cost is currently in custody and ' +
+      govFmtPct(report.pipeline[4].pct) + ' of deployed book cost is currently reserve-eligible.',
+  ], { bg: [255, 249, 232], border: [225, 195, 120], text: [70, 55, 15] }) + 12;
+
+  const kpis = [
+    { label: 'Gold acquired / contracted', value: govFmtKg(report.agg.fineKg, 3), sub: report.govOrders.length + ' order' + (report.govOrders.length === 1 ? '' : 's') },
+    { label: 'Gold in custody', value: govFmtKg(report.custodyFineKg, 3), sub: 'physical custody position' },
+    { label: 'Book cost', value: govCompactUsd(report.agg.book), sub: '~' + govFmtUsd(report.agg.fineKg ? report.agg.book / report.agg.fineKg : 0, 0) + ' / kg' },
+    { label: 'Market value', value: govCompactUsd(report.agg.market), sub: '~' + govFmtUsd(report.agg.fineKg ? report.agg.market / report.agg.fineKg : 0, 0) + ' / kg' },
+    { label: 'Net result', value: (report.agg.net >= 0 ? '+' : '-') + govCompactUsd(Math.abs(report.agg.net)), sub: govFmtPct(netPct) + ' of cost', color: report.agg.net >= 0 ? GOV_COLORS.positive : GOV_COLORS.negative },
+    { label: 'Reserve conversion ratio', value: govFmtPct(report.agg.book ? eligibleBook / report.agg.book * 100 : 0), sub: 'eligible value / deployed cost' },
+  ];
+  y += govKpiRow(doc, GOV_M, y, w, kpis) + 16;
+
+  const leftW = w * 0.62, rightW = w - leftW - 14;
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(GOV_COLORS.navy[0], GOV_COLORS.navy[1], GOV_COLORS.navy[2]);
+  doc.text('Reserve pipeline — portfolio conversion', GOV_M, y);
+  doc.text('Governor decisions / endorsements requested', GOV_M + leftW + 14, y);
+  doc.setTextColor(0, 0, 0);
+  const pipelineTop = y + 10;
+  const funnelH = govFunnel(doc, GOV_M, pipelineTop, leftW, report.pipeline);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(GOV_COLORS.muted[0], GOV_COLORS.muted[1], GOV_COLORS.muted[2]);
+  doc.text('Cumulative view; "Pending refining" is treated as receipt completed for pipeline purposes.', GOV_M, pipelineTop + funnelH + 11);
+  doc.setTextColor(0, 0, 0);
+
+  const decisions = [];
+  const worstException = report.exceptions.filter(function (e) { return e.stage === 'Settlement'; }).sort(function (a, b) { return Math.abs(b.book || 0) - Math.abs(a.book || 0); })[0];
+  if (worstException) decisions.push({ title: worstException.order + ' execution exception', text: 'Endorse immediate formal review of the "' + worstException.issue + '" and require documented remediation before closure.' });
+  if (report.prepaidExposure > 0) decisions.push({ title: 'Prepaid undelivered exposure', text: 'Require Treasury/Risk follow-up on ' + govCompactUsd(report.prepaidExposure) + ' prepaid for metal not yet in hand, with explicit delivery/recovery milestones.' });
+  decisions.push({ title: 'Reserve conversion', text: 'Endorse accelerated receipt/refining/custody/classification actions; no holding should enter official reserves before eligibility conditions are met.' });
+
+  let dy = pipelineTop + 4;
+  const decX = GOV_M + leftW + 14;
+  decisions.slice(0, 3).forEach(function (d, i) {
+    doc.setFillColor(GOV_COLORS.navy[0], GOV_COLORS.navy[1], GOV_COLORS.navy[2]);
+    doc.circle(decX + 6, dy + 6, 6, 'F');
+    doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(8);
+    doc.text(String(i + 1), decX + 6, dy + 8.5, { align: 'center' });
+    doc.setTextColor(20, 24, 32); doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5);
+    doc.text(d.title, decX + 17, dy + 8);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7.6);
+    doc.setTextColor(GOV_COLORS.muted[0], GOV_COLORS.muted[1], GOV_COLORS.muted[2]);
+    const wrapped = doc.splitTextToSize(d.text, rightW - 17).slice(0, 2);
+    doc.text(wrapped, decX + 17, dy + 18);
+    doc.setTextColor(0, 0, 0);
+    dy += 16 + wrapped.length * 9 + 6;
+  });
+
+  y = Math.max(pipelineTop + funnelH, dy) + 20;
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(GOV_COLORS.navy[0], GOV_COLORS.navy[1], GOV_COLORS.navy[2]);
+  y += 6;
+  doc.text('Pipeline exceptions requiring attention', GOV_M, y);
+  doc.setTextColor(0, 0, 0);
+  y += 8;
+  const excRows = report.exceptions.slice(0, 5).map(function (e) { return [e.order, e.book == null ? '—' : govCompactUsd(e.book), e.stage, e.issue, e.owner + ' — ' + e.due]; });
+  if (!excRows.length) excRows.push(['—', '—', '—', 'No material exceptions identified for this cut-off.', '—']);
+  govTable(doc, GOV_M, y, leftW, [55, 55, 62, leftW - 55 - 55 - 62 - 95, 95], ['ORDER', 'BOOK VALUE', 'STAGE', 'ISSUE', 'OWNER / DUE'], excRows, { numCols: [1], rowH: 13 });
+
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(GOV_COLORS.navy[0], GOV_COLORS.navy[1], GOV_COLORS.navy[2]);
+  doc.text('Top performance drivers', decX, y);
+  doc.setTextColor(0, 0, 0);
+  govBarChart(doc, decX, y + 12, rightW, report.drivers);
+}
+
+function govBuildPage2(doc, pageW, pageH, report) {
+  govPageChrome(doc, pageW, pageH, 'Risk, custody and reserve eligibility',
+    'Supporting management view | ' + report.reportDate + ' cut-off', 'Page 2 of 3 | Confidential — Internal use');
+  let y = 82;
+  const w = pageW - GOV_M * 2, colW = (w - 24) / 3;
+  const notInVaultKg = report.agg.fineKg - report.custodyFineKg;
+  const cards = [
+    { title: 'Counterparty concentration', big: govFmtPct(report.concentration[0] ? report.concentration[0].book / (report.agg.book || 1) * 100 : 0), sub: 'of book cost with ' + (report.concentration[0] ? report.concentration[0].seller : '—') + ' · ' + report.govOrders.length + ' orders | ' + govCompactUsd(report.agg.book) },
+    { title: 'Physical custody', big: govFmtKg(report.custodyFineKg, 3), sub: 'vaulted / allocated in custody · ' + govFmtKg(notInVaultKg, 3) + ' not yet in vault', color: notInVaultKg > 0 ? GOV_COLORS.negative : GOV_COLORS.positive },
+    { title: 'Intended depositary', big: report.depositary, sub: 'contractual / paper allocation only; not evidence of physical vaulting' },
+  ];
+  cards.forEach(function (c, i) {
+    const cx = GOV_M + i * (colW + 12);
+    doc.setDrawColor(GOV_COLORS.border[0], GOV_COLORS.border[1], GOV_COLORS.border[2]); doc.setLineWidth(0.7);
+    doc.line(cx, y + 30, cx + colW, y + 30);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(GOV_COLORS.navy[0], GOV_COLORS.navy[1], GOV_COLORS.navy[2]);
+    doc.text(c.title, cx, y);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(13);
+    doc.setTextColor((c.color || [20, 26, 40])[0], (c.color || [20, 26, 40])[1], (c.color || [20, 26, 40])[2]);
+    doc.text(doc.splitTextToSize(String(c.big), colW), cx, y + 16);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(GOV_COLORS.muted[0], GOV_COLORS.muted[1], GOV_COLORS.muted[2]);
+    doc.text(doc.splitTextToSize(c.sub, colW), cx, y + 40);
+    doc.setTextColor(0, 0, 0);
+  });
+  y += 62;
+
+  const leftW = w * 0.52, rightW = w - leftW - 14;
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(GOV_COLORS.navy[0], GOV_COLORS.navy[1], GOV_COLORS.navy[2]);
+  doc.text('Physical status by current workflow stage', GOV_M, y);
+  doc.text('Reserve eligibility blockers', GOV_M + leftW + 14, y);
+  doc.setTextColor(0, 0, 0);
+  y += 8;
+  const stageRows = report.stageBuckets.map(function (s) { return [s.label, String(s.orders), govFmtKg(s.fineKg, 3), govCompactUsd(s.book), s.note]; });
+  const stageH = govTable(doc, GOV_M, y, leftW, [64, 40, 65, 60, leftW - 64 - 40 - 65 - 60], ['STAGE BUCKET', 'ORDERS', 'QUANTITY', 'BOOK COST', 'INTERPRETATION'], stageRows, { numCols: [1] });
+
+  const blockerTextFor = function (go) {
+    if (!go.received) return ['Physical receipt / delivery outstanding', 'Receipt confirmation, then refining/custody/classification'];
+    if (!go.custodyConfirmed) return ['Refining/assay completion followed by custody delivery', 'Final assay, custody confirmation, reserve classification'];
+    return ['Gold form is not eligible as monetary gold (only refined bars qualify)', 'Reclassify holding or complete required refining/certification'];
+  };
+  const blockerRows = report.govOrders.filter(function (go) { return !go.eligible; }).slice(0, 4).map(function (go) {
+    const b = blockerTextFor(go);
+    return [go.po, govStageLabel(go), b[0], b[1]];
+  });
+  if (!blockerRows.length) blockerRows.push(['—', '—', 'No blockers — all orders reserve-eligible.', '—']);
+  const blockerH = govTable(doc, GOV_M + leftW + 14, y, rightW, [50, 62, rightW - 50 - 62 - 70, 70], ['ORDER', 'STATUS', 'BLOCKING CONDITION', 'NEXT CONTROL GATE'], blockerRows, { rowH: 13 });
+
+  y += Math.max(stageH, blockerH) + 10;
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(GOV_COLORS.muted[0], GOV_COLORS.muted[1], GOV_COLORS.muted[2]);
+  doc.text('Scalability rule: keep only aggregated blockers and the top material exceptions in the Governor pack; the complete PO-level queue sits in the operational report screens.', GOV_M, y);
+  doc.setTextColor(0, 0, 0);
+  y += 18;
+
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(GOV_COLORS.navy[0], GOV_COLORS.navy[1], GOV_COLORS.navy[2]);
+  doc.text('Open control issues and management actions', GOV_M, y);
+  doc.setTextColor(0, 0, 0);
+  y += 8;
+  const issues = [];
+  const worstException = report.exceptions.filter(function (e) { return e.stage === 'Settlement'; })[0];
+  if (worstException) issues.push(['Critical', worstException.order + ' adverse execution-price variance', 'Formal transaction review; document pricing rationale, approvals and remediation', 'Head of Reserve Ops', worstException.due]);
+  if (report.prepaidExposure > 0) {
+    const receiptExc = report.exceptions.find(function (e) { return e.stage === 'Receipt'; });
+    issues.push(['Critical', govCompactUsd(report.prepaidExposure) + ' prepaid exposure awaiting receipt', 'Confirm contractual protection, delivery milestones and escalation/recovery path', 'Treasury / Risk', receiptExc ? receiptExc.due : '—']);
+  }
+  const reserveRatio = report.agg.book ? report.pipeline[4].book / report.agg.book * 100 : 0;
+  if (reserveRatio < 100) {
+    const eligibilityExc = report.exceptions.find(function (e) { return e.stage === 'Eligibility'; });
+    issues.push(['High', govFmtPct(reserveRatio) + ' reserve conversion', 'Accelerate receipt/refining/custody/classification; report blockers by value and age', 'Reserve Management', eligibilityExc ? eligibilityExc.due : '—']);
+  }
+  if (report.concentration.length === 1) issues.push(['High', 'Single counterparty concentration', 'Define concentration limits and approved alternative settlement counterparties', 'Risk', '—']);
+  if (!issues.length) issues.push(['—', 'No open control issues for this cut-off.', '—', '—', '—']);
+  const issueRows = issues.map(function (i) { return [i[0], i[1], i[2], i[3], i[4], 'Open']; });
+  govTable(doc, GOV_M, y, w, [45, w - 45 - 210 - 90 - 55 - 45, 210, 90, 55, 45], ['SEVERITY', 'ISSUE', 'MANAGEMENT ACTION', 'OWNER', 'DUE', 'STATUS'], issueRows, {
+    colorCols: { 0: function (v) { return v === 'Critical' ? GOV_COLORS.negative : v === 'High' ? [178, 120, 20] : [60, 64, 72]; } },
+  });
+
+  y += 16 + issueRows.length * 15 + 16;
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(GOV_COLORS.navy[0], GOV_COLORS.navy[1], GOV_COLORS.navy[2]);
+  doc.text('Pipeline aging & bottlenecks', GOV_M, y);
+  doc.setTextColor(0, 0, 0); y += 10;
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(7.6); doc.setTextColor(GOV_COLORS.muted[0], GOV_COLORS.muted[1], GOV_COLORS.muted[2]);
+  doc.text(doc.splitTextToSize('This system does not yet record stage-entry timestamps, so ageing cannot be calculated. Add stage_entered_at / days_in_stage tracking to report only exceptions above agreed SLAs.', w), GOV_M, y);
+  doc.setTextColor(0, 0, 0);
+}
+
+function govBuildPage3(doc, pageW, pageH, report) {
+  govPageChrome(doc, pageW, pageH, 'Technical appendix — attribution and controls',
+    'Supporting detail | ' + report.reportDate + ' cut-off', 'Page 3 of 3 | Confidential — Internal use');
+  let y = 82;
+  const w = pageW - GOV_M * 2, leftW = w * 0.6, rightW = w - leftW - 14;
+
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(GOV_COLORS.navy[0], GOV_COLORS.navy[1], GOV_COLORS.navy[2]);
+  doc.text('Attribution — all lines (portfolio-wide)', GOV_M, y);
+  doc.setTextColor(0, 0, 0);
+  y += 8;
+  const attrRows = report.agg.components.slice().sort(function (a, b) { return Math.abs(b.value) - Math.abs(a.value); }).map(function (c) {
+    return [c.label, c.treatment, (c.value >= 0 ? '+' : '-') + govCompactUsd(Math.abs(c.value))];
+  });
+  attrRows.push(['Total attribution', '', (report.agg.net >= 0 ? '+' : '-') + govCompactUsd(Math.abs(report.agg.net))]);
+  if (!attrRows.length) attrRows.push(['—', '—', '—']);
+  govTable(doc, GOV_M, y, leftW, [130, leftW - 130 - 70, 70], ['LINE', 'BASIS', 'VALUE'], attrRows, {
+    numCols: [2], colorCols: { 2: function (v) { return String(v).indexOf('-') === 0 ? GOV_COLORS.negative : GOV_COLORS.positive; } },
+  });
+
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(GOV_COLORS.navy[0], GOV_COLORS.navy[1], GOV_COLORS.navy[2]);
+  doc.text('Portfolio trend', GOV_M + leftW + 14, y);
+  doc.setTextColor(0, 0, 0);
+  const trendRows = [[report.reportDate, govCompactUsd(report.agg.book), govCompactUsd(report.agg.market), (report.agg.net >= 0 ? '+' : '-') + govCompactUsd(Math.abs(report.agg.net))]];
+  const trendH = govTable(doc, GOV_M + leftW + 14, y + 8, rightW, [55, rightW / 3, rightW / 3, rightW - 55 - rightW / 3 * 2], ['PERIOD', 'BOOK COST', 'MARKET VALUE', 'RESULT'], trendRows, { numCols: [1, 2, 3] });
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(7.3); doc.setTextColor(GOV_COLORS.muted[0], GOV_COLORS.muted[1], GOV_COLORS.muted[2]);
+  doc.text(doc.splitTextToSize('Historical month-by-month trend is not yet tracked by the system (no periodic valuation snapshots are retained); only the current reporting-date figures are shown.', rightW), GOV_M + leftW + 14, y + 8 + trendH + 12);
+  doc.setTextColor(0, 0, 0);
+
+  y += 16 + attrRows.length * 15 + 26;
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(GOV_COLORS.navy[0], GOV_COLORS.navy[1], GOV_COLORS.navy[2]);
+  doc.text('Methodology and data controls', GOV_M, y);
+  doc.setTextColor(0, 0, 0);
+  y += 12;
+  const methodology = [
+    ['Market cut-off', report.reportDate + '. No future month-end fixing is used.'],
+    ['Quantity unit', 'kg of fine gold throughout this report.'],
+    ['Price unit', 'Per-unit gold prices are expressed in USD/oz as entered on the Valuation & P&L screen.'],
+    ['Pipeline method', 'Stage conversion uses order, receipt, settlement and custody status; "Pending refining" is treated as receipt completed for the executive funnel.'],
+    ['Refined / assayed proxy', 'An order counts as refined/assayed once received as refined bars from a Good Delivery accredited refiner at or above 995‰ fineness (no explicit refining-completion field is tracked yet).'],
+    ['Custody definition', 'Only a confirmed custody-confirmation record is counted as physical custody.'],
+    ['Reserve eligibility', 'Only refined bars in confirmed custody are treated as monetary gold; doré, dust and scrap require refining before reserve designation.'],
+    ['Reserve conversion ratio', 'Reserve-eligible book value divided by total deployed book cost.'],
+    ['Aging metrics', 'Not available from the current data model; add stage-entry timestamps to enable SLA reporting.'],
+  ];
+  const colW = w / 2 - 10;
+  methodology.forEach(function (m, i) {
+    const col = i % 2, row = Math.floor(i / 2);
+    const mx = GOV_M + col * (colW + 20), my = y + row * 30;
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(7.6); doc.setTextColor(30, 34, 42);
+    doc.text(m[0] + ':', mx, my);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7.3); doc.setTextColor(GOV_COLORS.muted[0], GOV_COLORS.muted[1], GOV_COLORS.muted[2]);
+    doc.text(doc.splitTextToSize(m[1], colW), mx, my + 9);
+    doc.setTextColor(0, 0, 0);
+  });
+
+  const distY = pageH - 46;
+  doc.setDrawColor(GOV_COLORS.border[0], GOV_COLORS.border[1], GOV_COLORS.border[2]); doc.setLineWidth(0.6);
+  doc.line(GOV_M, distY - 8, pageW - GOV_M, distY - 8);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(GOV_COLORS.muted[0], GOV_COLORS.muted[1], GOV_COLORS.muted[2]);
+  doc.text('Distribution: Governor; Monetary Policy Committee; Director, Financial Markets. Prepared by — Reserve Operations.', GOV_M, distY);
+  doc.setTextColor(0, 0, 0);
+}
+
+function buildGovernorPdfDocument(report) {
+  const jsPDFCtor = window.jspdf.jsPDF;
+  const doc = new jsPDFCtor({ orientation: 'landscape', unit: 'pt', format: 'a4' });
+  const pageW = doc.internal.pageSize.getWidth(), pageH = doc.internal.pageSize.getHeight();
+  govBuildPage1(doc, pageW, pageH, report);
+  doc.addPage(); govBuildPage2(doc, pageW, pageH, report);
+  doc.addPage(); govBuildPage3(doc, pageW, pageH, report);
+  return doc;
+}
+
+/* ---------- wire into the existing download button ---------- */
+
+var GOV_BASE_DOWNLOAD_REPORT = downloadReport;
+downloadReport = async function (kind, format) {
+  if (kind !== 'governor') return GOV_BASE_DOWNLOAD_REPORT(kind, format);
+  try {
+    const report = await buildGovernorReportData();
+    if (format === 'csv') {
+      downloadText(governorReportSlug(report) + '.csv', governorReportCsv(report), 'text/csv;charset=utf-8');
+    } else {
+      buildGovernorPdfDocument(report).save(governorReportSlug(report) + '.pdf');
+    }
+    addRecent(kind, format);
+    toast(REPORT_NAMES[kind] + ' downloaded');
+  } catch (error) {
+    console.error('Governor report error', error);
+    toast(document.documentElement.lang === 'fr' ? 'Impossible de générer le rapport du Gouverneur.' : 'Unable to generate the Governor report.', true);
+  }
+};
 </script>
 
 </body>
