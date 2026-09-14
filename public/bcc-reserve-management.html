@@ -2113,7 +2113,7 @@ function govFunnel(doc, x, y, w, stages) {
 
 function govTable(doc, x, y, w, colWidths, headers, rows, opts) {
   opts = opts || {};
-  const rowH = opts.rowH || 15, headH = 16, pad = 5;
+  const minRowH = opts.rowH || 15, headH = 16, pad = 5, lineH = 8.6, cellPadV = 4;
   doc.setFont('helvetica', 'bold'); doc.setFontSize(7.3);
   doc.setFillColor(GOV_COLORS.navy[0], GOV_COLORS.navy[1], GOV_COLORS.navy[2]);
   doc.rect(x, y, w, headH, 'F');
@@ -2121,27 +2121,42 @@ function govTable(doc, x, y, w, colWidths, headers, rows, opts) {
   let cx = x;
   headers.forEach(function (h, i) { doc.text(h, cx + pad, y + 11); cx += colWidths[i]; });
   doc.setTextColor(0, 0, 0);
-  let ry = y + headH;
+
   doc.setFont('helvetica', 'normal'); doc.setFontSize(7.3);
+  const wrappedRows = rows.map(function (row) {
+    return row.map(function (cell, ci) {
+      const isNum = opts.numCols && opts.numCols.includes(ci);
+      const text = String(cell == null ? '—' : cell);
+      return isNum ? [text] : doc.splitTextToSize(text, colWidths[ci] - pad * 2);
+    });
+  });
+  const rowHeights = wrappedRows.map(function (cells) {
+    const maxLines = Math.max.apply(null, cells.map(function (c) { return c.length; }).concat([1]));
+    return Math.max(minRowH, maxLines * lineH + cellPadV * 2);
+  });
+
+  let ry = y + headH;
   rows.forEach(function (row, ri) {
-    if (ri % 2 === 1) { doc.setFillColor(GOV_COLORS.cardBg[0], GOV_COLORS.cardBg[1], GOV_COLORS.cardBg[2]); doc.rect(x, ry, w, rowH, 'F'); }
+    const rh = rowHeights[ri];
+    if (ri % 2 === 1) { doc.setFillColor(GOV_COLORS.cardBg[0], GOV_COLORS.cardBg[1], GOV_COLORS.cardBg[2]); doc.rect(x, ry, w, rh, 'F'); }
     cx = x;
     row.forEach(function (cell, ci) {
       const isNum = opts.numCols && opts.numCols.includes(ci);
       const color = (opts.colorCols && opts.colorCols[ci]) ? opts.colorCols[ci](cell, row) : [30, 32, 38];
       doc.setTextColor(color[0], color[1], color[2]);
-      const text = String(cell == null ? '—' : cell);
-      if (isNum) doc.text(text, cx + colWidths[ci] - pad, ry + 10.5, { align: 'right' });
-      else doc.text(doc.splitTextToSize(text, colWidths[ci] - pad * 2), cx + pad, ry + 10.5);
+      const lines = wrappedRows[ri][ci];
+      if (isNum) doc.text(lines[0], cx + colWidths[ci] - pad, ry + cellPadV + 6, { align: 'right' });
+      else doc.text(lines, cx + pad, ry + cellPadV + 6);
       cx += colWidths[ci];
     });
     doc.setTextColor(0, 0, 0);
-    ry += rowH;
+    ry += rh;
   });
   doc.setDrawColor(GOV_COLORS.border[0], GOV_COLORS.border[1], GOV_COLORS.border[2]);
   doc.setLineWidth(0.6);
-  doc.rect(x, y, w, headH + rows.length * rowH);
-  return headH + rows.length * rowH;
+  const totalH = ry - y;
+  doc.rect(x, y, w, totalH);
+  return totalH;
 }
 
 function govBarChart(doc, x, y, w, items) {
@@ -2283,16 +2298,17 @@ function govBuildPage2(doc, pageW, pageH, report) {
   const stageH = govTable(doc, GOV_M, y, leftW, [64, 40, 65, 60, leftW - 64 - 40 - 65 - 60], ['STAGE BUCKET', 'ORDERS', 'QUANTITY', 'BOOK COST', 'INTERPRETATION'], stageRows, { numCols: [1] });
 
   const blockerTextFor = function (go) {
-    if (!go.received) return ['Physical receipt / delivery outstanding', 'Receipt confirmation, then refining/custody/classification'];
-    if (!go.custodyConfirmed) return ['Refining/assay completion followed by custody delivery', 'Final assay, custody confirmation, reserve classification'];
-    return ['Gold form is not eligible as monetary gold (only refined bars qualify)', 'Reclassify holding or complete required refining/certification'];
+    if (!go.received) return ['Physical receipt / delivery outstanding', 'Receipt confirmation, then refining'];
+    if (!go.custodyConfirmed) return ['Refining/assay then custody delivery', 'Final assay, then custody & classification'];
+    return ['Gold form not eligible as monetary gold', 'Reclassify or complete refining/certification'];
   };
   const blockerRows = report.govOrders.filter(function (go) { return !go.eligible; }).slice(0, 4).map(function (go) {
     const b = blockerTextFor(go);
     return [go.po, govStageLabel(go), b[0], b[1]];
   });
   if (!blockerRows.length) blockerRows.push(['—', '—', 'No blockers — all orders reserve-eligible.', '—']);
-  const blockerH = govTable(doc, GOV_M + leftW + 14, y, rightW, [50, 62, rightW - 50 - 62 - 70, 70], ['ORDER', 'STATUS', 'BLOCKING CONDITION', 'NEXT CONTROL GATE'], blockerRows, { rowH: 13 });
+  const blockerColW = (rightW - 45 - 55) / 2;
+  const blockerH = govTable(doc, GOV_M + leftW + 14, y, rightW, [45, 55, blockerColW, blockerColW], ['ORDER', 'STATUS', 'BLOCKING CONDITION', 'NEXT CONTROL GATE'], blockerRows, { rowH: 13 });
 
   y += Math.max(stageH, blockerH) + 10;
   doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(GOV_COLORS.muted[0], GOV_COLORS.muted[1], GOV_COLORS.muted[2]);
@@ -2319,11 +2335,11 @@ function govBuildPage2(doc, pageW, pageH, report) {
   if (report.concentration.length === 1) issues.push(['High', 'Single counterparty concentration', 'Define concentration limits and approved alternative settlement counterparties', 'Risk', '—']);
   if (!issues.length) issues.push(['—', 'No open control issues for this cut-off.', '—', '—', '—']);
   const issueRows = issues.map(function (i) { return [i[0], i[1], i[2], i[3], i[4], 'Open']; });
-  govTable(doc, GOV_M, y, w, [45, w - 45 - 210 - 90 - 55 - 45, 210, 90, 55, 45], ['SEVERITY', 'ISSUE', 'MANAGEMENT ACTION', 'OWNER', 'DUE', 'STATUS'], issueRows, {
+  const issuesH = govTable(doc, GOV_M, y, w, [45, w - 45 - 210 - 90 - 55 - 45, 210, 90, 55, 45], ['SEVERITY', 'ISSUE', 'MANAGEMENT ACTION', 'OWNER', 'DUE', 'STATUS'], issueRows, {
     colorCols: { 0: function (v) { return v === 'Critical' ? GOV_COLORS.negative : v === 'High' ? [178, 120, 20] : [60, 64, 72]; } },
   });
 
-  y += 16 + issueRows.length * 15 + 16;
+  y += issuesH + 16;
   doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(GOV_COLORS.navy[0], GOV_COLORS.navy[1], GOV_COLORS.navy[2]);
   doc.text('Pipeline aging & bottlenecks', GOV_M, y);
   doc.setTextColor(0, 0, 0); y += 10;
@@ -2347,7 +2363,7 @@ function govBuildPage3(doc, pageW, pageH, report) {
   });
   attrRows.push(['Total attribution', '', (report.agg.net >= 0 ? '+' : '-') + govCompactUsd(Math.abs(report.agg.net))]);
   if (!attrRows.length) attrRows.push(['—', '—', '—']);
-  govTable(doc, GOV_M, y, leftW, [130, leftW - 130 - 70, 70], ['LINE', 'BASIS', 'VALUE'], attrRows, {
+  const attrH = govTable(doc, GOV_M, y, leftW, [130, leftW - 130 - 70, 70], ['LINE', 'BASIS', 'VALUE'], attrRows, {
     numCols: [2], colorCols: { 2: function (v) { return String(v).indexOf('-') === 0 ? GOV_COLORS.negative : GOV_COLORS.positive; } },
   });
 
@@ -2360,7 +2376,7 @@ function govBuildPage3(doc, pageW, pageH, report) {
   doc.text(doc.splitTextToSize('Historical month-by-month trend is not yet tracked by the system (no periodic valuation snapshots are retained); only the current reporting-date figures are shown.', rightW), GOV_M + leftW + 14, y + 8 + trendH + 12);
   doc.setTextColor(0, 0, 0);
 
-  y += 16 + attrRows.length * 15 + 26;
+  y += Math.max(attrH, trendH + 30) + 24;
   doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(GOV_COLORS.navy[0], GOV_COLORS.navy[1], GOV_COLORS.navy[2]);
   doc.text('Methodology and data controls', GOV_M, y);
   doc.setTextColor(0, 0, 0);
@@ -2377,15 +2393,24 @@ function govBuildPage3(doc, pageW, pageH, report) {
     ['Aging metrics', 'Not available from the current data model; add stage-entry timestamps to enable SLA reporting.'],
   ];
   const colW = w / 2 - 10;
-  methodology.forEach(function (m, i) {
-    const col = i % 2, row = Math.floor(i / 2);
-    const mx = GOV_M + col * (colW + 20), my = y + row * 30;
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(7.6); doc.setTextColor(30, 34, 42);
-    doc.text(m[0] + ':', mx, my);
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(7.3); doc.setTextColor(GOV_COLORS.muted[0], GOV_COLORS.muted[1], GOV_COLORS.muted[2]);
-    doc.text(doc.splitTextToSize(m[1], colW), mx, my + 9);
-    doc.setTextColor(0, 0, 0);
-  });
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(7.3);
+  const methodologyWrapped = methodology.map(function (m) { return doc.splitTextToSize(m[1], colW); });
+  let methodRowTop = y;
+  for (let i = 0; i < methodology.length; i += 2) {
+    const my = methodRowTop;
+    let rowH = 0;
+    [i, i + 1].forEach(function (idx) {
+      if (idx >= methodology.length) return;
+      const col = idx % 2, mx = GOV_M + col * (colW + 20);
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(7.6); doc.setTextColor(30, 34, 42);
+      doc.text(methodology[idx][0] + ':', mx, my);
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(7.3); doc.setTextColor(GOV_COLORS.muted[0], GOV_COLORS.muted[1], GOV_COLORS.muted[2]);
+      doc.text(methodologyWrapped[idx], mx, my + 9);
+      doc.setTextColor(0, 0, 0);
+      rowH = Math.max(rowH, 9 + methodologyWrapped[idx].length * 8.6 + 8);
+    });
+    methodRowTop += rowH;
+  }
 
   const distY = pageH - 46;
   doc.setDrawColor(GOV_COLORS.border[0], GOV_COLORS.border[1], GOV_COLORS.border[2]); doc.setLineWidth(0.6);
