@@ -234,6 +234,7 @@ body.embedded *{scrollbar-color:#555a65 transparent;scrollbar-width:thin}
 
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
 </head>
 <body class="embedded">
 <div class="app">
@@ -595,7 +596,7 @@ body.embedded *{scrollbar-color:#555a65 transparent;scrollbar-width:thin}
             <div class="report-card-head"><div class="report-icon"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7z"/><path d="M9 12l2 2 4-4"/></svg></div><div><div class="report-title">Governor's Gold Reserve Executive Brief</div><div class="report-audience">Governor and Monetary Policy Committee</div></div></div>
             <div class="report-desc">A concise decision pack covering holdings, acquisitions, valuation, reserve eligibility, depositary concentration, material exceptions and management actions requiring attention.</div>
             <div class="report-content"><span class="report-chip">Executive dashboard</span><span class="report-chip">Portfolio valuation</span><span class="report-chip">Acquisition progress</span><span class="report-chip">Key risks</span><span class="report-chip">Decision points</span></div>
-            <div class="report-footer"><div class="report-formats"><span class="format-tag">PDF</span><span class="format-tag">CSV</span></div><div class="report-actions"><button class="btn btn-mini" onclick="previewReport('governor')">Preview</button><button class="btn btn-mini btn-primary" onclick="downloadReport('governor','pdf')">Download PDF</button><button class="btn btn-mini" onclick="downloadReport('governor','csv')">CSV</button></div></div>
+            <div class="report-footer"><div class="report-formats"><span class="format-tag">PDF</span><span class="format-tag">Excel</span></div><div class="report-actions"><button class="btn btn-mini" onclick="previewReport('governor')">Preview</button><button class="btn btn-mini btn-primary" onclick="downloadReport('governor','pdf')">Download PDF</button><button class="btn btn-mini" onclick="downloadReport('governor','xlsx')">Excel</button></div></div>
           </article>
 
           <article class="report-card">
@@ -1053,7 +1054,7 @@ function buildSimplePdf(kind){const rows=flattenReport(kind),lines=[];lines.push
 function addRecent(kind,format){RECENT_REPORTS.unshift({kind,format,period:q('reportPeriod').value,at:new Date().toLocaleString('en-GB',{hour12:false})});RECENT_REPORTS=RECENT_REPORTS.slice(0,6);renderRecentReports()}
 function renderRecentReports(){const box=q('recentReports');if(!RECENT_REPORTS.length){box.innerHTML='<div class="empty" style="margin-top:8px">No reports generated in this prototype session.</div>';return}box.innerHTML=RECENT_REPORTS.map((r,i)=>'<div class="recent-report"><span>'+REPORT_NAMES[r.kind]+'</span><span>'+REPORT_AUDIENCE[r.kind]+'</span><span>'+r.period+'</span><span>'+r.at+'</span><button class="table-action" onclick="downloadReport(RECENT_REPORTS['+i+'].kind,RECENT_REPORTS['+i+'].format)">Download again</button></div>').join('')}
 function downloadReport(kind,format){refreshReports();const slug=kind+'_'+(q('reportDate')?.value||'report');if(format==='csv'){const csv=flattenReport(kind).map(r=>r.map(csvEscape).join(',')).join('\n');downloadText(slug+'.csv',csv,'text/csv;charset=utf-8')}else{downloadText(slug+'.pdf',buildSimplePdf(kind),'application/pdf')}addRecent(kind,format);toast(REPORT_NAMES[kind]+' downloaded')}
-function previewReport(kind){const rows=flattenReport(kind);const win=window.open('','_blank','width=900,height=760');if(!win){toast('Pop-up blocked. Please allow pop-ups for preview.',true);return}const groups=reportSections(kind).map(sec=>'<section><h2>'+sec[0]+'</h2><table>'+sec[1].map(r=>'<tr><th>'+r[0]+'</th><td>'+r[1]+'</td></tr>').join('')+'</table></section>').join('');win.document.write('<!doctype html><html><head><title>'+REPORT_NAMES[kind]+'</title><style>body{font-family:Arial,sans-serif;color:#1c1c1c;margin:42px;line-height:1.45}header{border-bottom:3px solid #b28b36;padding-bottom:16px;margin-bottom:24px}h1{font-size:24px;margin:0}header p{color:#666;margin:5px 0}.conf{font-size:11px;color:#8b2b2b;font-weight:bold}section{margin:24px 0}h2{font-size:15px;border-bottom:1px solid #ccc;padding-bottom:6px}table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:7px 8px;border-bottom:1px solid #e3e3e3;font-size:12px}th{width:38%;color:#555}@media print{button{display:none}body{margin:20mm}}</style></head><body><header><h1>'+REPORT_NAMES[kind]+'</h1><p>'+REPORT_AUDIENCE[kind]+'</p><div class="conf">CONFIDENTIAL - INTERNAL USE</div></header>'+groups+'<button onclick="window.print()">Print / Save as PDF</button></body></html>');win.document.close()}
+function previewReport(kind){refreshReports();const blobUrl=URL.createObjectURL(new Blob([buildSimplePdf(kind)],{type:'application/pdf'}));const win=window.open('','_blank','width=900,height=760');if(!win){URL.revokeObjectURL(blobUrl);toast('Pop-up blocked. Please allow pop-ups for preview.',true);return}win.document.write('<!doctype html><html><head><title>'+REPORT_NAMES[kind]+'</title><style>html,body{margin:0;height:100%;background:#525659}iframe{border:0;width:100%;height:100%;display:block}</style></head><body><iframe src="'+blobUrl+'" title="'+REPORT_NAMES[kind]+'"></iframe></body></html>');win.document.close()}
 renderCostRows();calcPO();calcStorage();calcPnl();refreshReports();
 
 </script>
@@ -1977,28 +1978,239 @@ async function buildGovernorReportData() {
   };
 }
 
-/* ---------- CSV export ---------- */
+/* ---------- Excel export ---------- */
 
 function governorReportSlug(report) { return 'governor_brief_' + report.reportDate; }
 
-function governorReportCsv(report) {
-  const rows = [['GOVERNOR\'S GOLD RESERVE EXECUTIVE BRIEF'], ['Reporting date', report.reportDate], ['Orders', String(report.govOrders.length)], ['']];
-  rows.push(['Portfolio summary']);
-  rows.push(['Fine gold acquired (kg)', report.agg.fineKg.toFixed(3)]);
-  rows.push(['Book cost (USD)', report.agg.book.toFixed(2)]);
-  rows.push(['Market value (USD)', report.agg.market.toFixed(2)]);
-  rows.push(['Net result (USD)', report.agg.net.toFixed(2)]);
-  rows.push(['Reserve conversion ratio (%)', (report.agg.book ? (report.pipeline[4].book / report.agg.book * 100) : 0).toFixed(1)]);
-  rows.push(['']);
-  rows.push(['Reserve pipeline', 'Orders', 'Fine gold (kg)', 'Book cost (USD)', '% of cost']);
-  report.pipeline.forEach(function (p) { rows.push([p.label, String(p.count), p.fineKg.toFixed(3), p.book.toFixed(2), p.pct.toFixed(1)]); });
-  rows.push(['']);
-  rows.push(['Pipeline exceptions', 'Book value (USD)', 'Stage', 'Issue', 'Owner', 'Due']);
-  report.exceptions.forEach(function (e) { rows.push([e.order, e.book == null ? '' : e.book.toFixed(2), e.stage, e.issue, e.owner, e.due]); });
-  rows.push(['']);
-  rows.push(['Top performance drivers (USD)']);
-  report.drivers.forEach(function (d) { rows.push([d.label, d.value.toFixed(2)]); });
-  return rows.map(function (r) { return r.map(csvEscape).join(','); }).join('\n');
+function argbFrom(rgb) {
+  return 'FF' + rgb.map(function (v) { return Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0').toUpperCase(); }).join('');
+}
+
+const GOV_XLSX_COLORS = {
+  navy: argbFrom(GOV_COLORS.navy), orange: argbFrom(GOV_COLORS.orange), muted: argbFrom(GOV_COLORS.muted),
+  border: argbFrom(GOV_COLORS.border), cardBg: argbFrom(GOV_COLORS.cardBg),
+  amberBg: argbFrom(GOV_COLORS.amberBg), amberText: argbFrom(GOV_COLORS.amberText),
+  grayBg: argbFrom(GOV_COLORS.grayBg), grayText: argbFrom(GOV_COLORS.grayText),
+  blueBg: argbFrom(GOV_COLORS.blueBg), blueText: argbFrom(GOV_COLORS.blueText),
+  greenBg: argbFrom(GOV_COLORS.greenBg), greenText: argbFrom(GOV_COLORS.greenText),
+  redBg: argbFrom(GOV_COLORS.redBg), redText: argbFrom(GOV_COLORS.redText),
+  positive: argbFrom(GOV_COLORS.positive), negative: argbFrom(GOV_COLORS.negative),
+  white: 'FFFFFFFF', ink: 'FF1C1C1C',
+};
+
+function xlFill(argb) { return { type: 'pattern', pattern: 'solid', fgColor: { argb: argb } }; }
+function xlThinBorder(argb) { const b = { style: 'thin', color: { argb: argb || GOV_XLSX_COLORS.border } }; return { top: b, left: b, bottom: b, right: b }; }
+function xlBar(pct) { const blocks = Math.max(0, Math.min(10, Math.round((Number(pct) || 0) / 10))); return '█'.repeat(blocks) + '░'.repeat(10 - blocks); }
+
+function xlBanner(sheet, lastColLetter, lines) {
+  const startRow = sheet.rowCount + 1;
+  lines.forEach(function (l, i) {
+    const r = startRow + i;
+    sheet.mergeCells('A' + r + ':' + lastColLetter + r);
+    const cell = sheet.getCell('A' + r);
+    cell.value = l.text;
+    cell.font = { name: 'Calibri', size: l.size, bold: !!l.bold, color: { argb: l.color } };
+    cell.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
+    cell.fill = xlFill(GOV_XLSX_COLORS.navy);
+    sheet.getRow(r).height = l.size >= 18 ? 30 : l.size >= 12 ? 20 : 16;
+  });
+  sheet.addRow([]);
+}
+
+function xlSectionTitle(sheet, lastColLetter, text) {
+  const r = sheet.rowCount + 1;
+  sheet.mergeCells('A' + r + ':' + lastColLetter + r);
+  const cell = sheet.getCell('A' + r);
+  cell.value = text.toUpperCase();
+  cell.font = { name: 'Calibri', size: 11, bold: true, color: { argb: GOV_XLSX_COLORS.navy } };
+  cell.alignment = { vertical: 'middle', indent: 1 };
+  cell.fill = xlFill(GOV_XLSX_COLORS.cardBg);
+  cell.border = { bottom: { style: 'medium', color: { argb: GOV_XLSX_COLORS.orange } } };
+  sheet.getRow(r).height = 20;
+}
+
+function xlTableHeader(sheet, headers) {
+  const row = sheet.addRow(headers);
+  row.eachCell(function (cell) {
+    cell.font = { name: 'Calibri', size: 9.5, bold: true, color: { argb: GOV_XLSX_COLORS.white } };
+    cell.fill = xlFill(GOV_XLSX_COLORS.navy);
+    cell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
+    cell.border = xlThinBorder(GOV_XLSX_COLORS.navy);
+  });
+  row.height = 18;
+  return row;
+}
+
+function xlDataRow(sheet, values, opts) {
+  opts = opts || {};
+  const row = sheet.addRow(values);
+  const stripe = !!(opts.zebra && (row.number % 2 === 0));
+  row.eachCell({ includeEmpty: true }, function (cell, colNumber) {
+    cell.font = { name: 'Calibri', size: 9.5, color: { argb: GOV_XLSX_COLORS.ink } };
+    cell.alignment = { vertical: 'middle', horizontal: (opts.rightAlignFrom && colNumber >= opts.rightAlignFrom) ? 'right' : 'left' };
+    cell.fill = xlFill(stripe ? GOV_XLSX_COLORS.cardBg : GOV_XLSX_COLORS.white);
+    cell.border = xlThinBorder();
+    if (opts.numFmts && opts.numFmts[colNumber]) cell.numFmt = opts.numFmts[colNumber];
+  });
+  return row;
+}
+
+async function buildGovernorExcelWorkbook(report) {
+  const wb = new ExcelJS.Workbook();
+  wb.creator = 'Banque Centrale du Congo — Gold Reserve Management';
+  wb.created = new Date();
+  wb.title = "Governor's Gold Reserve Executive Brief";
+
+  const usdFmt = '"USD "#,##0;[Red]-"USD "#,##0';
+  const kgFmt = '#,##0.000" kg"';
+  const pctFmt = '0.0"%"';
+  const sheetOpts = { properties: { tabColor: { argb: GOV_XLSX_COLORS.navy } }, views: [{ showGridLines: false }] };
+  function chrome(sheet) { sheet.pageSetup = { orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0 }; }
+
+  /* ---- Sheet 1: Executive Brief ---- */
+  const s1 = wb.addWorksheet('Executive Brief', sheetOpts);
+  chrome(s1);
+  s1.columns = [{ width: 30 }, { width: 20 }, { width: 20 }, { width: 20 }, { width: 20 }, { width: 20 }];
+  xlBanner(s1, 'F', [
+    { text: 'BANQUE CENTRALE DU CONGO', size: 10.5, bold: true, color: GOV_XLSX_COLORS.orange },
+    { text: "GOVERNOR'S GOLD RESERVE EXECUTIVE BRIEF", size: 18, bold: true, color: GOV_XLSX_COLORS.white },
+    { text: 'Reporting date: ' + report.reportDate + '   ·   Orders: ' + report.govOrders.length + '   ·   CONFIDENTIAL — INTERNAL USE', size: 9.5, bold: false, color: GOV_XLSX_COLORS.border },
+  ]);
+
+  xlSectionTitle(s1, 'F', 'Portfolio summary');
+  const conversionRatio = report.agg.book ? (report.pipeline[4].book / report.agg.book * 100) : 0;
+  const kpis = [
+    ['Fine gold acquired', report.agg.fineKg, kgFmt],
+    ['Book cost', report.agg.book, usdFmt],
+    ['Market value', report.agg.market, usdFmt],
+    ['Net result', report.agg.net, usdFmt],
+    ['Reserve conversion ratio', conversionRatio, pctFmt],
+  ];
+  const labelRow = s1.addRow(kpis.map(function (k) { return k[0]; }));
+  labelRow.eachCell(function (cell) {
+    cell.font = { name: 'Calibri', size: 8.5, bold: true, color: { argb: GOV_XLSX_COLORS.muted } };
+    cell.alignment = { horizontal: 'left' };
+  });
+  const valueRow = s1.addRow(kpis.map(function (k) { return k[1]; }));
+  valueRow.eachCell(function (cell, colNumber) {
+    const isNet = colNumber === 4;
+    cell.font = { name: 'Calibri', size: 15, bold: true, color: { argb: isNet ? (report.agg.net >= 0 ? GOV_XLSX_COLORS.positive : GOV_XLSX_COLORS.negative) : GOV_XLSX_COLORS.navy } };
+    cell.numFmt = kpis[colNumber - 1][2];
+    cell.border = { top: { style: 'medium', color: { argb: GOV_XLSX_COLORS.orange } } };
+  });
+  s1.addRow([]);
+
+  xlSectionTitle(s1, 'F', 'Reserve pipeline');
+  xlTableHeader(s1, ['Stage', 'Orders', 'Fine gold (kg)', 'Book cost (USD)', '% of cost', 'Progress']);
+  report.pipeline.forEach(function (p) {
+    const row = xlDataRow(s1, [p.label, p.count, p.fineKg, p.book, p.pct / 100, xlBar(p.pct)], {
+      zebra: true, rightAlignFrom: 2, numFmts: { 2: '#,##0', 3: kgFmt, 4: usdFmt, 5: '0.0%' },
+    });
+    row.getCell(6).font = { name: 'Consolas', size: 11, color: { argb: GOV_XLSX_COLORS.orange } };
+  });
+  s1.addRow([]);
+
+  xlSectionTitle(s1, 'F', 'Top performance drivers (USD)');
+  xlTableHeader(s1, ['Driver', 'USD impact', '', '', '', '']);
+  report.drivers.forEach(function (d) {
+    const row = xlDataRow(s1, [d.label, d.value, '', '', '', ''], { zebra: true, rightAlignFrom: 2, numFmts: { 2: usdFmt } });
+    row.getCell(2).font = { name: 'Calibri', size: 9.5, bold: true, color: { argb: d.value >= 0 ? GOV_XLSX_COLORS.positive : GOV_XLSX_COLORS.negative } };
+  });
+
+  /* ---- Sheet 2: Pipeline & Stages ---- */
+  const s2 = wb.addWorksheet('Pipeline & Stages', sheetOpts);
+  chrome(s2);
+  s2.columns = [{ width: 26 }, { width: 40 }, { width: 12 }, { width: 16 }, { width: 18 }, { width: 24 }];
+  xlBanner(s2, 'F', [{ text: 'RESERVE PIPELINE & STAGE STATUS', size: 14, bold: true, color: GOV_XLSX_COLORS.white }]);
+
+  xlSectionTitle(s2, 'F', 'Reserve pipeline');
+  xlTableHeader(s2, ['Stage', 'Orders', 'Fine gold (kg)', 'Book cost (USD)', '% of cost', 'Progress']);
+  report.pipeline.forEach(function (p) {
+    const row = xlDataRow(s2, [p.label, p.count, p.fineKg, p.book, p.pct / 100, xlBar(p.pct)], {
+      zebra: true, rightAlignFrom: 2, numFmts: { 2: '#,##0', 3: kgFmt, 4: usdFmt, 5: '0.0%' },
+    });
+    row.getCell(6).font = { name: 'Consolas', size: 11, color: { argb: GOV_XLSX_COLORS.orange } };
+  });
+  s2.addRow([]);
+
+  xlSectionTitle(s2, 'F', 'Stage status');
+  xlTableHeader(s2, ['Stage', 'Note', 'Orders', 'Fine gold (kg)', 'Book cost (USD)', '']);
+  const stageFill = { pendingReceipt: GOV_XLSX_COLORS.amberBg, pendingRefining: GOV_XLSX_COLORS.grayBg, inCustody: GOV_XLSX_COLORS.blueBg, reserveEligible: GOV_XLSX_COLORS.greenBg };
+  const stageText = { pendingReceipt: GOV_XLSX_COLORS.amberText, pendingRefining: GOV_XLSX_COLORS.grayText, inCustody: GOV_XLSX_COLORS.blueText, reserveEligible: GOV_XLSX_COLORS.greenText };
+  report.stageBuckets.forEach(function (b) {
+    const row = xlDataRow(s2, [b.label, b.note, b.orders, b.fineKg, b.book, ''], {
+      zebra: false, rightAlignFrom: 3, numFmts: { 3: '#,##0', 4: kgFmt, 5: usdFmt },
+    });
+    row.getCell(1).fill = xlFill(stageFill[b.key] || GOV_XLSX_COLORS.cardBg);
+    row.getCell(1).font = { name: 'Calibri', size: 9.5, bold: true, color: { argb: stageText[b.key] || GOV_XLSX_COLORS.navy } };
+  });
+
+  /* ---- Sheet 3: Exceptions & Actions ---- */
+  const s3 = wb.addWorksheet('Exceptions & Actions', sheetOpts);
+  chrome(s3);
+  s3.columns = [{ width: 16 }, { width: 16 }, { width: 14 }, { width: 52 }, { width: 22 }, { width: 14 }];
+  xlBanner(s3, 'F', [{ text: 'MATERIAL EXCEPTIONS REQUIRING MANAGEMENT ACTION', size: 13.5, bold: true, color: GOV_XLSX_COLORS.white }]);
+  xlTableHeader(s3, ['Order', 'Book value (USD)', 'Stage', 'Issue', 'Owner', 'Due']);
+  const excFill = { Settlement: GOV_XLSX_COLORS.blueBg, Receipt: GOV_XLSX_COLORS.amberBg, Refining: GOV_XLSX_COLORS.grayBg, Eligibility: GOV_XLSX_COLORS.redBg };
+  const excText = { Settlement: GOV_XLSX_COLORS.blueText, Receipt: GOV_XLSX_COLORS.amberText, Refining: GOV_XLSX_COLORS.grayText, Eligibility: GOV_XLSX_COLORS.redText };
+  const excHeaderRow = s3.rowCount;
+  report.exceptions.forEach(function (e) {
+    const row = xlDataRow(s3, [e.order, e.book == null ? null : e.book, e.stage, e.issue, e.owner, e.due], {
+      zebra: true, rightAlignFrom: 2, numFmts: { 2: usdFmt },
+    });
+    row.getCell(3).fill = xlFill(excFill[e.stage] || GOV_XLSX_COLORS.cardBg);
+    row.getCell(3).font = { name: 'Calibri', size: 9, bold: true, color: { argb: excText[e.stage] || GOV_XLSX_COLORS.navy } };
+    row.getCell(4).alignment = { wrapText: true, vertical: 'middle' };
+  });
+  if (report.exceptions.length) s3.autoFilter = { from: 'A' + excHeaderRow, to: 'F' + excHeaderRow };
+
+  /* ---- Sheet 4: Portfolio Orders ---- */
+  const s4 = wb.addWorksheet('Portfolio Orders', sheetOpts);
+  chrome(s4);
+  s4.columns = [{ width: 16 }, { width: 22 }, { width: 22 }, { width: 15 }, { width: 16 }, { width: 16 }, { width: 16 }, { width: 10 }, { width: 10 }, { width: 10 }, { width: 12 }];
+  xlBanner(s4, 'K', [{ text: 'PORTFOLIO ORDER REGISTER', size: 13.5, bold: true, color: GOV_XLSX_COLORS.white }]);
+  xlTableHeader(s4, ['PO', 'Seller', 'Depositary', 'Fine gold (kg)', 'Book cost (USD)', 'Market value (USD)', 'Net result (USD)', 'Received', 'Refined', 'In custody', 'Eligible']);
+  const ordersHeaderRow = s4.rowCount;
+  report.govOrders.forEach(function (go) {
+    const gm = go.metrics;
+    const row = xlDataRow(s4, [go.po, go.seller || '', go.depositary || '', gm.fineKg, gm.book, gm.market, gm.net, go.received ? 'Yes' : 'No', go.refinedAccredited ? 'Yes' : 'No', go.custodyConfirmed ? 'Yes' : 'No', go.eligible ? 'Yes' : 'No'], {
+      zebra: true, rightAlignFrom: 4, numFmts: { 4: kgFmt, 5: usdFmt, 6: usdFmt, 7: usdFmt },
+    });
+    row.getCell(7).font = { name: 'Calibri', size: 9.5, bold: true, color: { argb: gm.net >= 0 ? GOV_XLSX_COLORS.positive : GOV_XLSX_COLORS.negative } };
+    [8, 9, 10, 11].forEach(function (c) {
+      const yes = row.getCell(c).value === 'Yes';
+      row.getCell(c).font = { name: 'Calibri', size: 9.5, bold: true, color: { argb: yes ? GOV_XLSX_COLORS.greenText : GOV_XLSX_COLORS.redText } };
+      row.getCell(c).alignment = { horizontal: 'center' };
+    });
+  });
+  if (report.govOrders.length) s4.autoFilter = { from: 'A' + ordersHeaderRow, to: 'K' + ordersHeaderRow };
+  s4.addRow([]);
+
+  xlSectionTitle(s4, 'K', 'Counterparty concentration');
+  xlTableHeader(s4, ['Seller', 'Orders', 'Book cost (USD)', '% of book', '', '', '', '', '', '', '']);
+  report.concentration.forEach(function (c) {
+    xlDataRow(s4, [c.seller, c.orders, c.book, report.agg.book ? c.book / report.agg.book : 0, '', '', '', '', '', '', ''], {
+      zebra: true, rightAlignFrom: 2, numFmts: { 2: '#,##0', 3: usdFmt, 4: '0.0%' },
+    });
+  });
+
+  return wb;
+}
+
+function downloadBlob(name, blob) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 50);
+}
+
+async function downloadGovernorExcel(report) {
+  const wb = await buildGovernorExcelWorkbook(report);
+  const buffer = await wb.xlsx.writeBuffer();
+  const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  downloadBlob(governorReportSlug(report) + '.xlsx', blob);
 }
 
 /* ---------- PDF drawing helpers ---------- */
@@ -2437,8 +2649,8 @@ downloadReport = async function (kind, format) {
   if (kind !== 'governor') return GOV_BASE_DOWNLOAD_REPORT(kind, format);
   try {
     const report = await buildGovernorReportData();
-    if (format === 'csv') {
-      downloadText(governorReportSlug(report) + '.csv', governorReportCsv(report), 'text/csv;charset=utf-8');
+    if (format === 'xlsx') {
+      await downloadGovernorExcel(report);
     } else {
       buildGovernorPdfDocument(report).save(governorReportSlug(report) + '.pdf');
     }
@@ -2447,6 +2659,22 @@ downloadReport = async function (kind, format) {
   } catch (error) {
     console.error('Governor report error', error);
     toast(document.documentElement.lang === 'fr' ? 'Impossible de générer le rapport du Gouverneur.' : 'Unable to generate the Governor report.', true);
+  }
+};
+
+var GOV_BASE_PREVIEW_REPORT = previewReport;
+previewReport = async function (kind) {
+  if (kind !== 'governor') return GOV_BASE_PREVIEW_REPORT(kind);
+  try {
+    const report = await buildGovernorReportData();
+    const blobUrl = buildGovernorPdfDocument(report).output('bloburl');
+    const win = window.open('', '_blank', 'width=1000,height=780');
+    if (!win) { toast('Pop-up blocked. Please allow pop-ups for preview.', true); return; }
+    win.document.write('<!doctype html><html><head><title>' + REPORT_NAMES[kind] + '</title><style>html,body{margin:0;height:100%;background:#525659}iframe{border:0;width:100%;height:100%;display:block}</style></head><body><iframe src="' + blobUrl + '" title="' + REPORT_NAMES[kind] + '"></iframe></body></html>');
+    win.document.close();
+  } catch (error) {
+    console.error('Governor report preview error', error);
+    toast(document.documentElement.lang === 'fr' ? 'Impossible de générer l\'aperçu du rapport du Gouverneur.' : 'Unable to generate the Governor report preview.', true);
   }
 };
 </script>
