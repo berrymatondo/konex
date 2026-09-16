@@ -33,8 +33,6 @@ import {
   BarChart3,
   Boxes,
   CircleDollarSign,
-  ReceiptText,
-  Scale,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import useSWR from "swr";
@@ -55,10 +53,6 @@ import { getRoleLabel } from "@/lib/roles";
 type NavAccess = { allowedPaths: string[]; isAdmin: boolean };
 
 const CENTRAL_BANK_PARENT_BY_PATH: Record<string, string> = {
-  "/central-bank/purchase-orders": "transactions",
-  "/central-bank/receipt-assay": "receipts",
-  "/central-bank/pricing-settlement": "settlements",
-  "/central-bank/custody": "confirmations",
   "/central-bank/valuation": "valuations",
 };
 
@@ -353,14 +347,10 @@ function SidebarContent({
   const centralBankGroups = [
     { label: "Main", items: [{ title: language === "fr" ? "Tableau de bord" : "Dashboard", href: "/central-bank/dashboard", icon: Landmark }] },
     { label: "Gold lifecycle", items: [
-      { title: "Transactions", href: "/central-bank/transactions", icon: ArrowLeftRight, isChild: false, menuKey: "transactions" },
-      { title: language === "fr" ? "Ordre d’achat" : "Purchase Order", href: "/central-bank/purchase-orders", icon: ReceiptText, isChild: true, parentKey: "transactions" },
-      { title: language === "fr" ? "Liste des réceptions" : "Receipt List", href: "/central-bank/receipts", icon: ClipboardList, isChild: false, menuKey: "receipts" },
-      { title: language === "fr" ? "Réception et essai" : "Receipt & Assay", href: "/central-bank/receipt-assay", icon: Scale, isChild: true, parentKey: "receipts" },
-      { title: language === "fr" ? "Règlements" : "Settlements", href: "/central-bank/settlements", icon: CircleDollarSign, isChild: false, menuKey: "settlements" },
-      { title: language === "fr" ? "Tarification et règlement" : "Pricing & Settlement", href: "/central-bank/pricing-settlement", icon: CircleDollarSign, isChild: true, parentKey: "settlements" },
-      { title: language === "fr" ? "Liste des confirmations" : "Confirmation List", href: "/central-bank/confirmations", icon: Boxes, isChild: false, menuKey: "confirmations" },
-      { title: language === "fr" ? "Confirmation de conservation" : "Custody Confirmation", href: "/central-bank/custody", icon: Boxes, isChild: true, parentKey: "confirmations" },
+      { title: "Transactions", href: "/central-bank/transactions", icon: ArrowLeftRight },
+      { title: language === "fr" ? "Liste des réceptions" : "Receipt List", href: "/central-bank/receipts", icon: ClipboardList },
+      { title: language === "fr" ? "Règlements" : "Settlements", href: "/central-bank/settlements", icon: CircleDollarSign },
+      { title: language === "fr" ? "Liste des confirmations" : "Confirmation List", href: "/central-bank/confirmations", icon: Boxes },
       { title: language === "fr" ? "Valorisations" : "Valuations", href: "/central-bank/valuations", icon: BarChart3, isChild: false, menuKey: "valuations" },
       { title: language === "fr" ? "Valorisation et résultat" : "Valuation & P&L", href: "/central-bank/valuation", icon: BarChart3, isChild: true, parentKey: "valuations" },
     ]},

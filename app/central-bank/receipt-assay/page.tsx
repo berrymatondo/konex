@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation"
 
-export default async function LegacyReceiptAssayRoute({
+export default async function LegacyReceiptAssayIndexRoute({
   searchParams,
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>

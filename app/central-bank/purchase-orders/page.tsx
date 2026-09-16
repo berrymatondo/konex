@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation"
 
-export default async function LegacyReceiptAssayRoute({
+export default async function LegacyPurchaseOrdersRoute({
   searchParams,
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>
@@ -10,5 +10,5 @@ export default async function LegacyReceiptAssayRoute({
   for (const [key, value] of Object.entries(params)) {
     if (typeof value === "string") target.set(key, value)
   }
-  redirect(`/central-bank/receipts/receipt-assay${target.size ? `?${target}` : ""}`)
+  redirect(`/central-bank/transactions/purchase-orders${target.size ? `?${target}` : ""}`)
 }
